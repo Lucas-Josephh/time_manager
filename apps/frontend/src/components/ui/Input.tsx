@@ -1,5 +1,6 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 import InputError from './InputError';
+import styles from './Input.module.scss';
 
 type InputProps = ComponentPropsWithoutRef<'input'> & {
   label: string;
@@ -15,25 +16,25 @@ export default function Input({
   ...props
 }: InputProps) {
   return (
-    <div className="input-field">
+    <div className={styles.field}>
       <label htmlFor={props.id}>
         {label}
         {props.required && (
-          <span className="input-required" aria-hidden="true">
+          <span className={styles.required} aria-hidden="true">
             {' '}
             *
           </span>
         )}
       </label>
-      <div className="input-wrapper">
+      <div className={styles.wrapper}>
         {icon && (
-          <span className="input-icon" aria-hidden="true">
+          <span className={styles.icon} aria-hidden="true">
             {icon}
           </span>
         )}
         <input
           {...props}
-          className={['input', icon && 'input--with-icon', className]
+          className={[styles.input, icon && styles['input--with-icon'], className]
             .filter(Boolean)
             .join(' ')}
         />

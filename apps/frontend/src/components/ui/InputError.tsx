@@ -11,7 +11,7 @@ export default function InputError({ message, id }: InputErrorProps) {
   return (
     <div className="input-error" id={id} role="alert">
       <ExclamationCircleOutlined
-        style={{ fontSize: '10px' }}
+        style={{ fontSize: '12px' }}
         aria-hidden="true"
       />
       <p>{message}</p>

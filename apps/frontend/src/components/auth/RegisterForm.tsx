@@ -23,6 +23,7 @@ function generatePassword(): string {
     'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
 
   const randomValues = new Uint32Array(PASSWORD_LENGTH);
+
   crypto.getRandomValues(randomValues);
 
   return Array.from(
@@ -48,23 +49,6 @@ export default function RegisterForm() {
 
   const { notify } = useAppNotification();
 
-  const handleCopyPassword = async () => {
-    if (!formData.password) return;
-
-    try {
-      await navigator.clipboard.writeText(formData.password);
-      notify('success', {
-        title: 'Password copied',
-        description: 'The password has been copied to your clipboard.',
-      });
-    } catch {
-      notify('error', {
-        title: 'Unable to copy password',
-        description: 'Show the password and copy it manually.',
-      });
-    }
-  };
-
   const updateField = (field: keyof typeof formData, value: string) => {
     setFormData((previous) => ({
       ...previous,
@@ -76,23 +60,42 @@ export default function RegisterForm() {
     let isValid = true;
     const nextErrors: FormErrors = {};
 
-    if (!formData.lastName.trim() && !formData.firstName.trim()) {
+    const lettersOnly = /^\p{L}+$/u;
+    const digitsOnly = /^[0-9]+$/;
+
+    const firstName = formData.firstName.trim();
+    const lastName = formData.lastName.trim();
+    const phone = formData.phone.trim();
+    const email = formData.email.trim();
+
+    if (!lastName && !firstName) {
       nextErrors.names = 'Please enter a first name and a last name.';
       isValid = false;
-    } else if (!formData.firstName.trim()) {
-      nextErrors.firstName = 'Please enter a first name.';
-      isValid = false;
-    } else if (!formData.lastName.trim()) {
-      nextErrors.lastName = 'Please enter a last name.';
-      isValid = false;
+    } else {
+      if (!firstName) {
+        nextErrors.firstName = 'Please enter a first name.';
+        isValid = false;
+      } else if (!lettersOnly.test(firstName)) {
+        nextErrors.firstName = 'First name must contain only letters.';
+        isValid = false;
+      }
+
+      if (!lastName) {
+        nextErrors.lastName = 'Please enter a last name.';
+        isValid = false;
+      } else if (!lettersOnly.test(lastName)) {
+        nextErrors.lastName = 'Last name must contain only letters.';
+        isValid = false;
+      }
     }
 
-    if (!formData.phone.trim()) {
+    if (!phone) {
       nextErrors.phone = 'Please enter a phone number.';
       isValid = false;
+    } else if (!digitsOnly.test(phone)) {
+      nextErrors.phone = 'Phone number must contain only digits.';
+      isValid = false;
     }
-
-    const email = formData.email.trim();
 
     if (!email) {
       nextErrors.email = 'Please enter an email.';
@@ -102,13 +105,13 @@ export default function RegisterForm() {
       isValid = false;
     }
 
-    if (!formData.password) {
-      nextErrors.password = 'Please enter a password.';
-      isValid = false;
-    } else if (formData.password.length < PASSWORD_LENGTH) {
-      nextErrors.password = `The password must be at least ${PASSWORD_LENGTH} characters long.`;
-      isValid = false;
-    }
+    // if (!formData.password) {
+    //   nextErrors.password = 'Please enter a password.';
+    //   isValid = false;
+    // } else if (formData.password.length < PASSWORD_LENGTH) {
+    //   nextErrors.password = `The password must be at least ${PASSWORD_LENGTH} characters long.`;
+    //   isValid = false;
+    // }
 
     // if (!formData.confirmPassword) {
     //   nextErrors.confirmPassword = 'Please confirm the password.';
@@ -133,19 +136,35 @@ export default function RegisterForm() {
     }));
   };
 
+  const handleCopyPassword = async () => {
+    if (!formData.password) return;
+
+    try {
+      await navigator.clipboard.writeText(formData.password);
+      notify('success', {
+        title: 'Password copied',
+        description: 'The password has been copied to your clipboard.',
+      });
+    } catch {
+      notify('error', {
+        title: 'Unable to copy password',
+        description: 'Show the password and copy it manually.',
+      });
+    }
+  };
+
   const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
 
     if (!validateForm()) {
-      notify('error', {
-        title: 'Please check the form',
-        description: 'Correct the highlighted fields before continuing.',
-      });
-
       return;
     }
 
-    // Send formData to your registration API here.
+    // POST USER BLABLABLI.
+    // notify('success', {
+    //   title: 'Please check the form',
+    //   description: 'Correct the highlighted fields before continuing.',
+    // });
   };
 
   return (

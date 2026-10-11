@@ -3,6 +3,9 @@
 import Input from '@/components/ui/Input';
 import Button from '../ui/Button';
 import {
+  CopyOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
   LockOutlined,
   MailOutlined,
   PhoneOutlined,
@@ -10,16 +13,29 @@ import {
 } from '@ant-design/icons';
 import { authClient } from '@/lib/auth-client';
 import { useState } from 'react';
-import InputError from '../ui/InputError';
-import { notification } from 'antd';
+import InputMessage from '../ui/InputMessage';
+import useAppNotification from '@/hooks/useAppNotification';
 
-const PASSWORD_LENGTH = 4;
+const PASSWORD_LENGTH = 12;
+
+function generatePassword(): string {
+  const characters =
+    'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+
+  const randomValues = new Uint32Array(PASSWORD_LENGTH);
+  crypto.getRandomValues(randomValues);
+
+  return Array.from(
+    randomValues,
+    (value) => characters[value % characters.length],
+  ).join('');
+}
 
 export default function RegisterForm() {
-  type NotificationType = 'success' | 'info' | 'warning' | 'error';
   type FormErrors = Partial<Record<keyof typeof formData | 'names', string>>;
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -27,8 +43,27 @@ export default function RegisterForm() {
     phone: '',
     email: '',
     password: '',
-    confirmPassword: '',
+    // confirmPassword: '',
   });
+
+  const { notify } = useAppNotification();
+
+  const handleCopyPassword = async () => {
+    if (!formData.password) return;
+
+    try {
+      await navigator.clipboard.writeText(formData.password);
+      notify('success', {
+        title: 'Password copied',
+        description: 'The password has been copied to your clipboard.',
+      });
+    } catch {
+      notify('error', {
+        title: 'Unable to copy password',
+        description: 'Show the password and copy it manually.',
+      });
+    }
+  };
 
   const updateField = (field: keyof typeof formData, value: string) => {
     setFormData((previous) => ({
@@ -75,33 +110,38 @@ export default function RegisterForm() {
       isValid = false;
     }
 
-    if (!formData.confirmPassword) {
-      nextErrors.confirmPassword = 'Please confirm the password.';
-      isValid = false;
-    } else if (formData.confirmPassword !== formData.password) {
-      nextErrors.confirmPassword = 'The passwords are not the same.';
-      isValid = false;
-    }
+    // if (!formData.confirmPassword) {
+    //   nextErrors.confirmPassword = 'Please confirm the password.';
+    //   isValid = false;
+    // } else if (formData.confirmPassword !== formData.password) {
+    //   nextErrors.confirmPassword = 'The passwords are not the same.';
+    //   isValid = false;
+    // }
 
     setErrors(nextErrors);
     return isValid;
   };
 
-  const [api, contextHolder] = notification.useNotification();
+  const handleFormFocus = () => {
+    if (formData.password) return;
 
-  const openNotificationWithIcon = (type: NotificationType) => {
-    api[type]({
-      title: 'Notification Title',
-      description:
-        'This is the content of the notification. This is the content of the notification. This is the content of the notification.',
-    });
+    const password = generatePassword();
+
+    setFormData((previous) => ({
+      ...previous,
+      password,
+    }));
   };
 
   const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
 
     if (!validateForm()) {
-      openNotificationWithIcon('error');
+      notify('error', {
+        title: 'Please check the form',
+        description: 'Correct the highlighted fields before continuing.',
+      });
+
       return;
     }
 
@@ -109,8 +149,13 @@ export default function RegisterForm() {
   };
 
   return (
-    <form className="form-gap" onSubmit={handleSubmit} noValidate>
-      {contextHolder}
+    <form
+      className="form-gap"
+      onSubmit={handleSubmit}
+      onFocus={handleFormFocus}
+      autoComplete="off"
+      noValidate
+    >
       <div className="name-group">
         <div className="name-fields">
           <Input
@@ -158,7 +203,7 @@ export default function RegisterForm() {
             }
           ></Input>
         </div>
-        <InputError message={errors.names} id="names-error" />
+        <InputMessage type="error" message={errors.names} id="names-error" />
       </div>
       <Input
         id="phone"
@@ -191,18 +236,46 @@ export default function RegisterForm() {
       <Input
         id="password"
         name="password"
-        label="Password"
-        type="password"
+        label="Temporary Password"
+        type={isPasswordVisible ? 'text' : 'password'}
         placeholder="••••••••"
         icon={<LockOutlined />}
-        required
+        actions={
+          <>
+            <button
+              type="button"
+              aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
+              title={isPasswordVisible ? 'Hide password' : 'Show password'}
+              aria-controls="password"
+              aria-pressed={isPasswordVisible}
+              onClick={() => setIsPasswordVisible((previous) => !previous)}
+            >
+              {isPasswordVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+            </button>
+            <button
+              type="button"
+              aria-label="Copy password"
+              title="Copy password"
+              disabled={!formData.password}
+              onClick={handleCopyPassword}
+            >
+              <CopyOutlined />
+            </button>
+          </>
+        }
+        readOnly
         value={formData.password}
+        message={
+          formData.password
+            ? 'A temporary password has been generated automatically. The employee will be asked to change it upon their first login.'
+            : undefined
+        }
         error={errors.password}
         onChange={(event) => updateField('password', event.currentTarget.value)}
         aria-invalid={Boolean(errors.password)}
         aria-describedby={errors.password ? 'password-error' : undefined}
       ></Input>
-      <Input
+      {/* <Input
         id="confirmPassword"
         name="confirmPassword"
         label="Confirm Password"
@@ -219,7 +292,7 @@ export default function RegisterForm() {
         onChange={(event) =>
           updateField('confirmPassword', event.currentTarget.value)
         }
-      ></Input>
+      ></Input> */}
       <Button type="submit" className="full-width">
         Create account
       </Button>

@@ -1,20 +1,28 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
-import InputError from './InputError';
+import InputMessage from './InputMessage';
 import styles from './Input.module.scss';
 
 type InputProps = ComponentPropsWithoutRef<'input'> & {
   label: string;
   icon?: ReactNode;
+  actions?: ReactNode;
+  message?: string;
   error?: string;
 };
 
 export default function Input({
   label,
   icon,
+  actions,
+  message,
   error,
   className,
   ...props
 }: InputProps) {
+  const messageId = props.id
+    ? `${props.id}-${error ? 'error' : 'message'}`
+    : undefined;
+
   return (
     <div className={styles.field}>
       <label htmlFor={props.id}>
@@ -34,14 +42,19 @@ export default function Input({
         )}
         <input
           {...props}
-          className={[styles.input, icon && styles['input--with-icon'], className]
+          aria-describedby={
+            props['aria-describedby'] ?? (error || message ? messageId : undefined)
+          }
+          className={[styles.input, icon && styles['input--with-icon'], actions && styles['input--with-actions'], className]
             .filter(Boolean)
             .join(' ')}
         />
+        {actions && <div className={styles.actions}>{actions}</div>}
       </div>
-      <InputError
-        message={error}
-        id={props.id ? `${props.id}-error` : undefined}
+      <InputMessage
+        type={error ? 'error' : 'info'}
+        message={error || message}
+        id={messageId}
       />
     </div>
   );

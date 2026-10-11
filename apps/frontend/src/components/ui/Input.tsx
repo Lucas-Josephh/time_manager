@@ -8,6 +8,7 @@ type InputProps = ComponentPropsWithoutRef<'input'> & {
   actions?: ReactNode;
   message?: string;
   error?: string;
+  wrapperClassName?: string;
 };
 
 export default function Input({
@@ -17,6 +18,8 @@ export default function Input({
   message,
   error,
   className,
+  wrapperClassName,
+
   ...props
 }: InputProps) {
   const messageId = props.id
@@ -24,7 +27,7 @@ export default function Input({
     : undefined;
 
   return (
-    <div className={styles.field}>
+    <div className={[styles.field, wrapperClassName].filter(Boolean).join(' ')}>
       <label htmlFor={props.id}>
         {label}
         {props.required && (
@@ -43,9 +46,15 @@ export default function Input({
         <input
           {...props}
           aria-describedby={
-            props['aria-describedby'] ?? (error || message ? messageId : undefined)
+            props['aria-describedby'] ??
+            (error || message ? messageId : undefined)
           }
-          className={[styles.input, icon && styles['input--with-icon'], actions && styles['input--with-actions'], className]
+          className={[
+            styles.input,
+            icon && styles['input--with-icon'],
+            actions && styles['input--with-actions'],
+            className,
+          ]
             .filter(Boolean)
             .join(' ')}
         />

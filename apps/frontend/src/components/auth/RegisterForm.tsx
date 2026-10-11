@@ -2,19 +2,19 @@
 
 import Input from '@/components/ui/Input';
 import Button from '../ui/Button';
+import TemporaryPasswordField from './TemporaryPasswordField';
 import {
-  CopyOutlined,
-  EyeInvisibleOutlined,
-  EyeOutlined,
-  LockOutlined,
+  CheckCircleTwoTone,
   MailOutlined,
   PhoneOutlined,
   UserOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { authClient } from '@/lib/auth-client';
 import { useState } from 'react';
 import InputMessage from '../ui/InputMessage';
 import useAppNotification from '@/hooks/useAppNotification';
+import { Modal } from 'antd';
 
 const PASSWORD_LENGTH = 12;
 
@@ -37,6 +37,7 @@ export default function RegisterForm() {
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -153,6 +154,18 @@ export default function RegisterForm() {
     }
   };
 
+  const showModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleOk = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleCancel = () => {
+    setIsModalOpen(false);
+  };
+
   const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
 
@@ -165,18 +178,19 @@ export default function RegisterForm() {
     //   title: 'Please check the form',
     //   description: 'Correct the highlighted fields before continuing.',
     // });
+
+    showModal();
   };
 
   return (
     <form
-      className="form-gap"
       onSubmit={handleSubmit}
       onFocus={handleFormFocus}
       autoComplete="off"
       noValidate
     >
-      <div className="name-group">
-        <div className="name-fields">
+      <div className="register-form__name-group">
+        <div className="register-form__name-fields">
           <Input
             id="firstName"
             name="firstName"
@@ -252,48 +266,20 @@ export default function RegisterForm() {
         aria-invalid={Boolean(errors.email)}
         aria-describedby={errors.email ? 'email-error' : undefined}
       ></Input>
-      <Input
-        id="password"
-        name="password"
-        label="Temporary Password"
-        type={isPasswordVisible ? 'text' : 'password'}
-        placeholder="••••••••"
-        icon={<LockOutlined />}
-        actions={
-          <>
-            <button
-              type="button"
-              aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
-              title={isPasswordVisible ? 'Hide password' : 'Show password'}
-              aria-controls="password"
-              aria-pressed={isPasswordVisible}
-              onClick={() => setIsPasswordVisible((previous) => !previous)}
-            >
-              {isPasswordVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-            </button>
-            <button
-              type="button"
-              aria-label="Copy password"
-              title="Copy password"
-              disabled={!formData.password}
-              onClick={handleCopyPassword}
-            >
-              <CopyOutlined />
-            </button>
-          </>
-        }
-        readOnly
+      <TemporaryPasswordField
+        id="register-password"
         value={formData.password}
+        isVisible={isPasswordVisible}
+        onToggleVisibility={() => setIsPasswordVisible((previous) => !previous)}
+        onCopy={handleCopyPassword}
         message={
           formData.password
             ? 'A temporary password has been generated automatically. The employee will be asked to change it upon their first login.'
             : undefined
         }
-        error={errors.password}
-        onChange={(event) => updateField('password', event.currentTarget.value)}
         aria-invalid={Boolean(errors.password)}
         aria-describedby={errors.password ? 'password-error' : undefined}
-      ></Input>
+      />
       {/* <Input
         id="confirmPassword"
         name="confirmPassword"
@@ -315,6 +301,60 @@ export default function RegisterForm() {
       <Button type="submit" className="full-width">
         Create account
       </Button>
+      <Modal
+        centered
+        closable={{ 'aria-label': 'Custom Close Button' }}
+        open={isModalOpen}
+        footer
+        onOk={handleOk}
+        onCancel={handleCancel}
+      >
+        <div className="account-created-modal">
+          <div className="account-created-modal__icon">
+            <CheckCircleTwoTone
+              twoToneColor={[
+                'var(--color-success)',
+                'var(--color-card-background)',
+              ]}
+              style={{ fontSize: '35px' }}
+            />
+          </div>
+          <h3>Employee account created!</h3>
+          <p>
+            {formData.firstName} {formData.lastName}&apos;s account is ready.
+            Share the temporary password with the employee so they can sign in.
+          </p>
+          <TemporaryPasswordField
+            id="account-created-password"
+            value={formData.password}
+            wrapperClassName="account-created-modal__password-field"
+            isVisible={isPasswordVisible}
+            onToggleVisibility={() =>
+              setIsPasswordVisible((previous) => !previous)
+            }
+            onCopy={handleCopyPassword}
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={errors.password ? 'password-error' : undefined}
+          />
+          <div className="warning-card">
+            <WarningOutlined />
+            <div>
+              <h4>
+                Save this password before continuing <br />
+              </h4>
+              <p>
+                This password will only be shown once. Make sure to copy it
+                before closing this window.
+              </p>
+            </div>
+          </div>
+          <InputMessage
+            type="info"
+            message="The employee must change this password on their first login."
+            id="names-error"
+          />
+        </div>
+      </Modal>
     </form>
   );
 }

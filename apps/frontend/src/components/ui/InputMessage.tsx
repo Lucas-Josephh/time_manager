@@ -1,4 +1,7 @@
-import { ExclamationCircleOutlined } from '@ant-design/icons';
+import {
+  ExclamationCircleOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
 
 type InputMessageProps = {
   message?: string;
@@ -20,6 +23,9 @@ export default function InputMessage({ message, id, type }: InputMessageProps) {
           style={{ fontSize: '12px' }}
           aria-hidden="true"
         />
+      )}
+      {type === 'info' && (
+        <InfoCircleOutlined style={{ fontSize: '12px' }} aria-hidden="true" />
       )}
       <p>{message}</p>
     </div>

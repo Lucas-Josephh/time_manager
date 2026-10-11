@@ -9,7 +9,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
       theme={{
         components: {
           Notification: {
-            width: 360,
+            width: 400,
             borderRadiusLG: 12,
           },
         },

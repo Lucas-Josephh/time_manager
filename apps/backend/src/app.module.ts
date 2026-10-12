@@ -7,7 +7,6 @@ import { PrismaModule } from './prisma/prisma.module';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { ResponseDemoController } from './response-demo.controller';
 
 @Module({
   imports: [
@@ -21,7 +20,7 @@ import { ResponseDemoController } from './response-demo.controller';
     PrismaModule,
     AuthModule,
   ],
-  controllers: [AppController, ResponseDemoController],
+  controllers: [AppController],
   providers: [
     {
       provide: APP_INTERCEPTOR,

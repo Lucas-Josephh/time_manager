@@ -299,29 +299,6 @@ session reste dans le circuit NestJS : ses réponses et ses exceptions non gér�
 sont traitées par l'interceptor et le filtre. C'est le handler HTTP Better Auth
 sous `/api/auth`, et non tout code utilisant Better Auth, qui suit le circuit distinct.
 
-### Contrôleur temporaire de démonstration
-
-`ResponseDemoController` expose des routes publiques sans accès à la base de
-données pour observer l'interceptor et le filtre. Elles sont également visibles
-dans Swagger sous « Démonstration temporaire des réponses ».
-
-| Route GET | Statut | Message | Résultat |
-| --------- | ------ | ------- | -------- |
-| `/api/response-demo/success` | 200 | `demo_successful` | Objet utilisateur fictif |
-| `/api/response-demo/default` | 200 | `request_successful` | Message sans décorateur |
-| `/api/response-demo/list` | 200 | `demo_users_retrieved` | Liste de deux utilisateurs fictifs |
-| `/api/response-demo/empty` | 200 | `demo_empty_result` | Retour `null` transformé en `{}` |
-| `/api/response-demo/not-found` | 404 | `demo_user_not_found` | Erreur personnalisée |
-| `/api/response-demo/not-found-with-data?userId=123` | 404 | `user_not_found` | Valeur de remplacement dans `data.userId` (123 par défaut) |
-| `/api/response-demo/bad-request` | 400 | `bad_request` | Phrase remplacée par un code par défaut |
-| `/api/response-demo/server-error` | 500 | `internal_server_error` | Détails masqués et journalisés côté serveur |
-
-Exemple : `curl -i http://localhost:3001/api/response-demo/not-found`.
-La route `server-error` produit volontairement une erreur dans les logs.
-Pour retirer cette démonstration, supprimer
-`apps/backend/src/response-demo.controller.ts` et retirer son import ainsi que
-son entrée dans `controllers` de `AppModule`.
-
 ### Authentification Better Auth
 
 Les principales routes utilisées par le frontend sont :

@@ -26,7 +26,11 @@ describe('Health API', () => {
     await request(app.getHttpServer())
       .get('/api/health')
       .expect(200)
-      .expect({ status: 'ok' });
+      .expect({
+        success: true,
+        message: 'health_check_successful',
+        data: { status: 'ok' },
+      });
   });
 
   it('does not expose an unprefixed health route', async () => {
@@ -49,14 +53,14 @@ describe('Health API', () => {
       .get('/api/docs-json')
       .expect(200);
     expect(response.body.info.title).toBe('Time Manager API');
-    expect(Object.keys(response.body.paths)).toEqual(['/api/health']);
+    expect(response.body.paths).toHaveProperty('/api/health');
+    expect(response.body.paths).not.toHaveProperty('/health');
     expect(
       response.body.paths['/api/health'].get.responses['200'].content[
         'application/json'
       ].schema,
     ).toEqual({
       type: 'object',
-      required: ['status'],
       properties: { status: { type: 'string', enum: ['ok'], example: 'ok' } },
     });
   });

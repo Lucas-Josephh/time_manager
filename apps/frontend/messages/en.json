@@ -1,0 +1,77 @@
+{
+  "Common": {
+    "appName": "Tempoo",
+    "appDescription": "Employee time tracking",
+    "logoAlt": "Tempoo logo",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "phone": "Phone",
+    "email": "Email",
+    "temporaryPassword": "Temporary password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "copyPassword": "Copy password",
+    "close": "Close",
+    "done": "Done",
+    "loading": "Loading…",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "unexpectedError": "An error occurred.",
+    "or": "Or",
+    "continueWithMicrosoft": "Continue with Microsofr"
+  },
+  "HomePage": {
+    "header": "Header",
+    "menu": "Menu"
+  },
+  "RegisterPage": {
+    "title": "Create employee account",
+    "subtitle": "Enter the employee's details to create their account.",
+    "backToEmployees": "Back to employees",
+    "createAccount": "Create account",
+    "placeholders": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "phone": "e.g. 06 12 34 56 78",
+      "email": "you@example.com"
+    },
+    "validation": {
+      "namesRequired": "Please enter a first name and a last name.",
+      "firstNameRequired": "Please enter a first name.",
+      "firstNameLettersOnly": "First name must contain only letters.",
+      "lastNameRequired": "Please enter a last name.",
+      "lastNameLettersOnly": "Last name must contain only letters.",
+      "phoneRequired": "Please enter a phone number.",
+      "phoneDigitsOnly": "Phone number must contain only digits.",
+      "emailRequired": "Please enter an email.",
+      "emailInvalid": "Invalid email."
+    },
+    "notifications": {
+      "passwordCopiedTitle": "Password copied",
+      "passwordCopiedDescription": "The password has been copied to your clipboard.",
+      "passwordCopyFailedTitle": "Unable to copy password",
+      "passwordCopyFailedDescription": "Show the password and copy it manually."
+    },
+    "temporaryPasswordHelp": "A temporary password has been generated automatically. The employee will be asked to change it upon their first login.",
+    "success": {
+      "title": "Employee account created!",
+      "description": "The account for {firstName} {lastName} is ready. Share the temporary password with the employee so they can sign in.",
+      "createAnother": "Create another",
+      "savePasswordTitle": "Save this password before continuing",
+      "savePasswordDescription": "This password will only be shown once. Make sure to copy it before closing this window.",
+      "passwordChangeRequired": "The employee must change this password on their first login."
+    }
+  },
+  "LoginExamplePage": {
+    "microsoftCallbackError": "Microsoft sign-in was denied. Check that your account belongs to our organization and that your email address has been added to Time Manager.",
+    "microsoftSignInFailed": "Microsoft sign-in failed.",
+    "signInFailed": "Sign-in failed.",
+    "signOutFailed": "Sign-out failed.",
+    "greeting": "Hello {name}",
+    "signInHelp": "Sign in with your authorized account.",
+    "signInWithMicrosoft": "Sign in with Microsoft 365",
+    "microsoftAccountHelp": "Use the Microsoft 365 account whose email address was added by your administrator. The accounts are linked automatically on your first sign-in.",
+    "passwordLabel": "Time Manager password",
+    "sessionCheckFailed": "Unable to verify the session."
+  }
+}

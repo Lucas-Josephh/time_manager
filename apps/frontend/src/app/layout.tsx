@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import AppProvider from '@/components/providers/AppProvider';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getTranslations } from 'next-intl/server';
 import './globals.scss';
 
 const inter = Inter({
@@ -8,18 +10,25 @@ const inter = Inter({
   display: 'swap',
 });
 
-export const metadata: Metadata = {
-  title: 'Time Manager',
-  description: 'Employee time tracking',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('Common');
+  return {
+    title: t('appName'),
+    description: t('appDescription'),
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
+
   return (
-    <html lang="fr">
+    <html lang={locale}>
       <body className={inter.className}>
-        <AppProvider>{children}</AppProvider>
+        <NextIntlClientProvider>
+          <AppProvider>{children}</AppProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

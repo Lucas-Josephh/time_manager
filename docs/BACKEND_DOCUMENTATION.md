@@ -123,13 +123,204 @@ Utiliser un email en minuscules, le seeder ne le normalisant pas.
 
 | Route                | Réponse ou contenu                                                 |
 | -------------------- | ------------------------------------------------------------------ |
-| `GET /api/health`    | `{ "status": "ok" }` public, ne vérifie pas la connexion à la base |
+| `GET /api/health`    | `{ "success": true, "message": "request_successful", "data": { "status": "ok" } }` public, ne vérifie pas la connexion à la base |
 | `GET /api/docs`      | Interface Swagger des contrôleurs NestJS                           |
 | `GET /api/docs-json` | Document OpenAPI JSON                                              |
 | `GET /api/docs-yaml` | Document OpenAPI YAML                                              |
 
 Swagger documente les contrôleurs NestJS uniquement. Le handler Better Auth,
 monté sous `/api/auth`, n'est pas inclus dans ce document.
+
+### Répondre depuis un contrôleur NestJS
+
+Les réponses JSON des contrôleurs NestJS utilisent cette enveloppe :
+
+```json
+{
+  "success": true,
+  "message": "users_retrieved",
+  "data": []
+}
+```
+
+- `success` indique si la requête a réussi.
+- `message` est un code en `snake_case`, par exemple `users_retrieved` ou
+  `user_not_found`. Ce code permet au frontend de choisir le texte à afficher.
+- `data` contient les données retournées par le contrôleur : objet, liste ou
+  autre valeur JSON. Un retour `null` ou `undefined` devient `{}`.
+
+`ResponseInterceptor` et `HttpExceptionFilter` sont enregistrés globalement
+dans `AppModule` via `APP_INTERCEPTOR` et `APP_FILTER`.
+
+#### Retourner un succès
+
+Retourner uniquement les données depuis le contrôleur et choisir le message
+avec `@ResponseMessage(...)`. Exemple pour un futur contrôleur utilisateurs :
+
+```ts
+import { Controller, Get } from '@nestjs/common';
+import { ResponseMessage } from './common/decorator/response-message.decorator';
+
+@Controller('users')
+export class UsersController {
+  @Get()
+  @ResponseMessage('users_retrieved')
+  findAll() {
+    return [{ id: '123', firstname: 'Alice' }];
+  }
+}
+```
+
+Cet exemple suppose un contrôleur placé directement dans `src` ; adapter le
+chemin de l'import à son emplacement et enregistrer le contrôleur dans un module.
+L'interceptor transforme son résultat en :
+
+```json
+{
+  "success": true,
+  "message": "users_retrieved",
+  "data": [{ "id": "123", "firstname": "Alice" }]
+}
+```
+
+Le décorateur stocke le message dans les métadonnées de la méthode ;
+l'interceptor le lit avec `Reflector`. Sans décorateur, le message est
+`request_successful`. Il peut aussi être défini sur la classe du contrôleur ;
+le message de la méthode est prioritaire.
+
+**Ne pas retourner soi-même `{ success, message, data }` dans le contrôleur** :
+l'interceptor ajouterait une seconde enveloppe. Utiliser le retour normal de
+la méthode ; une réponse envoyée directement avec `@Res()` contourne cette
+transformation.
+
+#### Retourner une erreur
+
+Lever une exception NestJS depuis le contrôleur ou le service :
+
+```ts
+import { NotFoundException } from '@nestjs/common';
+
+throw new NotFoundException('user_not_found');
+```
+
+Le filtre renvoie le statut HTTP **404** avec :
+
+```json
+{
+  "success": false,
+  "message": "user_not_found",
+  "data": {}
+}
+```
+
+Le message personnalisé est accepté pour les erreurs HTTP inférieures à 500
+s'il respecte `^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$`. Une phrase ou une liste de
+messages utilise le code par défaut du statut :
+
+| Statut HTTP | Message par défaut |
+| ----------- | ------------------ |
+| 400 | `bad_request` |
+| 401 | `unauthorized` |
+| 403 | `forbidden` |
+| 404 | `not_found` |
+| 405 | `method_not_allowed` |
+| 409 | `conflict` |
+| 422 | `validation_failed` |
+| 429 | `too_many_requests` |
+| Autre statut inférieur à 500 | `request_failed` |
+| 500 et plus | `internal_server_error` |
+
+Une exception inattendue produit un statut 500. Les détails des erreurs serveur
+sont journalisés côté backend ; la réponse contient uniquement
+`internal_server_error` et `data: {}`. Le filtre traite les exceptions non gérées :
+retourner un objet d'erreur au lieu de lever une exception serait considéré
+comme un succès par l'interceptor.
+
+Conserver les statuts HTTP appropriés : 200 pour une lecture, 201 pour une
+création, 404 pour une ressource absente, etc. Pour retourner cette enveloppe
+JSON, ne pas utiliser 204, car ce statut ne contient pas de corps.
+Documenter également l'enveloppe réelle dans les schémas Swagger ;
+l'interceptor ne met pas à jour automatiquement les annotations OpenAPI.
+Le schéma Swagger actuel de `/api/health` décrit encore seulement son objet
+interne `{ "status": "ok" }`.
+
+#### Transmettre des valeurs de remplacement pour une erreur
+
+Conserver `message` comme code de traduction et transmettre les valeurs à
+remplacer dans `data`. Exemple depuis un contrôleur ou un service :
+
+```ts
+throw new NotFoundException({
+  message: 'user_not_found',
+  data: { userId: '123' },
+});
+```
+
+La réponse HTTP 404 devient :
+
+```json
+{
+  "success": false,
+  "message": "user_not_found",
+  "data": { "userId": "123" }
+}
+```
+
+Côté frontend, la traduction `user_not_found` peut être
+« L’utilisateur {userId} est introuvable. ». Le frontend remplace `{userId}`
+par `data.userId`, pour afficher « L’utilisateur 123 est introuvable. ».
+L'API transmet le code et les valeurs ; elle n'effectue pas la traduction.
+
+Le filtre transmet `data` uniquement pour une erreur HTTP inférieure à 500
+avec un code de message valide et un objet `data` non nul, qui n'est pas un
+tableau. Sinon, `data` reste `{}`. Les erreurs serveur conservent toujours
+`internal_server_error` et `data: {}`. Ces valeurs étant visibles par le client,
+inclure uniquement les informations nécessaires à l'affichage.
+
+#### Better Auth : circuit de réponse distinct
+
+**Les routes `/api/auth/*` gérées par Better Auth ne passent pas par
+`ResponseInterceptor` ni par `HttpExceptionFilter` NestJS. Elles ne reçoivent
+donc pas l'enveloppe `{ success, message, data }`, y compris pour leurs erreurs.**
+
+Dans `apps/backend/src/configure-app.ts`, elles sont prises en charge directement
+par le middleware :
+
+```ts
+app.use('/api/auth', toNodeHandler(app.get(AuthService).auth));
+```
+
+Better Auth construit ses propres réponses et conserve le format attendu par
+son client frontend. Par exemple, `/api/auth/get-session` retourne
+`{ session, user }` ou `null`, sans enveloppe NestJS.
+
+Un contrôleur NestJS qui utilise `AuthService` ou `AuthGuard` pour vérifier une
+session reste dans le circuit NestJS : ses réponses et ses exceptions non gérées
+sont traitées par l'interceptor et le filtre. C'est le handler HTTP Better Auth
+sous `/api/auth`, et non tout code utilisant Better Auth, qui suit le circuit distinct.
+
+### Contrôleur temporaire de démonstration
+
+`ResponseDemoController` expose des routes publiques sans accès à la base de
+données pour observer l'interceptor et le filtre. Elles sont également visibles
+dans Swagger sous « Démonstration temporaire des réponses ».
+
+| Route GET | Statut | Message | Résultat |
+| --------- | ------ | ------- | -------- |
+| `/api/response-demo/success` | 200 | `demo_successful` | Objet utilisateur fictif |
+| `/api/response-demo/default` | 200 | `request_successful` | Message sans décorateur |
+| `/api/response-demo/list` | 200 | `demo_users_retrieved` | Liste de deux utilisateurs fictifs |
+| `/api/response-demo/empty` | 200 | `demo_empty_result` | Retour `null` transformé en `{}` |
+| `/api/response-demo/not-found` | 404 | `demo_user_not_found` | Erreur personnalisée |
+| `/api/response-demo/not-found-with-data?userId=123` | 404 | `user_not_found` | Valeur de remplacement dans `data.userId` (123 par défaut) |
+| `/api/response-demo/bad-request` | 400 | `bad_request` | Phrase remplacée par un code par défaut |
+| `/api/response-demo/server-error` | 500 | `internal_server_error` | Détails masqués et journalisés côté serveur |
+
+Exemple : `curl -i http://localhost:3001/api/response-demo/not-found`.
+La route `server-error` produit volontairement une erreur dans les logs.
+Pour retirer cette démonstration, supprimer
+`apps/backend/src/response-demo.controller.ts` et retirer son import ainsi que
+son entrée dans `controllers` de `AppModule`.
 
 ### Authentification Better Auth
 

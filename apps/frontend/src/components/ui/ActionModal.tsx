@@ -1,6 +1,7 @@
 'use client';
 
 import { Modal } from 'antd';
+import { useTranslations } from 'next-intl';
 import Button from './Button';
 
 type ModalAction = {
@@ -29,10 +30,11 @@ export default function ActionModal({
   primaryAction,
   secondaryAction,
 }: ActionModalProps) {
+  const t = useTranslations('Common');
   return (
     <Modal
       centered
-      closable={{ 'aria-label': 'Custom Close Button' }}
+      closable={{ 'aria-label': t('close') }}
       open={open}
       footer
       onCancel={onClose}

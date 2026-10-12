@@ -7,6 +7,7 @@ import {
   LockOutlined,
 } from '@ant-design/icons';
 import Input from '@/components/ui/Input';
+import { useTranslations } from 'next-intl';
 
 type TemporaryPasswordFieldProps = {
   id: string;
@@ -30,14 +31,15 @@ export default function TemporaryPasswordField({
   onCopy,
   ...accessibilityProps
 }: TemporaryPasswordFieldProps) {
-  const visibilityLabel = isVisible ? 'Hide password' : 'Show password';
+  const t = useTranslations('Common');
+  const visibilityLabel = isVisible ? t('hidePassword') : t('showPassword');
 
   return (
     <Input
       {...accessibilityProps}
       id={id}
       name="password"
-      label="Temporary Password"
+      label={t('temporaryPassword')}
       type={isVisible ? 'text' : 'password'}
       placeholder="••••••••"
       icon={<LockOutlined />}
@@ -56,8 +58,8 @@ export default function TemporaryPasswordField({
           </button>
           <button
             type="button"
-            aria-label="Copy password"
-            title="Copy password"
+            aria-label={t('copyPassword')}
+            title={t('copyPassword')}
             disabled={!value}
             onClick={onCopy}
           >

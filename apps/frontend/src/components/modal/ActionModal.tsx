@@ -2,7 +2,7 @@
 
 import { Modal } from 'antd';
 import { useTranslations } from 'next-intl';
-import Button from './Button';
+import Button from '../button/Button';
 
 type ModalAction = {
   label: string;

@@ -1,7 +1,6 @@
 'use client';
 
-import Input from '@/components/ui/Input';
-import Button from '../ui/Button';
+import Input from '@/components/input/Input';
 import TemporaryPasswordField from './TemporaryPasswordField';
 import {
   CheckCircleTwoTone,
@@ -13,9 +12,10 @@ import {
 import { authClient } from '@/lib/auth-client';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import InputMessage from '../ui/InputMessage';
 import useAppNotification from '@/hooks/useAppNotification';
-import ActionModal from '../ui/ActionModal';
+import Button from '@/components/button/Button';
+import InputMessage from '@/components/input/InputMessage';
+import ActionModal from '@/components/modal/ActionModal';
 
 const PASSWORD_LENGTH = 12;
 

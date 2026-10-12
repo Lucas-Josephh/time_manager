@@ -6,7 +6,7 @@ import {
   EyeOutlined,
   LockOutlined,
 } from '@ant-design/icons';
-import Input from '@/components/ui/Input';
+import Input from '@/components/input/Input';
 import { useTranslations } from 'next-intl';
 
 type TemporaryPasswordFieldProps = {

@@ -1,8 +1,8 @@
-import AuthHeader from '@/components/auth/AuthHeader';
 import { ConfigProvider } from 'antd';
 import RegisterForm from './RegisterForm';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import AuthHeader from './AuthHeader';
 
 export default function RegisterView() {
   const t = useTranslations('RegisterPage');

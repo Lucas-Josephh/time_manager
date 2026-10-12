@@ -1,5 +1,5 @@
 import type { ComponentPropsWithoutRef } from 'react';
-import styles from './Button.module.scss';
+import './Button.scss';
 
 type ButtonProps = ComponentPropsWithoutRef<'button'> & {
   variant?: 'primary' | 'secondary';
@@ -15,7 +15,7 @@ export default function Button({
   return (
     <button
       type={type}
-      className={[styles.button, styles[variant], className]
+      className={["button", variant, className]
         .filter(Boolean)
         .join(' ')}
       {...props}

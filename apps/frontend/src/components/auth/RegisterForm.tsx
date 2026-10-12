@@ -14,7 +14,7 @@ import { authClient } from '@/lib/auth-client';
 import { useState } from 'react';
 import InputMessage from '../ui/InputMessage';
 import useAppNotification from '@/hooks/useAppNotification';
-import { Modal } from 'antd';
+import ActionModal from '../ui/ActionModal';
 
 const PASSWORD_LENGTH = 12;
 
@@ -38,6 +38,11 @@ export default function RegisterForm() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // const [isPasswordWarningOpen, setIsPasswordWarningOpen] = useState(false);
+  // const [hasCopiedPassword, setHasCopiedPassword] = useState(false);
+  // const [pendingAction, setPendingAction] = useState<
+  //   'close' | 'createAnother' | null
+  // >(null);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -45,7 +50,6 @@ export default function RegisterForm() {
     phone: '',
     email: '',
     password: '',
-    // confirmPassword: '',
   });
 
   const { notify } = useAppNotification();
@@ -106,22 +110,6 @@ export default function RegisterForm() {
       isValid = false;
     }
 
-    // if (!formData.password) {
-    //   nextErrors.password = 'Please enter a password.';
-    //   isValid = false;
-    // } else if (formData.password.length < PASSWORD_LENGTH) {
-    //   nextErrors.password = `The password must be at least ${PASSWORD_LENGTH} characters long.`;
-    //   isValid = false;
-    // }
-
-    // if (!formData.confirmPassword) {
-    //   nextErrors.confirmPassword = 'Please confirm the password.';
-    //   isValid = false;
-    // } else if (formData.confirmPassword !== formData.password) {
-    //   nextErrors.confirmPassword = 'The passwords are not the same.';
-    //   isValid = false;
-    // }
-
     setErrors(nextErrors);
     return isValid;
   };
@@ -142,6 +130,7 @@ export default function RegisterForm() {
 
     try {
       await navigator.clipboard.writeText(formData.password);
+      // setHasCopiedPassword(true);
       notify('success', {
         title: 'Password copied',
         description: 'The password has been copied to your clipboard.',
@@ -158,11 +147,24 @@ export default function RegisterForm() {
     setIsModalOpen(true);
   };
 
-  const handleOk = () => {
+  const resetForAnotherAccount = () => {
+    setFormData({
+      firstName: '',
+      lastName: '',
+      phone: '',
+      email: '',
+      password: '',
+    });
+    setErrors({});
+    setIsPasswordVisible(false);
     setIsModalOpen(false);
   };
 
-  const handleCancel = () => {
+  const handleCreateAnother = () => {
+    resetForAnotherAccount();
+  };
+
+  const handleCloseAccountModal = () => {
     setIsModalOpen(false);
   };
 
@@ -174,10 +176,6 @@ export default function RegisterForm() {
     }
 
     // POST USER BLABLABLI.
-    // notify('success', {
-    //   title: 'Please check the form',
-    //   description: 'Correct the highlighted fields before continuing.',
-    // });
 
     showModal();
   };
@@ -280,81 +278,65 @@ export default function RegisterForm() {
         aria-invalid={Boolean(errors.password)}
         aria-describedby={errors.password ? 'password-error' : undefined}
       />
-      {/* <Input
-        id="confirmPassword"
-        name="confirmPassword"
-        label="Confirm Password"
-        type="password"
-        placeholder="••••••••"
-        icon={<LockOutlined />}
-        required
-        value={formData.confirmPassword}
-        error={errors.confirmPassword}
-        aria-invalid={Boolean(errors.confirmPassword)}
-        aria-describedby={
-          errors.confirmPassword ? 'confirmPassword-error' : undefined
-        }
-        onChange={(event) =>
-          updateField('confirmPassword', event.currentTarget.value)
-        }
-      ></Input> */}
       <Button type="submit" className="full-width">
         Create account
       </Button>
-      <Modal
-        centered
-        closable={{ 'aria-label': 'Custom Close Button' }}
+      <ActionModal
         open={isModalOpen}
-        footer
-        onOk={handleOk}
-        onCancel={handleCancel}
-      >
-        <div className="account-created-modal">
-          <div className="account-created-modal__icon">
-            <CheckCircleTwoTone
-              twoToneColor={[
-                'var(--color-success)',
-                'var(--color-card-background)',
-              ]}
-              style={{ fontSize: '35px' }}
-            />
-          </div>
-          <h3>Employee account created!</h3>
-          <p>
+        onClose={handleCloseAccountModal}
+        icon={
+          <CheckCircleTwoTone
+            twoToneColor={[
+              'var(--color-success)',
+              'var(--color-card-background)',
+            ]}
+            style={{ fontSize: '35px' }}
+          />
+        }
+        title="Employee account created!"
+        description={
+          <>
             {formData.firstName} {formData.lastName}&apos;s account is ready.
             Share the temporary password with the employee so they can sign in.
-          </p>
-          <TemporaryPasswordField
-            id="account-created-password"
-            value={formData.password}
-            wrapperClassName="account-created-modal__password-field"
-            isVisible={isPasswordVisible}
-            onToggleVisibility={() =>
-              setIsPasswordVisible((previous) => !previous)
-            }
-            onCopy={handleCopyPassword}
-            aria-invalid={Boolean(errors.password)}
-            aria-describedby={errors.password ? 'password-error' : undefined}
-          />
-          <div className="warning-card">
-            <WarningOutlined />
-            <div>
-              <h4>
-                Save this password before continuing <br />
-              </h4>
-              <p>
-                This password will only be shown once. Make sure to copy it
-                before closing this window.
-              </p>
-            </div>
+          </>
+        }
+        primaryAction={{
+          label: 'Done',
+          onClick: handleCloseAccountModal,
+        }}
+        secondaryAction={{
+          label: 'Create another',
+          onClick: handleCreateAnother,
+        }}
+      >
+        <TemporaryPasswordField
+          id="account-created-password"
+          value={formData.password}
+          wrapperClassName="account-created-modal__password-field"
+          isVisible={isPasswordVisible}
+          onToggleVisibility={() =>
+            setIsPasswordVisible((previous) => !previous)
+          }
+          onCopy={handleCopyPassword}
+        />
+
+        <div className="warning-card">
+          <WarningOutlined />
+          <div>
+            <h4>Save this password before continuing</h4>
+            <p>
+              This password will only be shown once. Make sure to copy it before
+              closing this window.
+            </p>
           </div>
-          <InputMessage
-            type="info"
-            message="The employee must change this password on their first login."
-            id="names-error"
-          />
         </div>
-      </Modal>
+
+        <InputMessage
+          type="info"
+          message="The employee must change this password on their first login."
+          id="account-created-password-info"
+        />
+      </ActionModal>
     </form>
   );
 }

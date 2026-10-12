@@ -74,7 +74,7 @@ p {
   margin-bottom: 16px;
 }
 
-.register-form__name-fields {
+.register-form__name-fields, .account-created-modal__buttons {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
@@ -161,8 +161,12 @@ p {
     margin-bottom: 10px;
   }
 
-    > .warning-card {
+  > .warning-card {
     margin-bottom: 15px;
+  }
+
+  > .account-created-modal__buttons {
+    margin-top: 15px;
   }
 }
 
@@ -188,7 +192,7 @@ p {
 }
 
 @media (max-width: 767px) {
-  .register-form__name-fields {
+  .register-form__name-fields, .account-created-modal__buttons {
     grid-template-columns: 1fr;
   }
 }

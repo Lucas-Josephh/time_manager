@@ -3,6 +3,7 @@ import { prismaAdapter } from '@better-auth/prisma-adapter';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { i18n, locales } from '@better-auth/i18n';
+import { createAuthMiddleware, APIError } from 'better-auth/api';
 
 export function createAuth(
   prisma: PrismaService,
@@ -68,6 +69,28 @@ export function createAuth(
       enabled: true,
       requireEmailVerification: false,
       disableSignUp: true,
+      minPasswordLength: 12,
+      maxPasswordLength: 128,
+    },
+
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/sign-up/email') {
+          return;
+        }
+
+        const password = ctx.body?.password;
+
+        if (
+          typeof password !== 'string' ||
+          !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/.test(password)
+        ) {
+          throw new APIError('BAD_REQUEST', {
+            message:
+              'Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial.',
+          });
+        }
+      }),
     },
     user: {
       fields: { name: 'firstname' },
@@ -108,7 +131,16 @@ export function createAuth(
       i18n({
         defaultLocale: 'fr',
         translations: {
-          fr: locales.fr,
+          en: {
+            ...locales.en,
+            PASSWORD_REQUIREMENTS_NOT_MET:
+              'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character.',
+          },
+          fr: {
+            ...locales.fr,
+            PASSWORD_REQUIREMENTS_NOT_MET:
+              'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial.',
+          },
         },
       }),
     ],

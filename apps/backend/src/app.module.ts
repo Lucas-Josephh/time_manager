@@ -6,6 +6,8 @@ import { AppController } from './app.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { TeamsModule } from './teams/teams.module';
 import { DepartmentsModule } from './departments/departments.module';
+import { TeamsModule } from './teams/teams.module';
+import { DepartmentsModule } from './departments/departments.module';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';

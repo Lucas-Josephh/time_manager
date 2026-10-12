@@ -1,7 +1,6 @@
 'use client';
 
-import Input from '@/components/ui/Input';
-import Button from '../ui/Button';
+import Input from '@/components/input/Input';
 import TemporaryPasswordField from './TemporaryPasswordField';
 import {
   CheckCircleTwoTone,
@@ -12,9 +11,11 @@ import {
 } from '@ant-design/icons';
 import { authClient } from '@/lib/auth-client';
 import { useState } from 'react';
-import InputMessage from '../ui/InputMessage';
+import { useTranslations } from 'next-intl';
 import useAppNotification from '@/hooks/useAppNotification';
-import ActionModal from '../ui/ActionModal';
+import Button from '@/components/button/Button';
+import InputMessage from '@/components/input/InputMessage';
+import ActionModal from '@/components/modal/ActionModal';
 
 const PASSWORD_LENGTH = 12;
 
@@ -33,6 +34,8 @@ function generatePassword(): string {
 }
 
 export default function RegisterForm() {
+  const t = useTranslations('RegisterPage');
+  const common = useTranslations('Common');
   type FormErrors = Partial<Record<keyof typeof formData | 'names', string>>;
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -74,39 +77,39 @@ export default function RegisterForm() {
     const email = formData.email.trim();
 
     if (!lastName && !firstName) {
-      nextErrors.names = 'Please enter a first name and a last name.';
+      nextErrors.names = t('validation.namesRequired');
       isValid = false;
     } else {
       if (!firstName) {
-        nextErrors.firstName = 'Please enter a first name.';
+        nextErrors.firstName = t('validation.firstNameRequired');
         isValid = false;
       } else if (!lettersOnly.test(firstName)) {
-        nextErrors.firstName = 'First name must contain only letters.';
+        nextErrors.firstName = t('validation.firstNameLettersOnly');
         isValid = false;
       }
 
       if (!lastName) {
-        nextErrors.lastName = 'Please enter a last name.';
+        nextErrors.lastName = t('validation.lastNameRequired');
         isValid = false;
       } else if (!lettersOnly.test(lastName)) {
-        nextErrors.lastName = 'Last name must contain only letters.';
+        nextErrors.lastName = t('validation.lastNameLettersOnly');
         isValid = false;
       }
     }
 
     if (!phone) {
-      nextErrors.phone = 'Please enter a phone number.';
+      nextErrors.phone = t('validation.phoneRequired');
       isValid = false;
     } else if (!digitsOnly.test(phone)) {
-      nextErrors.phone = 'Phone number must contain only digits.';
+      nextErrors.phone = t('validation.phoneDigitsOnly');
       isValid = false;
     }
 
     if (!email) {
-      nextErrors.email = 'Please enter an email.';
+      nextErrors.email = t('validation.emailRequired');
       isValid = false;
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      nextErrors.email = 'Invalid email.';
+      nextErrors.email = t('validation.emailInvalid');
       isValid = false;
     }
 
@@ -132,13 +135,13 @@ export default function RegisterForm() {
       await navigator.clipboard.writeText(formData.password);
       // setHasCopiedPassword(true);
       notify('success', {
-        title: 'Password copied',
-        description: 'The password has been copied to your clipboard.',
+        title: t('notifications.passwordCopiedTitle'),
+        description: t('notifications.passwordCopiedDescription'),
       });
     } catch {
       notify('error', {
-        title: 'Unable to copy password',
-        description: 'Show the password and copy it manually.',
+        title: t('notifications.passwordCopyFailedTitle'),
+        description: t('notifications.passwordCopyFailedDescription'),
       });
     }
   };
@@ -192,9 +195,9 @@ export default function RegisterForm() {
           <Input
             id="firstName"
             name="firstName"
-            label="First Name"
+            label={common('firstName')}
             type="text"
-            placeholder="John"
+            placeholder={t('placeholders.firstName')}
             icon={<UserOutlined />}
             required
             value={formData.firstName}
@@ -214,9 +217,9 @@ export default function RegisterForm() {
           <Input
             id="lastName"
             name="lastName"
-            label="Last Name"
+            label={common('lastName')}
             type="text"
-            placeholder="Doe"
+            placeholder={t('placeholders.lastName')}
             icon={<UserOutlined />}
             required
             value={formData.lastName}
@@ -239,9 +242,9 @@ export default function RegisterForm() {
       <Input
         id="phone"
         name="phone"
-        label="Phone"
+        label={common('phone')}
         type="text"
-        placeholder="e.g. 06 12 34 56 78"
+        placeholder={t('placeholders.phone')}
         icon={<PhoneOutlined />}
         required
         value={formData.phone}
@@ -253,9 +256,9 @@ export default function RegisterForm() {
       <Input
         id="email"
         name="email"
-        label="Email"
+        label={common('email')}
         type="email"
-        placeholder="you@example.com"
+        placeholder={t('placeholders.email')}
         icon={<MailOutlined />}
         required
         value={formData.email}
@@ -270,16 +273,12 @@ export default function RegisterForm() {
         isVisible={isPasswordVisible}
         onToggleVisibility={() => setIsPasswordVisible((previous) => !previous)}
         onCopy={handleCopyPassword}
-        message={
-          formData.password
-            ? 'A temporary password has been generated automatically. The employee will be asked to change it upon their first login.'
-            : undefined
-        }
+        message={formData.password ? t('temporaryPasswordHelp') : undefined}
         aria-invalid={Boolean(errors.password)}
         aria-describedby={errors.password ? 'password-error' : undefined}
       />
       <Button type="submit" className="full-width">
-        Create account
+        {t('createAccount')}
       </Button>
       <ActionModal
         open={isModalOpen}
@@ -293,19 +292,17 @@ export default function RegisterForm() {
             style={{ fontSize: '35px' }}
           />
         }
-        title="Employee account created!"
-        description={
-          <>
-            {formData.firstName} {formData.lastName}&apos;s account is ready.
-            Share the temporary password with the employee so they can sign in.
-          </>
-        }
+        title={t('success.title')}
+        description={t('success.description', {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+        })}
         primaryAction={{
-          label: 'Done',
+          label: common('done'),
           onClick: handleCloseAccountModal,
         }}
         secondaryAction={{
-          label: 'Create another',
+          label: t('success.createAnother'),
           onClick: handleCreateAnother,
         }}
       >
@@ -323,17 +320,14 @@ export default function RegisterForm() {
         <div className="warning-card">
           <WarningOutlined />
           <div>
-            <h4>Save this password before continuing</h4>
-            <p>
-              This password will only be shown once. Make sure to copy it before
-              closing this window.
-            </p>
+            <h4>{t('success.savePasswordTitle')}</h4>
+            <p>{t('success.savePasswordDescription')}</p>
           </div>
         </div>
 
         <InputMessage
           type="info"
-          message="The employee must change this password on their first login."
+          message={t('success.passwordChangeRequired')}
           id="account-created-password-info"
         />
       </ActionModal>

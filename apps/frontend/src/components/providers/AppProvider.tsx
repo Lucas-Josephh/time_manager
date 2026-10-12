@@ -2,12 +2,17 @@
 
 import { StyleProvider } from '@ant-design/cssinjs';
 import { App, ConfigProvider } from 'antd';
+import enUS from 'antd/locale/en_US';
+import frFR from 'antd/locale/fr_FR';
+import { useLocale } from 'next-intl';
 import type { ReactNode } from 'react';
 
 export default function AppProvider({ children }: { children: ReactNode }) {
+  const locale = useLocale();
   return (
     <StyleProvider layer>
       <ConfigProvider
+        locale={locale === 'fr' ? frFR : enUS}
         theme={{
           token: {
             colorPrimary: '#2878d0',

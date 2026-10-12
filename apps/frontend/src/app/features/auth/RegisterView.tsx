@@ -1,11 +1,11 @@
-import AuthHeader from '@/components/auth/AuthHeader';
-import { ConfigProvider, Divider } from 'antd';
+import { ConfigProvider } from 'antd';
 import RegisterForm from './RegisterForm';
 import Link from 'next/link';
-import Button from '../ui/Button';
-import { FcGoogle } from 'react-icons/fc';
+import { useTranslations } from 'next-intl';
+import AuthHeader from './AuthHeader';
 
 export default function RegisterView() {
+  const t = useTranslations('RegisterPage');
   return (
     <ConfigProvider
       theme={{
@@ -19,8 +19,8 @@ export default function RegisterView() {
         <div className="screen screen--centered">
           <div className="auth-container">
             <AuthHeader
-              title="Create employee account"
-              subtitle="Enter the employee's details to create their account."
+              title={t('title')}
+              subtitle={t('subtitle')}
             ></AuthHeader>
             <div className="card">
               <RegisterForm />
@@ -33,7 +33,7 @@ export default function RegisterView() {
             </Button> */}
             </div>
             <p>
-              <Link href="/login">Back to employees</Link>
+              <Link href="/login">{t('backToEmployees')}</Link>
             </p>
           </div>
         </div>

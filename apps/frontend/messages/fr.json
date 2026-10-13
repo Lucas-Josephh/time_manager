@@ -1,6 +1,6 @@
 {
   "Common": {
-    "appName": "Time Manager",
+    "appName": "Tempoo",
     "appDescription": "Suivi du temps de travail des employés",
     "logoAlt": "Logo Tempoo",
     "firstName": "Prénom",
@@ -19,6 +19,17 @@
     "unexpectedError": "Une erreur est survenue.",
     "or": "Ou",
     "continueWithMicrosoft": "Continuer avec Microsoft"
+  },
+  "Navigation": {
+    "menu": "Menu",
+    "dashboard": "Tableau de bord",
+    "timeClock": "Pointage",
+    "timesheet": "Feuille de temps",
+    "schedule": "Planning",
+    "teams": "Équipes",
+    "employees": "Employés",
+    "requests": "Demandes",
+    "reports": "Rapports"
   },
   "HomePage": {
     "header": "En-tête",

@@ -54,6 +54,43 @@ p {
   text-transform: uppercase;
 }
 
+.dashboard-header {
+  background-color: var(--color-card-background);
+  margin: 0;
+  padding: 0;
+  grid-area: header;
+  display: flex;
+
+  p{
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.dashboard-menu {
+  background-color: #c95b17;
+  grid-area: menu;
+
+  p{
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.button.dashboard-menu-toggle {
+  display: none;
+}
+
+.dashboard-content {
+  background-color: #dd5e93;
+  grid-area: content;
+
+  p{
+    margin: 0;
+    padding: 0;
+  }
+}
+
 .auth-header {
   // background-color: #03e298;
   display: flex;
@@ -95,6 +132,16 @@ p {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+  }
+
+  &--dashboard {
+    display: grid;
+    grid-template-areas:
+    "menu header"
+    "menu content";
+    background-color: #e05252;
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
   }
 }
 
@@ -191,8 +238,29 @@ p {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1024px) {
   .register-form__name-fields, .account-created-modal__buttons {
     grid-template-columns: 1fr;
   }
+
+  .screen--dashboard {
+    grid-template-areas:
+      "header"
+      "content";
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-menu {
+    display: none;
+  }
+
+  .button.dashboard-menu-toggle {
+    display: inline-flex;
+  }
 }
+
+// @media (max-width: 600px) {
+//   .register-form__name-fields, .account-created-modal__buttons {
+//     grid-template-columns: 1fr;
+//   }
+// }

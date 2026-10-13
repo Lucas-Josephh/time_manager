@@ -21,6 +21,8 @@ describe('Microsoft authentication', () => {
       { MICROSOFT_CLIENT_SECRET: '' },
       { MICROSOFT_TENANT_ID: 'common' },
       { MICROSOFT_TENANT_ID: 'organizations' },
+      { MICROSOFT_TENANT_ID: 'consumers' },
+      { MICROSOFT_TENANT_ID: ' COMMON ' },
     ]) {
       expect(() =>
         createAuth(

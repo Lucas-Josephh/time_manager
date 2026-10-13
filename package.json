@@ -25,6 +25,7 @@
     "turbo": "2.11.7"
   },
   "dependencies": {
+    "antd": "^6.6.5",
     "@better-auth/i18n": "^1.7.7"
   }
 }

@@ -1,3 +1,7 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+
 export class DepartmentDto {
   @ApiProperty({
     description:
@@ -6,7 +10,10 @@ export class DepartmentDto {
     maximum: 255,
     example: 'Informatique',
   })
+  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(255)
   name!: string;
 }
 
-import { ApiProperty } from '@nestjs/swagger';

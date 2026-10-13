@@ -3,6 +3,7 @@ import './card.scss';
 
 export function Card({
   children,
+  className,
   title,
   subtitle,
   footer,
@@ -12,6 +13,7 @@ export function Card({
   type = 'info',
 }: {
   children?: React.ReactNode;
+  className?: string;
   title?: string;
   subtitle?: string;
   footer?: string;
@@ -21,13 +23,11 @@ export function Card({
   type?: 'info' | 'table';
 }) {
   return (
-    <div className="extranet-card card">
+    <div className={`extranet-card card ${className || ''}`}>
       <div className="extranet-card-header">
         <div className="extranet-card-header-content">
           <h3>{title}</h3>
-          {subtitle && (
-            <p className="extranet-card-header-content__subtitle">{subtitle}</p>
-          )}
+          {subtitle && <p>{subtitle}</p>}
         </div>
         {Icon ? (
           <div

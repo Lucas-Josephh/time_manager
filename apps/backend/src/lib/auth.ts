@@ -32,6 +32,14 @@ export function createAuth(
       'Microsoft authentication requires client ID, client secret and tenant ID',
     );
 
+  if (
+    tenantId &&
+    ['common', 'organizations', 'consumers'].includes(tenantId.toLowerCase())
+  )
+    throw new Error(
+      'Microsoft authentication requires a specific organization tenant',
+    );
+
   const options: BetterAuthOptions & {
     plugins: [ReturnType<typeof i18n>];
   } = {

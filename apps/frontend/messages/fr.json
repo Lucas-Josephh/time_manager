@@ -1,0 +1,77 @@
+{
+  "Common": {
+    "appName": "Time Manager",
+    "appDescription": "Suivi du temps de travail des employés",
+    "logoAlt": "Logo Tempoo",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "phone": "Téléphone",
+    "email": "Adresse e-mail",
+    "temporaryPassword": "Mot de passe temporaire",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
+    "copyPassword": "Copier le mot de passe",
+    "close": "Fermer",
+    "done": "Terminé",
+    "loading": "Chargement…",
+    "signIn": "Se connecter",
+    "signOut": "Se déconnecter",
+    "unexpectedError": "Une erreur est survenue.",
+    "or": "Ou",
+    "continueWithMicrosoft": "Continuer avec Microsoft"
+  },
+  "HomePage": {
+    "header": "En-tête",
+    "menu": "Menu"
+  },
+  "RegisterPage": {
+    "title": "Créer un compte employé",
+    "subtitle": "Renseignez les informations de l'employé pour créer son compte.",
+    "backToEmployees": "Retour aux employés",
+    "createAccount": "Créer le compte",
+    "placeholders": {
+      "firstName": "Jean",
+      "lastName": "Dupont",
+      "phone": "Ex. : 06 12 34 56 78",
+      "email": "vous@exemple.com"
+    },
+    "validation": {
+      "namesRequired": "Veuillez saisir un prénom et un nom.",
+      "firstNameRequired": "Veuillez saisir un prénom.",
+      "firstNameLettersOnly": "Le prénom doit contenir uniquement des lettres.",
+      "lastNameRequired": "Veuillez saisir un nom.",
+      "lastNameLettersOnly": "Le nom doit contenir uniquement des lettres.",
+      "phoneRequired": "Veuillez saisir un numéro de téléphone.",
+      "phoneDigitsOnly": "Le numéro de téléphone doit contenir uniquement des chiffres.",
+      "emailRequired": "Veuillez saisir une adresse e-mail.",
+      "emailInvalid": "Adresse e-mail invalide."
+    },
+    "notifications": {
+      "passwordCopiedTitle": "Mot de passe copié",
+      "passwordCopiedDescription": "Le mot de passe a été copié dans le presse-papiers.",
+      "passwordCopyFailedTitle": "Impossible de copier le mot de passe",
+      "passwordCopyFailedDescription": "Affichez le mot de passe et copiez-le manuellement."
+    },
+    "temporaryPasswordHelp": "Un mot de passe temporaire a été généré automatiquement. L'employé devra le modifier lors de sa première connexion.",
+    "success": {
+      "title": "Compte employé créé !",
+      "description": "Le compte de {firstName} {lastName} est prêt. Communiquez le mot de passe temporaire à l'employé pour qu'il puisse se connecter.",
+      "createAnother": "Créer un autre compte",
+      "savePasswordTitle": "Enregistrez ce mot de passe avant de continuer",
+      "savePasswordDescription": "Ce mot de passe ne sera affiché qu'une seule fois. Pensez à le copier avant de fermer cette fenêtre.",
+      "passwordChangeRequired": "L'employé doit modifier ce mot de passe lors de sa première connexion."
+    }
+  },
+  "LoginExamplePage": {
+    "microsoftCallbackError": "Connexion Microsoft refusée. Vérifiez que votre compte appartient à notre organisation et que votre adresse e-mail a été ajoutée dans Time Manager.",
+    "microsoftSignInFailed": "La connexion Microsoft a échoué.",
+    "signInFailed": "La connexion a échoué.",
+    "signOutFailed": "La déconnexion a échoué.",
+    "greeting": "Bonjour {name}",
+    "signInHelp": "Connectez-vous avec votre compte autorisé.",
+    "signInWithMicrosoft": "Se connecter avec Microsoft 365",
+    "microsoftAccountHelp": "Utilisez le compte Microsoft 365 dont l'adresse e-mail a été ajoutée par votre administrateur. L'association se fait automatiquement à la première connexion.",
+    "passwordLabel": "Mot de passe Time Manager",
+    "sessionCheckFailed": "Impossible de vérifier la session."
+  }
+}

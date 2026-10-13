@@ -21,6 +21,7 @@ allowBuilds:
   '@parcel/watcher': true
   '@prisma/engines': true
   '@scarf/scarf': false
+  '@swc/core': set this to true or false
   prisma: true
   sharp: true
   unrs-resolver: true

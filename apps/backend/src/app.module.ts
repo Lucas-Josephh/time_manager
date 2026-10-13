@@ -6,6 +6,9 @@ import { AppController } from './app.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { TeamsModule } from './teams/teams.module';
 import { DepartmentsModule } from './departments/departments.module';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 @Module({
   imports: [
@@ -13,7 +16,7 @@ import { DepartmentsModule } from './departments/departments.module';
       isGlobal: true,
       envFilePath: [
         resolve(__dirname, '../.env'),
-        resolve(__dirname, '../../../.env')
+        resolve(__dirname, '../../../.env'),
       ],
     }),
     PrismaModule,
@@ -22,5 +25,15 @@ import { DepartmentsModule } from './departments/departments.module';
     DepartmentsModule,
   ],
   controllers: [AppController],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ResponseInterceptor,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+  ],
 })
 export class AppModule {}

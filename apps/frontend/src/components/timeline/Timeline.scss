@@ -1,0 +1,64 @@
+.extranet-timeline {
+  width: 20%;
+
+  &-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+
+    &-content {
+      display: flex;
+      gap: 0.5rem;
+
+      &__hour {
+        font-variant-numeric: tabular-nums;
+        color: var(--color-ink-soft);
+        font-weight: 600;
+        font-size: 12.5px;
+        padding-top: 0.125rem;
+        width: 2.75rem;
+      }
+
+      &-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+
+        &__passed,
+        &__current,
+        &__waiting {
+          width: 0.5rem;
+          height: 0.5rem;
+          border-radius: 50%;
+        }
+
+        &__passed {
+          background-color: #27ae81;
+        }
+
+        &__current {
+          background-color: #2878d0;
+        }
+
+        &__waiting {
+          background-color: #cbd5e1;
+        }
+      }
+
+      &__description {
+        margin-top: 0.25rem;
+        padding-left: 1rem;
+
+        &::before {
+          content: '';
+          display: block;
+          width: 1px;
+          height: 2%;
+          background-color: #5a6b8530;
+          position: absolute;
+          left: 5.5rem;
+        }
+      }
+    }
+  }
+}

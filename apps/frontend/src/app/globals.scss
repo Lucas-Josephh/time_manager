@@ -1,0 +1,207 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --color-navy: #163250;
+  --color-primary: #2878d0;
+  --color-primary-text: #1e63af;
+  --color-success: #27ae81;
+  --color-warning: #f59e42;
+  --color-warning-text: #c95b17;
+  --color-danger: #e05252;
+  --color-info: #3b7dd8;
+  --color-card-background: #ffffff;
+  --color-background: #f4f7fa;
+  --color-border: #e6ebf2;
+  --color-ink-soft: #5a6b85;
+  --color-ink-faint: #93a2b7;
+  --color-button-shadow: #0000000d;
+  --color-accent-foreground: #1f558e;
+
+  --border-radius: 18px;
+  --border-radius-xs: 10px;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-background);
+  color: var(--color-navy);
+}
+
+h1 {
+  font-size: 30px;
+  font-weight: bold;
+  letter-spacing: -0.02em;
+}
+
+h4,
+label {
+  font-size: 13.5px;
+  font-weight: 550;
+}
+
+h3 {
+  font-weight: 600;
+  font-size: 14.5px;
+}
+
+p {
+  color: var(--color-ink-soft);
+  font-size: 12.5px;
+  margin-top: 0.125rem;
+}
+
+.text-uppercase {
+  color: var(--color-ink-faint);
+  font-size: 11.5px;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.auth-header {
+  // background-color: #03e298;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+
+  h1,
+  p {
+    margin: 0;
+  }
+}
+
+.register-form__name-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.register-form__name-fields,
+.account-created-modal__buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.register-form__name-fields > div {
+  margin-bottom: 0;
+}
+
+.screen {
+  width: 100%;
+  min-height: 100dvh;
+  // background-color: #27AE81;
+
+  &--centered {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+}
+
+.full-width {
+  width: 100%;
+}
+
+.input-message {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  &--error {
+    color: var(--color-danger);
+  }
+
+  &--info {
+    color: var(--color-primary-text);
+  }
+
+  p {
+    font-size: x-small;
+    color: inherit;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 450px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.card {
+  width: 100%;
+  background-color: var(--color-card-background);
+  // background-color: #E05252;
+  border: 1px solid var(--color-border);
+  border-radius: var(--border-radius);
+  padding: 32px;
+  margin: 40px 0px 15px;
+  box-shadow:
+    0 2px 4px rgba(22, 50, 79, 0.05),
+    0 14px 30px -18px rgba(22, 50, 79, 0.22);
+}
+
+.account-created-modal {
+  padding: 50px 10px 0px;
+
+  > .account-created-modal__icon {
+    display: flex;
+    justify-content: center;
+  }
+
+  > h3,
+  > p {
+    text-align: center;
+  }
+
+  > .account-created-modal__password-field {
+    margin-bottom: 10px;
+  }
+
+  > .warning-card {
+    margin-bottom: 15px;
+  }
+
+  > .account-created-modal__buttons {
+    margin-top: 15px;
+  }
+}
+
+.warning-card {
+  display: flex;
+  align-items: baseline;
+  background-color: rgba(245, 158, 66, 0.1);
+  border: 1px solid rgba(245, 158, 66, 0.4);
+  border-radius: var(--border-radius-xs);
+  color: var(--color-warning-text);
+  padding: 15px 12px;
+  gap: 10px;
+
+  h4,
+  p {
+    margin: 0;
+  }
+
+  p {
+    color: inherit;
+    font-size: small;
+  }
+}
+
+@media (max-width: 767px) {
+  .register-form__name-fields,
+  .account-created-modal__buttons {
+    grid-template-columns: 1fr;
+  }
+}

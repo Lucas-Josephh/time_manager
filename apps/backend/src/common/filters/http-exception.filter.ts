@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ApiResponse } from '../types/api-response';
+import { mapPrismaException } from './prisma-exception.mapper';
 
 const DEFAULT_MESSAGES: Record<number, string> = {
   400: 'bad_request',
@@ -26,6 +27,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
   constructor(private readonly adapterHost: HttpAdapterHost) {}
   catch(exception: unknown, host: ArgumentsHost): void {
+    exception = mapPrismaException(exception);
     const status =
       exception instanceof HttpException
         ? exception.getStatus()

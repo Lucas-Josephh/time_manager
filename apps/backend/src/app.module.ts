@@ -4,10 +4,14 @@ import { ConfigModule } from '@nestjs/config';
 import { resolve } from 'node:path';
 import { AppController } from './app.controller';
 import { PrismaModule } from './prisma/prisma.module';
-import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { DepartmentModule } from './department/department.module';
+import { TeamModule } from './team/team.module';
+import { ReferenceExistsConstraint } from './common/decorator/reference.decorator';
+import { UniqueConstraint } from './common/decorator/unique.decorator';
+import { RequestValidationPipe } from './common/validation/request-validation.pipe';
 
 @Module({
   imports: [
@@ -21,9 +25,13 @@ import { DepartmentModule } from './department/department.module';
     PrismaModule,
     AuthModule,
     DepartmentModule,
+    TeamModule,
   ],
   controllers: [AppController],
   providers: [
+    { provide: APP_PIPE, useClass: RequestValidationPipe },
+    ReferenceExistsConstraint,
+    UniqueConstraint,
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,

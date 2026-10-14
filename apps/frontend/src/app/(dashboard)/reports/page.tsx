@@ -1,3 +1,3 @@
-export default function Employees() {
-  return <div>Employees content</div>;
+export default function Reports() {
+  return <div>Reports content</div>;
 }

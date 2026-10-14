@@ -1,3 +1,3 @@
-export default function Reports() {
-  return <div>Reports content</div>;
+export default function Teams() {
+  return <div>Teams content</div>;
 }

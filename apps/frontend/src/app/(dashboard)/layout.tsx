@@ -2,10 +2,12 @@
 
 import { ReactNode, useState } from 'react';
 import Button from '@/components/button/Button';
-import { MenuOutlined } from '@ant-design/icons';
 import { useTranslations } from 'next-intl';
 import { usePathname } from 'next/navigation';
 import { tabs } from '@/config/navigation';
+import { Bell, ChevronDown, Menu } from 'lucide-react';
+import { Avatar } from 'antd';
+import './page.scss';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -24,24 +26,36 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="screen screen--dashboard">
       <header className="dashboard-header">
-        <Button
-          className="dashboard-menu-toggle"
-          onClick={() => setMenuOpen(true)}
-          aria-label="Open navigation"
-          aria-expanded={menuOpen}
-        >
-          {/* icon={<MenuOutlined />} */}
-        </Button>
-        <div dashboard-header-nav>
-          <div>
+        <div className="dashboard-header-main">
+          <Button
+            className="dashboard-menu-toggle"
+            variant="secondary"
+            icon={Menu}
+            onClick={() => setMenuOpen(true)}
+            aria-label="Open navigation"
+            aria-expanded={menuOpen}
+          ></Button>
+          <div className="dashboard-header-nav">
             <p>
               {common('appName')}
               {currentTab && <span> / {navigation(currentTab.labelKey)}</span>}
             </p>
+            {currentTab && <h4> {navigation(currentTab.labelKey)}</h4>}
           </div>
-          {currentTab && <h4> {navigation(currentTab.labelKey)}</h4>}
+        </div>
+        <div className="dashboard-header-actions">
+          <Button variant="secondary" icon={Bell}></Button>
+          <Button variant="secondary" className="user-actions">
+            <Avatar>YB</Avatar>
+            <div>
+              <p>Yarelly Berger</p>
+              <p>Role</p>
+            </div>
+            <ChevronDown />
+          </Button>
         </div>
       </header>
+
       <aside className="dashboard-menu">
         <p>{navigation('menu')}</p>
       </aside>

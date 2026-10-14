@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import type { IconType } from 'react-icons';
 import './card.scss';
 
 export function Card({
@@ -17,7 +18,7 @@ export function Card({
   title?: string;
   subtitle?: string;
   footer?: string;
-  icon?: LucideIcon;
+  icon?: LucideIcon | IconType;
   iconColor?: '#000' | string;
   element?: React.ReactNode;
   type?: 'info' | 'table';

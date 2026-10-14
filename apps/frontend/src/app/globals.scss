@@ -23,6 +23,8 @@
 
   --border-radius: 18px;
   --border-radius-xs: 10px;
+
+  --button-height: 40px;
 }
 
 body {
@@ -37,15 +39,15 @@ h1 {
   letter-spacing: -0.02em;
 }
 
+h3 {
+  font-weight: 600;
+  font-size: 14.5px;
+}
+
 h4,
 label {
   font-size: 13.5px;
   font-weight: 550;
-}
-
-h3 {
-  font-weight: 600;
-  font-size: 14.5px;
 }
 
 p {
@@ -62,7 +64,6 @@ p {
 }
 
 .auth-header {
-  // background-color: #03e298;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -96,7 +97,6 @@ p {
 .screen {
   width: 100%;
   min-height: 100dvh;
-  // background-color: #27AE81;
 
   &--centered {
     display: flex;
@@ -142,7 +142,6 @@ p {
 .card {
   width: 100%;
   background-color: var(--color-card-background);
-  // background-color: #E05252;
   border: 1px solid var(--color-border);
   border-radius: var(--border-radius);
   padding: 32px;
@@ -199,9 +198,14 @@ p {
   }
 }
 
-@media (max-width: 767px) {
-  .register-form__name-fields,
-  .account-created-modal__buttons {
+@media (max-width: 1024px) {
+  .register-form__name-fields, .account-created-modal__buttons {
     grid-template-columns: 1fr;
   }
 }
+
+// @media (max-width: 600px) {
+//   .register-form__name-fields, .account-created-modal__buttons {
+//     grid-template-columns: 1fr;
+//   }
+// }

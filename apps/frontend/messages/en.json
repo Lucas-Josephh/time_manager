@@ -20,6 +20,17 @@
     "or": "Or",
     "continueWithMicrosoft": "Continue with Microsofr"
   },
+  "Navigation": {
+    "menu": "Menu",
+    "dashboard": "Dashboard",
+    "timeClock": "Time clock",
+    "timesheet": "Timesheet",
+    "schedule": "Schedule",
+    "teams": "Teams",
+    "employees": "Employees",
+    "requests": "Requests",
+    "reports": "Reports"
+  },
   "HomePage": {
     "header": "Header",
     "menu": "Menu"

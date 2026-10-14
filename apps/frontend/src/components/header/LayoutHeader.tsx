@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { tabs } from '@/config/navigation';
 import { Bell, ChevronDown, LogOut, Menu, Settings, User } from 'lucide-react';
 import { Avatar, Dropdown, MenuProps } from 'antd';
-import './DashboardHeader.scss';
+import './LayoutHeader.scss';
 
 export default function DashboardHeader() {
   const pathname = usePathname();

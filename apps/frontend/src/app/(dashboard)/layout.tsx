@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import './page.scss';
-import DashboardHeader from '../features/layout/DashboardHeader';
+import DashboardHeader from '../../components/header/LayoutHeader';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const navigation = useTranslations('Navigation');

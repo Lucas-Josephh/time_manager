@@ -2,11 +2,19 @@ import { toNodeHandler } from 'better-auth/node';
 import { AuthService } from './auth/auth.service';
 import { ConfigService } from '@nestjs/config';
 import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
+import { validationExceptionFactory } from './common/validation/validation-exception.factory';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 export function configureApp(app: INestApplication): void {
   // Regroupe les routes Nest sous /api et autorise les cookies du frontend.
   app.setGlobalPrefix('api');
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    exceptionFactory: validationExceptionFactory,
+  }));
   app.enableCors({
     origin: app.get(ConfigService).getOrThrow<string>('FRONTEND_URL'),
     credentials: true,

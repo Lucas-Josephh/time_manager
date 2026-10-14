@@ -37,11 +37,22 @@ async function seedDefaultUsers() {
   const hashedPassword = await hashPassword(password);
 
   await prisma.$transaction(async (tx) => {
+    const team = await tx.team.upsert({
+      where: { name: 'Administration' },
+      update: {},
+      create: {
+        id: 'team-administration',
+        name: 'Administration',
+        departmentId: 'department-operations',
+      },
+    });
+
     const user = await tx.user.upsert({
       where: { email },
       update: {},
       create: {
         id: 'default-admin',
+        teamId: team.id,
         firstname: 'Admin',
         lastname: 'Time Manager',
         email,
@@ -49,6 +60,13 @@ async function seedDefaultUsers() {
         isAdmin: true,
       },
     });
+
+    if (!team.managerId) {
+      await tx.team.update({
+        where: { id: team.id },
+        data: { managerId: user.id },
+      });
+    }
 
     const account = await tx.account.findFirst({
       where: {

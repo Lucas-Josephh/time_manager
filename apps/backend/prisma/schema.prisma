@@ -25,8 +25,8 @@ model Team {
   department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-  managerId    String
-  manager      User       @relation("TeamManager", fields: [managerId], references: [id], onDelete: SetNull)
+  managerId    String?
+  manager      User?      @relation("TeamManager", fields: [managerId], references: [id], onDelete: SetNull)
   members      User[]     @relation("TeamMembers")
 
   @@index([departmentId])
@@ -46,8 +46,8 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
-  teamId        String?
-  team          Team?     @relation("TeamMembers", fields: [teamId], references: [id], onDelete: SetNull)
+  teamId        String
+  team          Team      @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Restrict)
   managedTeams  Team[]    @relation("TeamManager")
 
   @@unique([email])

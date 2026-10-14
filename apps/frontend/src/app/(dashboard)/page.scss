@@ -3,7 +3,6 @@
   grid-template-areas:
     "menu header"
     "menu content";
-  background-color: #e05252;
   grid-template-columns: 260px minmax(0, 1fr);
   grid-template-rows: auto 1fr;
 }
@@ -19,8 +18,9 @@
 }
 
 .dashboard-content {
-  background-color: #dd5e93;
+  // background-color: #dd5e93;
   grid-area: content;
+  padding: 30px 25px;
 
   p {
     margin: 0;

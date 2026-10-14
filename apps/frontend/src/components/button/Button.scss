@@ -22,6 +22,16 @@
   }
 }
 
+.button--icon-only {
+  width: var(--button-height);
+  height: var(--button-height);
+  padding: 8px;
+}
+
+.button__icon {
+  flex-shrink: 0;
+}
+
 .primary {
   background-color: var(--color-primary);
   color: white;

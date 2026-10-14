@@ -1,6 +1,38 @@
-# Host-run NestJS and Prisma need a localhost database connection.
-# This override is for development only; the base stack publishes only Nginx.
+# Development override: run both apps with watch mode and mount their source.
 services:
   database:
-    ports:
-      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in the development env file}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in the development env file}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the development env file}
+
+  migration:
+    build:
+      target: migration
+    environment:
+      NODE_ENV: development
+
+  backend:
+    build:
+      target: development
+    environment:
+      NODE_ENV: development
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Set BETTER_AUTH_SECRET in the development env file}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?Set BETTER_AUTH_URL in the development env file}
+      FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL in the development env file}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID:-}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET:-}
+      MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID:-}
+      DATABASE_URL: postgresql://${POSTGRES_USER:?}:${POSTGRES_PASSWORD:?}@database:5432/${POSTGRES_DB:?}
+    volumes:
+      - ./apps/backend/src:/workspace/apps/backend/src
+      - ./apps/backend/prisma:/workspace/apps/backend/prisma
+
+  frontend:
+    build:
+      target: development
+    environment:
+      NODE_ENV: development
+      BACKEND_URL: ${BACKEND_URL:-http://backend:3001}
+    volumes:
+      - ./apps/frontend/src:/workspace/apps/frontend/src

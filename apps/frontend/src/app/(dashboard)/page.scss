@@ -1,0 +1,42 @@
+.screen--dashboard {
+  display: grid;
+  grid-template-areas:
+    "menu header"
+    "menu content";
+  background-color: #e05252;
+  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+}
+
+.dashboard-menu {
+  background-color: #c95b17;
+  grid-area: menu;
+
+  p {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+.dashboard-content {
+  background-color: #dd5e93;
+  grid-area: content;
+
+  p {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+@media (max-width: 1024px) {
+  .screen--dashboard {
+    grid-template-areas:
+      "header"
+      "content";
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-menu {
+    display: none;
+  }
+}

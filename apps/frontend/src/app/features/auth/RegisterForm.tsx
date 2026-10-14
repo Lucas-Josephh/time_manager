@@ -9,7 +9,6 @@ import {
   UserOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import { authClient } from '@/lib/auth-client';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import useAppNotification from '@/hooks/useAppNotification';

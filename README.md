@@ -4,6 +4,9 @@ Monorepo foundation for an employee time management application.
 
 Developer onboarding and daily workflow: [Guide de démarrage](docs/GETTING_STARTED.md) (French).
 
+Backend reference: [Documentation du backend](docs/BACKEND_DOCUMENTATION.md),
+including [Validation et erreurs](docs/VALIDATION_AND_ERRORS.md) (French).
+
 ## Architecture
 
 A single Git repository contains independent applications in a **pnpm workspace**. **Turborepo** runs their development, build, lint, and test tasks and caches completed checks and build outputs. `packages/` is reserved for future shared configuration.

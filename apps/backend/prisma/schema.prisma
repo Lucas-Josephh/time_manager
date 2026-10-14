@@ -19,8 +19,8 @@ model Department {
 }
 
 model Team {
-  id           String     @id
-  name         String
+  id           String     @id @default(uuid())
+  name         String     @unique
   departmentId String
   department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
@@ -46,8 +46,8 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
-  teamId        String?
-  team          Team?     @relation("TeamMembers", fields: [teamId], references: [id], onDelete: SetNull)
+  teamId        String
+  team          Team      @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Restrict)
   managedTeams  Team[]    @relation("TeamManager")
 
   @@unique([email])

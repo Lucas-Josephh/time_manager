@@ -4,6 +4,9 @@ Le backend utilise NestJS, Prisma et PostgreSQL. Better Auth gère
 l'authentification avec des sessions stockées en base et des cookies HTTP.
 NestJS écoute sur le port **3001** les routes sont préfixées par `/api`.
 
+Pour les DTO, l'unicité en modification et la traduction globale des erreurs
+Prisma, consulter [Validation et erreurs](VALIDATION_AND_ERRORS.md).
+
 ## Démarrage et configuration
 
 Depuis la racine du projet :
@@ -21,10 +24,6 @@ applications du monorepo pour lancer seulement le backend :
 
 ### Chargement des variables
 
-- `GET /api/users` : Récupère la liste de tous les utilisateurs (avec pagination et filtres).
-- `GET /api/users/:id` : Récupère les informations d'un utilisateur spécifique par son ID.
-- `PUT /api/users/:id` : Met à jour les informations d'un utilisateur spécifique
-- `DELETE /api/users/:id` : Supprime un utilisateur spécifique par son ID.
 Le serveur NestJS charge, dans cet ordre :
 
 1. `apps/backend/.env`
@@ -78,11 +77,17 @@ Le schéma se trouve dans `apps/backend/prisma/schema.prisma`.
 | `session`      | Sessions, expiration, token, adresse IP et agent utilisateur          |
 | `verification` | Données temporaires de vérification utilisées par Better Auth         |
 
-L'historique contient actuellement la migration `20261007112352_init`.
+Les migrations sont versionnées dans `apps/backend/prisma/migrations`.
 Appliquer les migrations existantes avec
 `pnpm --filter backend exec prisma migrate deploy`. Pour créer une migration
 pendant le développement, utiliser `pnpm prisma:migrate`.
 `pnpm prisma:studio` ouvre l'interface de consultation et modification des données.
+
+Un utilisateur doit appartenir à une équipe (`user.teamId` obligatoire).
+Le responsable d'une équipe est optionnel (`team.managerId` nullable), ce qui
+permet de créer l'équipe avant son premier utilisateur. La suppression d'une
+équipe ayant encore des membres est restreinte : réaffecter les utilisateurs avant
+de la supprimer.
 
 ## Création des utilisateurs
 
@@ -95,11 +100,13 @@ Time Manager doit exister avant sa première connexion.
 pnpm --filter backend user:create \
   --email alice@entreprise.fr \
   --firstname Alice \
-  --lastname Dupont
+  --lastname Dupont \
+  --team-id team-administration
 ```
 
 Cette commande crée uniquement le profil local, sans mot de passe ni compte
 Microsoft associé. Elle normalise l'email en minuscules et refuse les doublons.
+`--team-id` est obligatoire et doit désigner une équipe existante.
 L'utilisateur est créé avec `isAdmin: false` et `emailVerified: false`.
 Il pourra se connecter avec Microsoft si l'email renvoyé correspond à ce profil.
 
@@ -113,7 +120,10 @@ pnpm prisma:db:seed
 
 Le seeder crée ou retrouve le compte par email, crée ses identifiants locaux
 s'ils sont absents et initialise cinq départements. Un nouvel utilisateur est
-créé comme administrateur avec un email vérifié. Pour un utilisateur existant,
+créé comme administrateur avec un email vérifié et rattaché à l'équipe
+`Administration`, créée si nécessaire dans `department-operations`.
+Si cette équipe n'a pas de responsable, le seeder lui affecte ce compte.
+Pour un utilisateur existant,
 le profil et le rôle sont conservés un mot de passe existant n'est pas remplacé.
 Utiliser un email en minuscules, le seeder ne le normalisant pas.
 
@@ -121,12 +131,15 @@ Utiliser un email en minuscules, le seeder ne le normalisant pas.
 
 ### Santé et Swagger
 
-| Route                | Réponse ou contenu                                                 |
-| -------------------- | ------------------------------------------------------------------ |
-| `GET /api/health`    | `{ "success": true, "message": "request_successful", "data": { "status": "ok" } }` public, ne vérifie pas la connexion à la base |
-| `GET /api/docs`      | Interface Swagger des contrôleurs NestJS                           |
-| `GET /api/docs-json` | Document OpenAPI JSON                                              |
-| `GET /api/docs-yaml` | Document OpenAPI YAML                                              |
+| Route                | Réponse ou contenu                                                                                                               |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/health`    | `{ "success": true, "message": "health_check_successful", "data": { "status": "ok" } }` public, ne vérifie pas la connexion à la base |
+| `GET /api/docs`      | Interface Swagger des contrôleurs NestJS                                                                                         |
+| `GET /api/docs-json` | Document OpenAPI JSON                                                                                                            |
+| `GET /api/docs-yaml` | Document OpenAPI YAML                                                                                                            |
+
+Pour les décorateurs réutilisables, les DTO de sortie et les conventions OpenAPI,
+consulter [Documenter l’API](API_DOCUMENTATION.md).
 
 Swagger documente les contrôleurs NestJS uniquement. Le handler Better Auth,
 monté sous `/api/auth`, n'est pas inclus dans ce document.
@@ -151,6 +164,10 @@ Les réponses JSON des contrôleurs NestJS utilisent cette enveloppe :
 
 `ResponseInterceptor` et `HttpExceptionFilter` sont enregistrés globalement
 dans `AppModule` via `APP_INTERCEPTOR` et `APP_FILTER`.
+`RequestValidationPipe` est enregistré via `APP_PIPE`. Le filtre traduit les
+erreurs Prisma connues avant de produire l'enveloppe : les services laissent
+remonter ces erreurs sans répéter leur traduction HTTP.
+Voir [Validation et erreurs](VALIDATION_AND_ERRORS.md) pour les codes et exemples.
 
 #### Retourner un succès
 
@@ -217,18 +234,18 @@ Le message personnalisé est accepté pour les erreurs HTTP inférieures à 500
 s'il respecte `^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$`. Une phrase ou une liste de
 messages utilise le code par défaut du statut :
 
-| Statut HTTP | Message par défaut |
-| ----------- | ------------------ |
-| 400 | `bad_request` |
-| 401 | `unauthorized` |
-| 403 | `forbidden` |
-| 404 | `not_found` |
-| 405 | `method_not_allowed` |
-| 409 | `conflict` |
-| 422 | `validation_failed` |
-| 429 | `too_many_requests` |
-| Autre statut inférieur à 500 | `request_failed` |
-| 500 et plus | `internal_server_error` |
+| Statut HTTP                  | Message par défaut      |
+| ---------------------------- | ----------------------- |
+| 400                          | `bad_request`           |
+| 401                          | `unauthorized`          |
+| 403                          | `forbidden`             |
+| 404                          | `not_found`             |
+| 405                          | `method_not_allowed`    |
+| 409                          | `conflict`              |
+| 422                          | `validation_failed`     |
+| 429                          | `too_many_requests`     |
+| Autre statut inférieur à 500 | `request_failed`        |
+| 500 et plus                  | `internal_server_error` |
 
 Une exception inattendue produit un statut 500. Les détails des erreurs serveur
 sont journalisés côté backend ; la réponse contient uniquement
@@ -239,10 +256,8 @@ comme un succès par l'interceptor.
 Conserver les statuts HTTP appropriés : 200 pour une lecture, 201 pour une
 création, 404 pour une ressource absente, etc. Pour retourner cette enveloppe
 JSON, ne pas utiliser 204, car ce statut ne contient pas de corps.
-Documenter également l'enveloppe réelle dans les schémas Swagger ;
-l'interceptor ne met pas à jour automatiquement les annotations OpenAPI.
-Le schéma Swagger actuel de `/api/health` décrit encore seulement son objet
-interne `{ "status": "ok" }`.
+Documenter l'enveloppe réelle avec `ApiSuccessResponse` et les décorateurs
+d'erreur communs ; voir [Documenter l’API](API_DOCUMENTATION.md).
 
 #### Transmettre des valeurs de remplacement pour une erreur
 
@@ -371,11 +386,54 @@ les entrées utilisateur Better Auth.
 requête, renvoie une erreur 401 si elle est invalide et ajoute les données à
 `request.session`. Il ne vérifie pas le rôle administrateur.
 
-### Routes métier prévues
+### Équipes et départements
 
-Aucun contrôleur utilisateurs, équipes ou départements n'est actuellement
-implémenté. Les routes `/api/users` et `/api/users/:id` ne sont donc pas disponibles,
-malgré l'existence des modèles Prisma correspondants.
+Les contrôleurs actuels utilisent `/team` au singulier et `/departments` au pluriel.
+Ils n'ont pas encore de guard d'authentification.
+
+| Route                      | Statut de succès actuel | Message                  | Comportement                                                |
+| -------------------------- | ----------------------- | ------------------------ | ----------------------------------------------------------- |
+| `POST /api/team`           | 201                     | `team_created`           | Créer une équipe                                            |
+| `PUT /api/team/:id`        | 200                     | `team_updated`           | Renseigner le nom et le département ; responsable optionnel |
+| `PATCH /api/team/:id`      | 200                     | `team_partially_updated` | Modifier uniquement les champs fournis                      |
+| `DELETE /api/team/:id`     | 202                     | `team_deleted`           | Supprimer l'équipe ; 404 si elle est absente                |
+| `GET /api/team`            | 302                     | `team_listed`            | Lister les équipes triées par nom                           |
+| `GET /api/team/:id`        | 302                     | `request_successful`     | Consulter une équipe                                        |
+| `GET /api/departments`     | 200                     | `request_successful`     | Lister les départements triés par nom                       |
+| `GET /api/departments/:id` | 200                     | `request_successful`     | Consulter un département ; 404 s'il est absent              |
+
+Les statuts 302 des lectures d'équipes sont ceux du code actuel ; ce ne sont
+pas les statuts 200 généralement attendus pour ces opérations.
+Les lectures d'équipes incluent `manager`, `department` et `members`.
+Les utilisateurs inclus exposent uniquement `id`, `firstname`, `lastname` et
+`image` ; les départements exposent uniquement `id` et `name`, y compris
+dans leurs propres routes. Les règles sont portées par les DTO de sortie.
+La liste des équipes accepte `name`, `departmentId`, `managerId` et `memberId`
+comme filtres combinés avec un ET.
+Actuellement, une lecture d'équipe absente retourne `null`, transformé en
+`data: {}` par l'interceptor, sans erreur 404.
+
+Exemple de création :
+
+```bash
+curl -X POST http://localhost:3001/api/team \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Support","departmentId":"department-it"}'
+```
+
+Exemple de modification partielle :
+
+```bash
+curl -X PATCH http://localhost:3001/api/team/IDENTIFIANT_EQUIPE \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Support"}'
+```
+
+Conserver le nom de l'équipe courante est autorisé ; choisir le nom d'une autre
+équipe renvoie `already_exists` sur le champ `name`. Voir les règles complètes
+dans [Validation et erreurs](VALIDATION_AND_ERRORS.md).
+
+Les routes `/api/users` et `/api/users/:id` ne sont pas encore disponibles.
 
 ## Exemples avec cookies
 
@@ -399,6 +457,34 @@ Pour Docker/Nginx, remplacer les origines et URL par `http://localhost:8080`
 
 ## Dépannage
 
+### Migration d'équipe ou seed bloqué
+
+Si le seed échoue avec `P2011` lors de la création d'une équipe, vérifier que
+la migration `20261014110000_team_manager_optional` est appliquée : elle retire
+la contrainte `NOT NULL` de `team.managerId` pour aligner la base sur le schéma.
+Générer le client Prisma ne modifie pas les contraintes de PostgreSQL.
+
+La migration `20261014120000_user_team_required` refuse les utilisateurs dont
+`teamId` est nul. Affecter chacun à une équipe existante avant de la relancer.
+Le seed conserve le profil des utilisateurs existants et ne réaffecte pas
+automatiquement ces utilisateurs.
+
+Si Prisma a enregistré cette migration comme échouée, vérifier d'abord que ses
+changements n'ont pas été appliqués, corriger les données, puis :
+
+```bash
+pnpm --filter backend exec prisma migrate resolve --rolled-back 20261014120000_user_team_required
+pnpm prisma:migrate
+pnpm prisma:generate
+pnpm prisma:db:seed
+```
+
+`migrate resolve --rolled-back` modifie l'historique Prisma ; il n'annule pas
+les changements SQL. La migration actuelle regroupe ses opérations dans un
+bloc atomique, mais il faut vérifier l'état réel si une autre version a été exécutée.
+
+### Authentification et configuration
+
 - **`INVALID_CALLBACK_URL`** : l'origine de `callbackURL` doit être autorisée. Vérifier que `FRONTEND_URL` correspond
   exactement à l'adresse ouverte dans le navigateur, puis redémarrer le backend.
 - **`AADSTS500113`** : ajouter l'URI de redirection backend dans l'application Entra, sous **Authentification →
@@ -418,3 +504,5 @@ Les tests couvrent la santé de l'API, les sessions cookies, les contrôles d'or
 la limitation des requêtes, la déconnexion et le parcours Microsoft avec une base
 en mémoire. Les réponses externes de Microsoft sont simulées une connexion
 avec un vrai tenant reste nécessaire pour valider la configuration Entra.
+Les tests `api-documentation.spec.ts` et `response-serialization.spec.ts` vérifient
+les schémas OpenAPI et le filtrage des réponses, sans base réelle.

@@ -16,12 +16,15 @@ minimumReleaseAgeExclude:
   - typescript-eslint@8.71.1
 
 saveExact: true
+overrides:
+  deepmerge-ts: 8.0.2
+  mysql2: 3.23.4
 allowBuilds:
   '@nestjs/core': true
   '@parcel/watcher': true
   '@prisma/engines': true
   '@scarf/scarf': false
-  '@swc/core': set this to true or false
+  '@swc/core': true
   prisma: true
   sharp: true
   unrs-resolver: true

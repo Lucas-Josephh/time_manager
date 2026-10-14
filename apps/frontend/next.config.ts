@@ -6,13 +6,12 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: resolve(__dirname, '../..'),
   async rewrites() {
-    return process.env.NODE_ENV === 'development'
-      ? [
-          {
-            source: '/api/auth/:path*',
-            destination: 'http://localhost:3001/api/auth/:path*',
-          },
-        ]
+    const backendUrl =
+      process.env.BACKEND_URL ??
+      (process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : null);
+
+    return backendUrl
+      ? [{ source: '/api/:path*', destination: `${backendUrl}/api/:path*` }]
       : [];
   },
 };

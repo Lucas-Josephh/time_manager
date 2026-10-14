@@ -6,7 +6,7 @@
     "dev": "prisma generate && nest start --watch",
     "build": "prisma generate && nest build",
     "start": "node dist/main.js",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "test": "prisma generate && node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
     "test:cov": "prisma generate && node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --runInBand",
     "prisma:generate": "prisma generate",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@better-auth/prisma-adapter": "1.7.7",
+    "@better-auth/i18n": "1.7.7",
     "@nestjs/common": "12.1.2",
     "@nestjs/config": "12.0.1",
     "@nestjs/core": "12.1.2",
@@ -24,6 +25,8 @@
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "better-auth": "1.7.7",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.15.1",
     "pg": "8.23.1",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2"

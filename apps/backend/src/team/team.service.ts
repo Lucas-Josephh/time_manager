@@ -1,6 +1,33 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PartialTeamDto, TeamDto } from './dto/team.dto';
+import { PartialTeamDto, QueryTeamDto, TeamDto } from './dto/team.dto';
+import { Prisma } from '../generated/prisma/client';
+
+export function buildTeamQueryFilter(
+  filters: QueryTeamDto,
+): Prisma.TeamWhereInput {
+  const where: Prisma.TeamWhereInput = {};
+
+  if (filters.name) {
+    where.name = { contains: filters.name, mode: 'insensitive' };
+  }
+
+  if (filters.departmentId) {
+    where.departmentId = filters.departmentId;
+  }
+
+  if (filters.managerId) {
+    where.managerId = filters.managerId;
+  }
+
+  if (filters.memberId !== undefined) {
+    where.members = {
+      some: { id: filters.memberId },
+    };
+  }
+
+  return where;
+}
 
 @Injectable()
 export class TeamService {
@@ -27,8 +54,9 @@ export class TeamService {
     });
   }
 
-  findAll() {
+  findAll(filters: QueryTeamDto = {}) {
     return this.prisma.team.findMany({
+      where: buildTeamQueryFilter(filters),
       orderBy: { name: 'asc' },
       include: {
         manager: true,

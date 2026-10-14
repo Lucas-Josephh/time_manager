@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Exclude, Expose, Transform } from 'class-transformer';
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class DepartmentDto {
@@ -17,3 +17,17 @@ export class DepartmentDto {
   name!: string;
 }
 
+@Exclude()
+export class DepartmentDetailsDto {
+  @Expose()
+  @ApiProperty({
+    description: 'Identifiant unique du département.',
+    example: 'department-it',
+  })
+  id!: string;
+
+  @Expose()
+  @ApiProperty({ description: 'Nom du département.', example: 'Informatique' })
+  name!: string;
+
+}

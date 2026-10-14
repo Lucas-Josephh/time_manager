@@ -3,7 +3,6 @@ import { AuthService } from './auth/auth.service';
 import { ConfigService } from '@nestjs/config';
 import type { INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
-import { validationExceptionFactory } from './common/validation/validation-exception.factory';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 export function configureApp(app: INestApplication): void {
@@ -12,8 +11,7 @@ export function configureApp(app: INestApplication): void {
   app.useGlobalPipes(new ValidationPipe({
     transform: true,
     whitelist: true,
-    forbidNonWhitelisted: true,
-    exceptionFactory: validationExceptionFactory,
+    forbidNonWhitelisted: true
   }));
   app.enableCors({
     origin: app.get(ConfigService).getOrThrow<string>('FRONTEND_URL'),

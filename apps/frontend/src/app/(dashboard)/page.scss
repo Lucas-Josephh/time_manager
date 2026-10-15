@@ -21,6 +21,8 @@
   // background-color: #dd5e93;
   grid-area: content;
   padding: 30px 25px;
+  display: flex;
+  flex-direction: column;
 
   p {
     margin: 0;

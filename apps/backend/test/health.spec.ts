@@ -67,7 +67,21 @@ describe('Health API', () => {
       ].schema,
     ).toEqual({
       type: 'object',
+      required: ['success', 'message', 'data'],
+      properties: {
+        success: { type: 'boolean', enum: [true] },
+        message: {
+          type: 'string',
+          enum: ['health_check_successful'],
+          example: 'health_check_successful',
+        },
+        data: { $ref: '#/components/schemas/HealthDto' },
+      },
+    });
+    expect(response.body.components.schemas.HealthDto).toEqual({
+      type: 'object',
       properties: { status: { type: 'string', enum: ['ok'], example: 'ok' } },
+      required: ['status'],
     });
   });
 });

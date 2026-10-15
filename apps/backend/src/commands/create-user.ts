@@ -42,10 +42,6 @@ async function main() {
     throw new Error('--firstname et --lastname sont requis');
   }
 
-  if (!teamId) {
-    throw new Error('--team-id est requis');
-  }
-
   const app = await NestFactory.createApplicationContext(CreateUserCommand, {
     abortOnError: false,
   });
@@ -61,9 +57,11 @@ async function main() {
       throw new Error('Un utilisateur possède déjà cet email');
     }
 
-    const team = await prisma.team.findUnique({ where: { id: teamId } });
-    if (!team) {
-      throw new Error('L’équipe indiquée par --team-id est introuvable');
+    if (teamId) {
+      const team = await prisma.team.findUnique({ where: { id: teamId } });
+      if (!team) {
+        throw new Error('L’équipe indiquée par --team-id est introuvable');
+      }
     }
 
     const user = await prisma.user.create({
@@ -72,7 +70,7 @@ async function main() {
         email,
         firstname,
         lastname,
-        teamId,
+        teamId: teamId || null,
       },
     });
 

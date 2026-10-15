@@ -113,7 +113,7 @@ export function createAuth(
         },
         teamId: {
           type: 'string',
-          required: true,
+          required: false,
           input: false,
         },
         isAdmin: {

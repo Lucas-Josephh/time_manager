@@ -110,27 +110,27 @@ export class TeamController {
 
   @Get()
   @ResponseMessage('team_listed')
-  @HttpCode(HttpStatus.FOUND)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Lister les équipes',
     description:
       'Route actuellement publique. Tri par nom croissant, avec département, responsable et membres. Le statut actuel est 302.',
   })
-  @ApiSuccessResponse({ type: TeamWithRelationsDto, status: 302, message: 'team_listed', isArray: true })
+  @ApiSuccessResponse({ type: TeamWithRelationsDto, status: HttpStatus.OK, message: 'team_listed', isArray: true })
   @ApiValidationError()
   findAll(@Query() query: QueryTeamDto) {
     return this.teamService.findAll(query);
   }
 
   @Get(':id')
-  @HttpCode(HttpStatus.FOUND)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Consulter une équipe',
     description:
       'Route actuellement publique. Inclut département, responsable et membres. Le statut actuel est 302 ; une équipe absente renvoie data: {} sans erreur 404.',
   })
   @ApiResourceId('team-administration')
-  @ApiSuccessResponse({ type: TeamWithRelationsDto, status: 302, allowEmpty: true })
+  @ApiSuccessResponse({ type: TeamWithRelationsDto, status: HttpStatus.OK, allowEmpty: true })
   findOne(@Param('id') id: string) {
     return this.teamService.findOne(id);
   }

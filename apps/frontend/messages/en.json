@@ -31,9 +31,14 @@
     "requests": "Requests",
     "reports": "Reports"
   },
-  "HomePage": {
-    "header": "Header",
-    "menu": "Menu"
+  "TeamsPage": {
+    "subtitle": "Attendance, absence and hours logged this week.",
+    "loading": "Loading teams",
+    "loadFailed": "Unable to load teams",
+    "acrossDepartments": "Across {count, plural, one {# department} other {# departments}}",
+    "activeContracts": "Active contracts",
+    "workingNow": "Working now",
+    "companyPercentage": "% of the company"
   },
   "RegisterPage": {
     "title": "Create employee account",

@@ -35,6 +35,15 @@
     "header": "En-tête",
     "menu": "Menu"
   },
+  "TeamsPage": {
+    "subtitle": "Présences, absences et heures enregistrées cette semaine.",
+    "loading": "Chargement des équipes",
+    "loadFailed": "Impossible de charger les équipes",
+    "acrossDepartments": "Dans {count, plural, one {# département} other {# départements}}",
+    "activeContracts": "Contrats actifs",
+    "workingNow": "Au travail actuellement",
+    "companyPercentage": "% de l'entreprise"
+  },
   "RegisterPage": {
     "title": "Créer un compte employé",
     "subtitle": "Renseignez les informations de l'employé pour créer son compte.",

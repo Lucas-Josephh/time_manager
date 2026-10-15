@@ -3,10 +3,10 @@ import { AuthService } from './auth/auth.service';
 import { ConfigService } from '@nestjs/config';
 import type { INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
-import { validationExceptionFactory } from './common/validation/validation-exception.factory';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { useContainer } from 'class-validator';
 import { ModuleRef } from '@nestjs/core';
+import { validationExceptionFactory } from './common/validation/validation-exception.factory';
 
 export function configureApp(app: INestApplication): void {
   const moduleRef = app.get(ModuleRef);

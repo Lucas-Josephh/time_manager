@@ -9,7 +9,6 @@ import {
 import { Transform } from 'class-transformer';
 import { Unique } from '../../common/decorator/unique.decorator';
 import { Reference } from 'src/common/decorator/reference.decorator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserDto {
   @IsString()
@@ -36,6 +35,7 @@ export class CreateUserDto {
 
   @IsString()
   @IsOptional()
+  @IsPhoneNumber()
   // Optionnel : tu peux aussi utiliser @IsPhoneNumber() pour valider le format si besoin
   phone?: string;
 

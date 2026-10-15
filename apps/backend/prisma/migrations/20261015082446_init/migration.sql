@@ -83,6 +83,9 @@ CREATE TABLE "verification" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "team_name_key" ON "team"("name");
+
+-- CreateIndex
 CREATE INDEX "team_departmentId_idx" ON "team"("departmentId");
 
 -- CreateIndex
@@ -107,7 +110,7 @@ ALTER TABLE "team" ADD CONSTRAINT "team_departmentId_fkey" FOREIGN KEY ("departm
 ALTER TABLE "team" ADD CONSTRAINT "team_managerId_fkey" FOREIGN KEY ("managerId") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "user" ADD CONSTRAINT "user_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "team"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "user" ADD CONSTRAINT "user_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;

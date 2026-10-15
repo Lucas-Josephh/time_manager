@@ -1,9 +1,55 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { createAuth } from '../lib/auth';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly auth: ReturnType<typeof createAuth>;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    config: ConfigService,
+  ) {
+    this.auth = createAuth(prisma, config);
+  }
+
+  // POST /api/users/register (Création d'un utilisateur via Better Auth)
+  async createUser(dto: CreateUserDto) {
+    // 1. Better Auth crée le compte, hache le mot de passe et valide les champs requis
+    const authUser = await this.auth.api.signUpEmail({
+      body: {
+        email: dto.email,
+        password: dto.password,
+        name: dto.firstname,
+        lastname: dto.lastname, // Mappé vers lastname
+      } as any,
+    });
+
+    if (!authUser) {
+      throw new BadRequestException(
+        'Failed to create authentication credentials.',
+      );
+    }
+
+    // 2. Modifier d'autres champs non gérés directement par Better Auth (ex: mustChangePassword)
+    const updatedUser = await this.prisma.user.update({
+      where: { email: dto.email },
+      data: {
+        mustChangePassword: true,
+      },
+    });
+
+    return {};
+  }
 
   // GET /api/users (avec pagination et filtres)
   async findAll(query: {
@@ -57,7 +103,15 @@ export class UserService {
   }
 
   // PUT /api/users/:id
-  async update(id: string, data: { email?: string; username?: string }) {
+  async update(
+    id: string,
+    data: {
+      email?: string;
+      username?: string;
+      firstname?: string;
+      lastname?: string;
+    },
+  ) {
     await this.findOne(id); // Vérifie l'existence
     return this.prisma.user.update({
       where: { id },

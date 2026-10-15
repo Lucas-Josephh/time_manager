@@ -76,7 +76,7 @@ export function createAuth(
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
-      disableSignUp: true,
+      disableSignUp: false,
       minPasswordLength: 12,
       maxPasswordLength: 128,
     },

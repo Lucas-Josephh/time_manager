@@ -1,17 +1,30 @@
 import {
   Controller,
   Get,
+  Post,
   Put,
   Delete,
   Body,
   Param,
   Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { UserService } from './user.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { ResponseMessage } from '../common/decorator/response-message.decorator';
 
-@Controller('api/users')
+@Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
+
+  // POST /api/users (Inscription / Création)
+  @Post()
+  @ResponseMessage('user_created_successfully')
+  @HttpCode(HttpStatus.CREATED)
+  async register(@Body() createUserDto: CreateUserDto) {
+    return this.userService.createUser(createUserDto);
+  }
 
   // GET /api/users?page=1&limit=10&email=...
   @Get()
@@ -34,7 +47,13 @@ export class UserController {
   @Put(':id')
   update(
     @Param('id') id: string,
-    @Body() body: { email?: string; username?: string },
+    @Body()
+    body: {
+      email?: string;
+      username?: string;
+      firstname?: string;
+      lastname?: string;
+    },
   ) {
     return this.userService.update(id, body);
   }

@@ -6,7 +6,6 @@ import type {
 } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { ReferenceModel } from './reference.decorator';
-
 type UniqueField<M extends ReferenceModel> = Exclude<
   Extract<
     keyof NonNullable<
@@ -16,7 +15,6 @@ type UniqueField<M extends ReferenceModel> = Exclude<
   >,
   'AND' | 'OR' | 'NOT'
 >;
-
 type UniqueDelegate = {
   findFirst(args: {
     where: Record<string, unknown>;
@@ -34,31 +32,29 @@ export function excludeUniqueRecord(
   id: string,
 ): void {
   if (!id.trim()) {
-    throw new Error('An ID is required to exclude a record from uniqueness validation');
+    throw new Error(
+      'An ID is required to exclude a record from uniqueness validation',
+    );
   }
   const records = excludedRecords.get(dto) ?? new Map<ReferenceModel, string>();
   records.set(model, id);
   excludedRecords.set(dto, records);
 }
-
 @Injectable()
 @ValidatorConstraint({ name: 'isUnique', async: true })
 export class UniqueConstraint implements ValidatorConstraintInterface {
   constructor(private readonly prisma: PrismaService) {}
-
   async validate(value: unknown, args: ValidationArguments): Promise<boolean> {
     // Les règles de format produisent leur propre erreur, sans requête en base.
     if (typeof value !== 'string' || value.trim() === '') {
       return true;
     }
-
     const [model, field] = args.constraints as [ReferenceModel, string];
     const excludedId = excludedRecords.get(args.object)?.get(model);
     const where: Record<string, unknown> = { [field]: value };
     if (excludedId) {
       where.id = { not: excludedId };
     }
-
     // Convention commune à Reference : clé primaire id de type string.
     const delegate = this.prisma[model] as unknown as UniqueDelegate;
     const existing = await delegate.findFirst({

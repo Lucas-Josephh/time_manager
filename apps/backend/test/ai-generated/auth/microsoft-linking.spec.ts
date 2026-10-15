@@ -1,8 +1,8 @@
 import { ConfigService } from '@nestjs/config';
 import { betterAuth } from 'better-auth';
 import { memoryAdapter } from 'better-auth/adapters/memory';
-import { createAuth } from '../../src/lib/auth';
-import { PrismaService } from '../../src/prisma/prisma.service';
+import { createAuth } from '../../../src/lib/auth';
+import { PrismaService } from '../../../src/prisma/prisma.service';
 
 const tenantId = '11111111-2222-3333-4444-555555555555';
 const origin = 'http://localhost:3000';
@@ -15,24 +15,7 @@ const settings = {
   MICROSOFT_TENANT_ID: tenantId,
 };
 
-describe('Microsoft authentication', () => {
-  it('requires a complete configuration and a specific organization', () => {
-    for (const overrides of [
-      { MICROSOFT_CLIENT_SECRET: '' },
-      { MICROSOFT_TENANT_ID: 'common' },
-      { MICROSOFT_TENANT_ID: 'organizations' },
-      { MICROSOFT_TENANT_ID: 'consumers' },
-      { MICROSOFT_TENANT_ID: ' COMMON ' },
-    ]) {
-      expect(() =>
-        createAuth(
-          {} as PrismaService,
-          new ConfigService({ ...settings, ...overrides }),
-        ),
-      ).toThrow();
-    }
-  });
-
+describe('Microsoft account linking', () => {
   it('automatically links Microsoft to an existing administrator-provisioned user only', async () => {
     const options = createAuth(
       {} as PrismaService,

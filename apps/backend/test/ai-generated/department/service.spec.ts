@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { DepartmentService } from '../../src/department/department.service';
-import { PrismaService } from '../../src/prisma/prisma.service';
+import { DepartmentService } from '../../../src/department/department.service';
+import { PrismaService } from '../../../src/prisma/prisma.service';
 
 describe('DepartmentService', () => {
   let service: DepartmentService;

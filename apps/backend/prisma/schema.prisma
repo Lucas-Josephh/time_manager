@@ -46,8 +46,8 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
-  teamId        String
-  team          Team      @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Restrict)
+  teamId        String?
+  team          Team?     @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Restrict)
   managedTeams  Team[]    @relation("TeamManager")
 
   @@unique([email])

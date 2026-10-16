@@ -68,7 +68,7 @@ export default function DashboardHeader() {
         <div className="dashboard-header-actions">
           <Button variant="secondary" icon={Bell}></Button>
           <Button variant="secondary" className="user-actions">
-            <UserSummary></UserSummary>
+            <UserSummary />
             <ChevronDown />
           </Button>
         </div>

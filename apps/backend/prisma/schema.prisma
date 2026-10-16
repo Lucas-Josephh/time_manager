@@ -8,49 +8,75 @@ datasource db {
   provider = "postgresql"
 }
 
-model Department {
-  id        String   @id
+model Organization {
+  id        String   @id @default(uuid())
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  teams     Team[]
 
-  @@map("department")
+  parentId String?
+  parent   Organization?  @relation("OrganizationHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children Organization[] @relation("OrganizationHierarchy")
+
+  managerId String?
+  manager   User?   @relation("OrganizationManager", fields: [managerId], references: [id], onDelete: SetNull)
+
+  teams Team[]
+  users User[] @relation("OrganizationMembers")
+
+  @@index([parentId])
+  @@index([managerId])
+  @@map("organization")
 }
 
 model Team {
-  id           String     @id @default(uuid())
-  name         String     @unique
-  departmentId String
-  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  managerId    String?
-  manager      User?      @relation("TeamManager", fields: [managerId], references: [id], onDelete: SetNull)
-  members      User[]     @relation("TeamMembers")
+  id   String @id @default(uuid())
+  name String @unique
 
-  @@index([departmentId])
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  managerId String?
+  manager   User?   @relation("TeamManager", fields: [managerId], references: [id], onDelete: SetNull)
+
+  members User[] @relation("TeamMembers")
+
+  @@index([organizationId])
+  @@index([managerId])
   @@map("team")
 }
 
 model User {
-  id            String    @id
+  id            String   @id
   firstname     String
   lastname      String
   email         String
   phone         String?
-  isAdmin       Boolean   @default(false)
-  emailVerified Boolean   @default(false)
+  isAdmin       Boolean  @default(false)
+  emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  teamId        String?
-  team          Team?     @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Restrict)
-  managedTeams  Team[]    @relation("TeamManager")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+
+  organizationId String?
+  organization   Organization? @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: SetNull)
+
+  managedOrganizations Organization[] @relation("OrganizationManager")
+
+  teamId String?
+  team   Team?   @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Restrict)
+
+  managedTeams Team[] @relation("TeamManager")
 
   @@unique([email])
+  @@index([organizationId])
+  @@index([teamId])
   @@map("user")
 }
 

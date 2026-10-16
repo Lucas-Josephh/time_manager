@@ -8,8 +8,9 @@ const prisma = new PrismaClient({
   }),
 });
 
-async function seedDepartments() {
-  const departments = [
+async function seedOrganizations() {
+  // Keep the existing IDs so migrated departments are updated, not duplicated.
+  const organizations = [
     { id: 'department-hr', name: 'HR' },
     { id: 'department-finance', name: 'Finance' },
     { id: 'department-it', name: 'IT' },
@@ -17,11 +18,11 @@ async function seedDepartments() {
     { id: 'department-customer-service', name: 'Customer Service' },
   ];
 
-  for (const department of departments) {
-    await prisma.department.upsert({
-      where: { id: department.id },
-      update: { name: department.name },
-      create: department,
+  for (const organization of organizations) {
+    await prisma.organization.upsert({
+      where: { id: organization.id },
+      update: { name: organization.name },
+      create: organization,
     });
   }
 }
@@ -43,7 +44,7 @@ async function seedDefaultUsers() {
       create: {
         id: 'team-administration',
         name: 'Administration',
-        departmentId: 'department-operations',
+        organizationId: 'department-operations',
       },
     });
 
@@ -53,6 +54,7 @@ async function seedDefaultUsers() {
       create: {
         id: 'default-admin',
         teamId: team.id,
+        organizationId: team.organizationId,
         firstname: 'Admin',
         lastname: 'Time Manager',
         email,
@@ -90,7 +92,7 @@ async function seedDefaultUsers() {
 }
 
 async function main() {
-  await seedDepartments();
+  await seedOrganizations();
   await seedDefaultUsers();
 }
 

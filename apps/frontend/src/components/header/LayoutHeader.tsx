@@ -6,8 +6,9 @@ import { useTranslations } from 'next-intl';
 import { usePathname } from 'next/navigation';
 import { tabs } from '@/config/navigation';
 import { Bell, ChevronDown, LogOut, Menu, Settings, User } from 'lucide-react';
-import { Avatar, Dropdown, MenuProps } from 'antd';
+import { Dropdown, MenuProps } from 'antd';
 import './LayoutHeader.scss';
+import UserSummary from '../userSummary/UserSummary';
 
 export default function DashboardHeader() {
   const pathname = usePathname();
@@ -67,12 +68,7 @@ export default function DashboardHeader() {
         <div className="dashboard-header-actions">
           <Button variant="secondary" icon={Bell}></Button>
           <Button variant="secondary" className="user-actions">
-            <Avatar>YB</Avatar>
-            <div>
-              <p>Yarelly Berger</p>
-              <p>Role</p>
-            </div>
-
+            <UserSummary></UserSummary>
             <ChevronDown />
           </Button>
         </div>

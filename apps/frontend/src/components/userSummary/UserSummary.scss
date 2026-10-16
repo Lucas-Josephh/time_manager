@@ -1,0 +1,14 @@
+.user-summary {
+    display: flex;
+    gap: 10px;
+
+    &_details {
+        display: flex;
+        flex-direction: column;
+        align-items: start;
+
+        @media (max-width: 600px) {
+            display: none;
+        }
+    }
+}

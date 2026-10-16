@@ -35,6 +35,36 @@
     
         > .extranet-card-body {
             padding-top: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        &-close {
+            flex-shrink: 0;
+            width: 25px;
+            height: 25px;
+            padding: 0;
+            border: 0;
+            border-radius: 50px;
+            background: transparent;
+            color: var(--color-ink-dark);
+
+            > .button__icon {
+                width: 14px;
+                height: 14px;
+            }
+
+            &:hover:not(:disabled),
+            &:focus-visible {
+                background-color: color-mix(in srgb, var(--color-danger) 10%, transparent);                color: var(--color-danger);
+            }
+
+            &:focus-visible {
+                outline: 2px solid currentColor;
+                outline-offset: 2px;
+            }
         }
     
         .user-summary {

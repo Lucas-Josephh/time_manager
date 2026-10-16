@@ -11,6 +11,7 @@ import './LayoutHeader.scss';
 import UserSummary from '../userSummary/UserSummary';
 
 export default function DashboardHeader() {
+  const [currentUser, setCurrentUser] = useState();
   const pathname = usePathname();
   const common = useTranslations('Common');
   const navigation = useTranslations('Navigation');
@@ -45,6 +46,10 @@ export default function DashboardHeader() {
 
   const currentTab = tabItems.find((tab) => isActive(tab.href));
 
+  const getCurrentUser = () => {
+    // Route GET current user
+  };
+
   return (
     <header className="dashboard-header">
       <div className="dashboard-header-main">
@@ -68,7 +73,7 @@ export default function DashboardHeader() {
         <div className="dashboard-header-actions">
           <Button variant="secondary" icon={Bell}></Button>
           <Button variant="secondary" className="user-actions">
-            <UserSummary />
+            <UserSummary userName="Yarelly Berger" />
             <ChevronDown />
           </Button>
         </div>

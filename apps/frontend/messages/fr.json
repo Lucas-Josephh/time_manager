@@ -42,7 +42,19 @@
     "acrossDepartments": "Dans {count, plural, one {# département} other {# départements}}",
     "activeContracts": "Contrats actifs",
     "workingNow": "Au travail actuellement",
-    "companyPercentage": "% de l'entreprise"
+    "companyPercentage": "% de l'entreprise",
+    "createTeam": {
+      "create": "Créer",
+      "cancel": "Annuler",
+      "selectEmployee": "Sélectionnez un employé",
+      "noEmployeesAvailable": "Aucun employé disponible",
+      "removeEmployee": "Retirer {firstName} {lastName}",
+      "createFailed": "Impossible de créer l'équipe. Veuillez réessayer.",
+      "validation": {
+        "nameRequired": "Veuillez saisir un nom d'équipe.",
+        "nameTooLong": "Le nom de l'équipe ne doit pas dépasser 255 caractères."
+      }
+    }
   },
   "RegisterPage": {
     "title": "Créer un compte employé",

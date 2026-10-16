@@ -7,6 +7,7 @@ import Button from '../button/Button';
 type ModalAction = {
   label: string;
   onClick: () => void;
+  disabled?: boolean;
 };
 
 type ActionModalProps = {
@@ -45,7 +46,11 @@ export default function ActionModal({
         <p>{description}</p>
         {children}
         <div className="account-created-modal__buttons">
-          <Button className="full-width" onClick={primaryAction.onClick}>
+          <Button
+            className="full-width"
+            onClick={primaryAction.onClick}
+            disabled={primaryAction.disabled}
+          >
             {primaryAction.label}
           </Button>
           <Button

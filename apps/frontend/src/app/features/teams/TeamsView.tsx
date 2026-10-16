@@ -3,7 +3,7 @@
 import PageHeader from '@/components/pageHeader/PageHeader';
 import './TeamsView.scss';
 import { Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import StatusView from '@/components/loading/StatusView';
 import { useTranslations } from 'next-intl';
@@ -12,7 +12,7 @@ import CreateTeamModal from './CreateTeamModal';
 import TeamCard from './TeamCard';
 import TeamsStatistics from './TeamsStatistics';
 
-type Person = {
+export type Person = {
   id: string;
   firstName: string;
   lastName: string;
@@ -27,7 +27,7 @@ type Team = {
   members: Person[];
 };
 
-type TeamsResponse = {
+export type TeamsResponse = {
   success: boolean;
   data: Team[];
 };
@@ -57,36 +57,45 @@ export default function TeamsView() {
     setIsModalOpen(false);
   };
 
+  const loadTeams = useCallback((signal?: AbortSignal) => {
+    return fetch('/api/team', { signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to load teams');
+        }
+
+        return response.json() as Promise<TeamsResponse>;
+      })
+      .then((result) => {
+        if (!signal?.aborted) {
+          setTeams(result.data);
+        }
+      })
+      .catch(() => {
+        if (!signal?.aborted) {
+          setHasError(true);
+        }
+      })
+      .finally(() => {
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
+      });
+  }, []);
+
+  const handleTeamCreated = () => {
+    setLoading(true);
+    setHasError(false);
+    void loadTeams();
+  };
+
   useEffect(() => {
     const controller = new AbortController();
 
-    async function loadTeams() {
-      try {
-        const response = await fetch('/api/team', {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error();
-        }
-
-        const result: TeamsResponse = await response.json();
-        setTeams(result.data);
-      } catch {
-        if (!controller.signal.aborted) {
-          setHasError(true);
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void loadTeams();
+    void loadTeams(controller.signal);
 
     return () => controller.abort();
-  }, []);
+  }, [loadTeams]);
 
   return (
     <div className="teams-view">
@@ -99,7 +108,11 @@ export default function TeamsView() {
           </Button>
         }
       />
-      <CreateTeamModal open={isModalOpen} onClose={handleCloseTeamModal} />
+      <CreateTeamModal
+        open={isModalOpen}
+        onClose={handleCloseTeamModal}
+        onCreated={handleTeamCreated}
+      />
       {loading ? (
         <StatusView
           status="loading"
@@ -113,15 +126,17 @@ export default function TeamsView() {
           icon={CloseCircleOutlined}
         />
       ) : (
-        <TeamsStatistics
-          teamCount={teamCount}
-          employeesCount={employeesCount}
-          departmentCount={departmentCount}
-        />
+        <>
+          <TeamsStatistics
+            teamCount={teamCount}
+            employeesCount={employeesCount}
+            departmentCount={departmentCount}
+          />
+          <div className="teams-list">
+            <TeamCard />
+          </div>
+        </>
       )}
-      <div className="teams-list">
-        <TeamCard />
-      </div>
     </div>
   );
 }

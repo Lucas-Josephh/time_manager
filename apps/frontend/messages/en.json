@@ -38,7 +38,19 @@
     "acrossDepartments": "Across {count, plural, one {# department} other {# departments}}",
     "activeContracts": "Active contracts",
     "workingNow": "Working now",
-    "companyPercentage": "% of the company"
+    "companyPercentage": "% of the company",
+    "createTeam": {
+      "create": "Create",
+      "cancel": "Cancel",
+      "selectEmployee": "Select an employee",
+      "noEmployeesAvailable": "No employees available",
+      "removeEmployee": "Remove {firstName} {lastName}",
+      "createFailed": "Could not create the team. Please try again.",
+      "validation": {
+        "nameRequired": "Please enter a team name.",
+        "nameTooLong": "The team name must be 255 characters or fewer."
+      }
+    }
   },
   "RegisterPage": {
     "title": "Create employee account",

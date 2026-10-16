@@ -22,6 +22,9 @@ export default function AppProvider({ children }: { children: ReactNode }) {
             fontFamily: 'inherit',
           },
           components: {
+            Divider: {
+              colorSplit: 'var(--color-ink-dark)',
+            },
             Modal: {
               borderRadiusLG: 18,
             },

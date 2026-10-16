@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import StatusView from '@/components/loading/StatusView';
 import { useTranslations } from 'next-intl';
+import { Divider } from 'antd';
 
 type Person = {
   id: string;
@@ -94,7 +95,7 @@ export default function TeamsView() {
           icon={CloseCircleOutlined}
         />
       ) : (
-        <div className="teams-statistics">
+        <div className="teams-view_statistics">
           <Card
             subtitle={navigation('teams')}
             icon={Target}
@@ -119,6 +120,32 @@ export default function TeamsView() {
           ></Card>
         </div>
       )}
+      <div className="teams-list">
+        <Card
+          title="teamName"
+          subtitle="employees · {departmentName}"
+          // type="table"
+        >
+          <p>
+            Manager <b>managerFirstName managerLastName</b>
+          </p>
+          <Divider />
+          <div className="team-card_statistics">
+            <div>
+              <p>Working now</p>
+              <h4>number</h4>
+            </div>
+            <div>
+              <p>Hours this week</p>
+              <h4>number</h4>
+            </div>
+          </div>
+          <Divider />
+          <div className="team-card_members">
+            <p>Avatars</p>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

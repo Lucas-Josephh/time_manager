@@ -49,7 +49,10 @@ export function Card({
         className="extranet-card-body"
         style={
           type === 'table'
-            ? { borderTop: `1px solid #5a6b8530`, marginTop: '0.75rem' }
+            ? {
+                borderTop: `1px solid var(--color-ink-dark)`,
+                marginTop: '0.75rem',
+              }
             : undefined
         }
       >

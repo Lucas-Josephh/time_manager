@@ -1,19 +1,30 @@
 .teams-view {
-    background-color: pink;
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
-.teams-statistics {
+.teams-view_statistics {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
 }
 
+.teams-list, .team-card_statistics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.team-card_statistics {
+    p{
+        font-size: x-small;
+    }
+}
+
 @media (max-width: 1024px) {
-  .teams-statistics {
+  .teams-view_statistics, .teams-list {
     grid-template-columns: 1fr;
     gap: 20px;
   }

@@ -34,22 +34,22 @@ model Team {
 }
 
 model User {
-  id            String    @id
-  firstname     String
-  lastname      String
-  email         String    @unique
-  phone         String?
-  isAdmin       Boolean   @default(false)
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  teamId        String?
-  team          Team?     @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Restrict)
-  managedTeams  Team[]    @relation("TeamManager")
-  mustChangePassword Boolean @default(false)
+  id                 String    @id
+  firstname          String
+  lastname           String
+  email              String
+  phone              String?
+  isAdmin            Boolean   @default(false)
+  emailVerified      Boolean   @default(false)
+  image              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  sessions           Session[]
+  accounts           Account[]
+  teamId             String?
+  team               Team?     @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Restrict)
+  managedTeams       Team[]    @relation("TeamManager")
+  mustChangePassword Boolean   @default(false)
 
   @@unique([email])
   @@map("user")

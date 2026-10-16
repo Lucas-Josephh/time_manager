@@ -12,7 +12,7 @@ type ModalAction = {
 type ActionModalProps = {
   open: boolean;
   onClose: () => void;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   title: string;
   description: React.ReactNode;
   children?: React.ReactNode;

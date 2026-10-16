@@ -42,7 +42,7 @@ h1 {
 
 h3 {
   font-weight: 600;
-  font-size: 14.5px;
+  font-size: 15.5px;
 }
 
 h4,
@@ -76,19 +76,26 @@ p {
   }
 }
 
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// .register-form {
+// }
+
 .register-form__name-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
 }
 
 .register-form__name-fields,
 .account-created-modal__buttons {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
   align-items: start;
+  gap: 16px;
 }
 
 .register-form__name-fields > div {

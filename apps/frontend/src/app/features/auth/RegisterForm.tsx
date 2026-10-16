@@ -188,6 +188,7 @@ export default function RegisterForm() {
       onFocus={handleFormFocus}
       autoComplete="off"
       noValidate
+      className="register-form"
     >
       <div className="register-form__name-group">
         <div className="register-form__name-fields">

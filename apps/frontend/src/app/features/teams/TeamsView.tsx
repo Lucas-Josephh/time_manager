@@ -2,13 +2,15 @@
 
 import PageHeader from '@/components/pageHeader/PageHeader';
 import './TeamsView.scss';
-import { Card } from '@/components/card/card';
-import { Clock, Target, TrendingUp } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { CloseCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import StatusView from '@/components/loading/StatusView';
 import { useTranslations } from 'next-intl';
-import { Divider } from 'antd';
+import Button from '@/components/button/Button';
+import CreateTeamModal from './CreateTeamModal';
+import TeamCard from './TeamCard';
+import TeamsStatistics from './TeamsStatistics';
 
 type Person = {
   id: string;
@@ -33,9 +35,11 @@ type TeamsResponse = {
 export default function TeamsView() {
   const t = useTranslations('TeamsPage');
   const navigation = useTranslations('Navigation');
+
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const teamCount = teams.length;
   const memberIds = teams.flatMap((team) =>
@@ -44,6 +48,14 @@ export default function TeamsView() {
   const uniqueMemberIds = new Set(memberIds);
   const employeesCount = uniqueMemberIds.size;
   const departmentCount = new Set(teams.map((team) => team.departmentId)).size;
+
+  const showModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleCloseTeamModal = () => {
+    setIsModalOpen(false);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -81,7 +93,13 @@ export default function TeamsView() {
       <PageHeader
         title={navigation('teams')}
         subtitle={t('subtitle')}
-      ></PageHeader>
+        actions={
+          <Button icon={Plus} onClick={showModal}>
+            Create team
+          </Button>
+        }
+      />
+      <CreateTeamModal open={isModalOpen} onClose={handleCloseTeamModal} />
       {loading ? (
         <StatusView
           status="loading"
@@ -95,56 +113,14 @@ export default function TeamsView() {
           icon={CloseCircleOutlined}
         />
       ) : (
-        <div className="teams-view_statistics">
-          <Card
-            subtitle={navigation('teams')}
-            icon={Target}
-            iconColor="var(--color-primary)"
-            footer={t('acrossDepartments', { count: departmentCount })}
-          >
-            <h2>{teamCount}</h2>
-          </Card>
-          <Card
-            subtitle={navigation('employees')}
-            icon={Clock}
-            iconColor="var(--color-ink-soft)"
-            footer={t('activeContracts')}
-          >
-            <h2>{employeesCount}</h2>
-          </Card>
-          <Card
-            subtitle={t('workingNow')}
-            icon={TrendingUp}
-            iconColor="var(--color-success)"
-            footer={t('companyPercentage')}
-          ></Card>
-        </div>
+        <TeamsStatistics
+          teamCount={teamCount}
+          employeesCount={employeesCount}
+          departmentCount={departmentCount}
+        />
       )}
       <div className="teams-list">
-        <Card
-          title="teamName"
-          subtitle="employees · {departmentName}"
-          // type="table"
-        >
-          <p>
-            Manager <b>managerFirstName managerLastName</b>
-          </p>
-          <Divider />
-          <div className="team-card_statistics">
-            <div>
-              <p>Working now</p>
-              <h4>number</h4>
-            </div>
-            <div>
-              <p>Hours this week</p>
-              <h4>number</h4>
-            </div>
-          </div>
-          <Divider />
-          <div className="team-card_members">
-            <p>Avatars</p>
-          </div>
-        </Card>
+        <TeamCard />
       </div>
     </div>
   );

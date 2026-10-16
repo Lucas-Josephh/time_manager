@@ -23,6 +23,30 @@
     }
 }
 
+.teams-form {
+    &_employee-card {
+        height: auto;
+        min-height: 45px;
+        padding: 8px 12px;
+    
+        > .extranet-card-header {
+            display: none;
+        }
+    
+        > .extranet-card-body {
+            padding-top: 0;
+        }
+    
+        .user-summary {
+            align-items: center;
+
+            p {
+                margin: 0;
+            }
+        }
+    }
+}
+
 @media (max-width: 1024px) {
   .teams-view_statistics, .teams-list {
     grid-template-columns: 1fr;

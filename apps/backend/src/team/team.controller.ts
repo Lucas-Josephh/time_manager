@@ -10,6 +10,7 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { TeamService } from './team.service';
 import {
@@ -35,10 +36,12 @@ import {
   ApiWriteErrors,
   ApiValidationError,
 } from '../common/swagger/api-response.decorator';
+import { AuthGuard } from '../auth/auth.guard';
 
 @ApiTags('Team')
 @ApiServerError()
 @Controller('team')
+@UseGuards(AuthGuard)
 @SerializeResponse(TeamWithRelationsDto)
 export class TeamController {
   constructor(private readonly teamService: TeamService) {}

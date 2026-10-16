@@ -15,4 +15,10 @@
             font-size: 14.5px;
         }
     }
+
+    @media (max-width: 600px) {
+        flex-direction: column;
+        align-items: start;
+        gap: 14px;
+    }
 }

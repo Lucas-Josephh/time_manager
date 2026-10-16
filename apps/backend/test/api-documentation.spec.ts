@@ -5,6 +5,7 @@ import { TeamController } from '../src/team/team.controller';
 import { TeamService } from '../src/team/team.service';
 import { DepartmentController } from '../src/department/department.controller';
 import { DepartmentService } from '../src/department/department.service';
+import { AuthGuard } from '../src/auth/auth.guard';
 
 describe('Shared API documentation', () => {
   it('documents real envelopes, relations, filters and reusable errors', async () => {
@@ -14,7 +15,10 @@ describe('Shared API documentation', () => {
         { provide: TeamService, useValue: {} },
         { provide: DepartmentService, useValue: {} },
       ],
-    }).compile();
+    })
+      .overrideGuard(AuthGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
     const app = module.createNestApplication();
     app.setGlobalPrefix('api');
     try {

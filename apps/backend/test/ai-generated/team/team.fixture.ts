@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import { AuthService } from '../../../src/auth/auth.service';
 import { createHttpTestApp } from '../support/http-test-app';
 
 export function useTeamFixture() {
@@ -31,6 +32,10 @@ export function useTeamFixture() {
   });
   beforeEach(() => {
     jest.resetAllMocks();
+    jest.mocked(app.get(AuthService).getSession).mockResolvedValue({
+      user: { id: 'user-manager' },
+      session: { id: 'test-session' },
+    } as Awaited<ReturnType<AuthService['getSession']>>);
     prisma.team.findFirst.mockResolvedValue(null);
     prisma.department.findUnique.mockResolvedValue({ id: dto.departmentId });
     prisma.user.findUnique.mockResolvedValue({ id: 'user-manager' });

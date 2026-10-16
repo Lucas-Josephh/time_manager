@@ -10,7 +10,7 @@ export async function createHttpTestApp(prisma: object) {
     .overrideProvider(PrismaService)
     .useValue(prisma)
     .overrideProvider(AuthService)
-    .useValue({ auth: { handler: jest.fn() } })
+    .useValue({ auth: { handler: jest.fn() }, getSession: async () => ({ user: { id: 'test-user' } }) })
     .overrideProvider(ConfigService)
     .useValue(new ConfigService({ FRONTEND_URL: 'http://localhost:3000' }))
     .compile();

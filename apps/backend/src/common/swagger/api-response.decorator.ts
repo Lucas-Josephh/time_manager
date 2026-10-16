@@ -71,7 +71,7 @@ export function ApiValidationError() {
   return ApiResponse({
     status: 400,
     description:
-      'DTO invalide : already_exists, reference_not_found, is_required, need_string, max_length_exceeded ou validation_unknown_field. Une erreur est retenue par champ.',
+      'DTO invalide : already_exists, reference_not_found, is_required, need_string, max_length_exceeded organization_cycle ou validation_unknown_field. Une erreur est retenue par champ.',
     schema: {
       type: 'object',
       required: ['success', 'message', 'data'],

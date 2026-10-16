@@ -1,4 +1,4 @@
-import { DepartmentDetailsDto } from '../../department/dto/department.dto';
+import { OrganizationDetailsDto } from '../../organization/dto/organization.dto';
 import { UserSummaryDto } from '../../user/dto/user.dto';
 import { Exclude, Expose, Transform, Type } from 'class-transformer';
 import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
@@ -37,15 +37,15 @@ export class TeamDto {
   managerId?: string | null;
 
   @ApiProperty({
-    description: 'Identifiant d’un département existant.',
+    description: 'Identifiant d’un organisation existant.',
     example: 'department-it',
     minLength: 1,
   })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @IsNotEmpty()
-  @Reference('department')
-  departmentId!: string;
+  @Reference('organization')
+  organizationId!: string;
 }
 
 export class PartialTeamDto extends PartialType(TeamDto, {}) {}
@@ -62,8 +62,8 @@ export class QueryTeamDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @ApiPropertyOptional({ description: "Identifiant du département." })
-  departmentId?: string;
+  @ApiPropertyOptional({ description: "Identifiant de l'organisation." })
+  organizationId?: string;
 
   @IsOptional()
   @IsString()
@@ -90,7 +90,7 @@ export class TeamDetailsDto {
 
   @Expose()
   @ApiProperty({ example: 'department-operations' })
-  departmentId!: string;
+  organizationId!: string;
 
   @Expose()
   @ApiProperty({ type: String, nullable: true, example: 'default-admin' })
@@ -108,9 +108,9 @@ export class TeamDetailsDto {
 @Exclude()
 export class TeamWithRelationsDto extends TeamDetailsDto {
   @Expose()
-  @ApiProperty({ type: DepartmentDetailsDto })
-  @Type(() => DepartmentDetailsDto)
-  department!: DepartmentDetailsDto;
+  @ApiProperty({ type: OrganizationDetailsDto })
+  @Type(() => OrganizationDetailsDto)
+  organization!: OrganizationDetailsDto;
 
   @Expose()
   @ApiProperty({

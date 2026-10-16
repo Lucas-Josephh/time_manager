@@ -12,12 +12,12 @@ export function useTeamFixture() {
       findUnique: jest.fn(),
       findMany: jest.fn(),
     },
-    department: { findUnique: jest.fn() },
+    organization: { findUnique: jest.fn() },
     user: { findUnique: jest.fn() },
   };
-  const dto = { name: 'Support', departmentId: 'department-it' };
+  const dto = { name: 'Support', organizationId: 'department-it' };
   const team = { id: 'team-support', ...dto, managerId: null };
-  const relations = { manager: true, department: true, members: true };
+  const relations = { manager: true, organization: true, members: true };
   const envelope = (message: string, data: unknown, success = true) => ({
     success,
     message,
@@ -32,7 +32,7 @@ export function useTeamFixture() {
   beforeEach(() => {
     jest.resetAllMocks();
     prisma.team.findFirst.mockResolvedValue(null);
-    prisma.department.findUnique.mockResolvedValue({ id: dto.departmentId });
+    prisma.organization.findUnique.mockResolvedValue({ id: dto.organizationId });
     prisma.user.findUnique.mockResolvedValue({ id: 'user-manager' });
     prisma.team.create.mockResolvedValue(team);
     prisma.team.update.mockResolvedValue(team);

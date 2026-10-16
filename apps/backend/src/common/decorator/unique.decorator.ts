@@ -7,13 +7,16 @@ import type {
 import { PrismaService } from '../../prisma/prisma.service';
 import type { ReferenceModel } from './reference.decorator';
 
-type UniqueField<M extends ReferenceModel> = Exclude<
-  Extract<
-    keyof NonNullable<
-      NonNullable<Parameters<PrismaService[M]['findFirst']>[0]>['where']
-    >,
-    string
-  >,
+type FindFirstOptions<Model extends ReferenceModel> = NonNullable<
+  Parameters<PrismaService[Model]['findFirst']>[0]
+>;
+
+type ModelFilter<Model extends ReferenceModel> = NonNullable<
+  FindFirstOptions<Model>['where']
+>;
+
+type UniqueField<Model extends ReferenceModel> = Exclude<
+  Extract<keyof ModelFilter<Model>, string>,
   'AND' | 'OR' | 'NOT'
 >;
 

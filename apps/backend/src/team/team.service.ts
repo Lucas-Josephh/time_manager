@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { NotFoundIfNull } from '../common/decorator/not-found-if-null.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { PartialTeamDto, QueryTeamDto, TeamDto } from './dto/team.dto';
 import { Prisma } from '../generated/prisma/client';
@@ -12,8 +13,8 @@ export function buildTeamQueryFilter(
     where.name = { contains: filters.name, mode: 'insensitive' };
   }
 
-  if (filters.departmentId) {
-    where.departmentId = filters.departmentId;
+  if (filters.organizationId) {
+    where.organizationId = filters.organizationId;
   }
 
   if (filters.managerId) {
@@ -38,17 +39,18 @@ export class TeamService {
       data: {
         name: dto.name,
         managerId: dto.managerId,
-        departmentId: dto.departmentId,
+        organizationId: dto.organizationId,
       },
     });
   }
 
-  findOne(id: string) {
+  @NotFoundIfNull()
+  async findOne(id: string) {
     return this.prisma.team.findUnique({
       where: { id },
       include: {
         manager: true,
-        department: true,
+        organization: true,
         members: true,
       },
     });
@@ -60,7 +62,7 @@ export class TeamService {
       orderBy: { name: 'asc' },
       include: {
         manager: true,
-        department: true,
+        organization: true,
         members: true,
       },
     });

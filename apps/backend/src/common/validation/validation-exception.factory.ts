@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
 
 const VALIDATION_CODES: Readonly<Record<string, string>> = {
+  validOrganizationParent: 'organization_cycle',
   isUnique: 'already_exists',
   isString: 'need_string',
   isNotEmpty: 'is_required',
@@ -21,21 +22,34 @@ const VALIDATION_CODES: Readonly<Record<string, string>> = {
 // Une seule erreur par champ, indépendante de l'ordre des décorateurs.
 const RULE_PRIORITY = ['isNotEmpty', 'isDefined', 'isString'];
 
+type FieldError = { field: string; messages: string[] };
+
+function getErrorCode(error: ValidationError): string | undefined {
+  const rules = Object.keys(error.constraints ?? {});
+  const priorityRule = RULE_PRIORITY.find((rule) => rules.includes(rule));
+  const rule = priorityRule ?? rules[0];
+  if (!rule) return undefined;
+  return VALIDATION_CODES[rule] ?? 'validation_invalid';
+}
+
 function formatErrors(
   errors: ValidationError[],
   parent = '',
-): { field: string; messages: string[] }[] {
-  return errors.flatMap((error) => {
-    const field = parent ? `${parent}.${error.property}` : error.property;
-    const rules = Object.keys(error.constraints ?? {});
-    const rule = RULE_PRIORITY.find((candidate) => rules.includes(candidate)) ?? rules[0];
-    const messages = rule ? [VALIDATION_CODES[rule] ?? 'validation_invalid'] : [];
+): FieldError[] {
+  const result: FieldError[] = [];
 
-    return [
-      ...(messages.length ? [{ field, messages }] : []),
-      ...formatErrors(error.children ?? [], field),
-    ];
-  });
+  for (const error of errors) {
+    const field = parent ? `${parent}.${error.property}` : error.property;
+    const code = getErrorCode(error);
+    if (code) {
+      result.push({ field, messages: [code] });
+    }
+
+    const childErrors = formatErrors(error.children ?? [], field);
+    result.push(...childErrors);
+  }
+
+  return result;
 }
 
 export function validationExceptionFactory(errors: ValidationError[]): BadRequestException {

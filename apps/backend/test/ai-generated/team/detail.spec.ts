@@ -6,10 +6,10 @@ describe('Team HTTP API: detail', () => {
   const { prisma, team, relations, envelope } = context;
   it('serializes nested relations without exposing private user fields', async () => {
     const user = { id: 'user-manager', firstname: 'Alice', lastname: 'Martin' };
-    const department = { id: 'department-it', name: 'IT' };
+    const organization = { id: 'department-it', name: 'IT' };
     prisma.team.findUnique.mockResolvedValue({
       ...team,
-      department,
+      organization,
       manager: { ...user, email: 'private@example.com', password: 'secret' },
       members: [{ ...user, email: 'private@example.com' }],
       internal: 'secret',
@@ -20,7 +20,7 @@ describe('Team HTTP API: detail', () => {
       .expect(
         envelope('request_successful', {
           ...team,
-          department,
+          organization,
           manager: user,
           members: [user],
         }),
@@ -31,11 +31,11 @@ describe('Team HTTP API: detail', () => {
     });
   });
 
-  it('returns an empty object for an absent team', async () => {
+  it('returns 404 for an absent team', async () => {
     prisma.team.findUnique.mockResolvedValue(null);
     await request(context.app.getHttpServer())
       .get('/api/team/missing')
-      .expect(200)
-      .expect(envelope('request_successful', {}));
+      .expect(404)
+      .expect(envelope('not_found', {}, false));
   });
 });

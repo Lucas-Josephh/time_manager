@@ -1,3 +1,5 @@
+import { OrganizationDto, PartialOrganizationDto } from '../../organization/dto/organization.dto';
+import { setOrganizationValidationContext } from '../decorator/valid-organization-parent.decorator';
 import { Inject, Injectable, Scope, ValidationPipe } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import type { ValidatorOptions } from 'class-validator';
@@ -22,15 +24,21 @@ export class RequestValidationPipe extends ValidationPipe {
   }
 
   protected override validate(object: object, options?: ValidatorOptions) {
-    const { method, params } = this.request;
-    if (
-      (method === 'PUT' || method === 'PATCH') &&
-      params.id &&
-      (object instanceof TeamDto || object instanceof PartialTeamDto)
-    ) {
-      // L'identifiant vient de la route, jamais du body fourni par le client.
-      excludeUniqueRecord(object, 'team', params.id);
-    }
+    this.applyUpdateContext(object);
     return super.validate(object, options);
+  }
+
+  private applyUpdateContext(dto: object): void {
+    const { method, params } = this.request;
+    const isUpdate = method === 'PUT' || method === 'PATCH';
+    if (!isUpdate || !params.id) return;
+
+    // L'identifiant vient de la route, jamais du body fourni par le client.
+    if (dto instanceof TeamDto || dto instanceof PartialTeamDto) {
+      excludeUniqueRecord(dto, 'team', params.id);
+    }
+    if (dto instanceof OrganizationDto || dto instanceof PartialOrganizationDto) {
+      setOrganizationValidationContext(dto, params.id);
+    }
   }
 }

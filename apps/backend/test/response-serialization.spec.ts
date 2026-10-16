@@ -46,7 +46,7 @@ describe('DTO response serialization', () => {
     image: null,
   };
 
-  it('filters nested users and departments while preserving inherited team fields', async () => {
+  it('filters nested users and organizations while preserving inherited team fields', async () => {
     const createdAt = new Date('2026-10-14T12:00:00.000Z');
     const team = {
       id: 't1',
@@ -54,7 +54,7 @@ describe('DTO response serialization', () => {
       createdAt,
       manager: user,
       members: [user],
-      department: {
+      organization: {
         id: 'd1',
         name: 'Operations',
         createdAt,
@@ -73,12 +73,12 @@ describe('DTO response serialization', () => {
           createdAt: createdAt.toISOString(),
           manager: summary,
           members: [summary],
-          department: { id: 'd1', name: 'Operations' },
+          organization: { id: 'd1', name: 'Operations', createdAt: createdAt.toISOString() },
         },
       ],
     });
     expect(team.manager.email).toBe(user.email);
-    expect(team.department.teams).toEqual([]);
+    expect(team.organization.teams).toEqual([]);
   });
 
   it('supports method overrides for direct user responses', async () => {

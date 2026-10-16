@@ -13,7 +13,7 @@ describe('Team HTTP API: create', () => {
         .post('/api/team')
         .send({
           name: ' Support ',
-          departmentId: ' department-it ',
+          organizationId: ' department-it ',
           managerId:
             typeof managerId === 'string' ? ` ${managerId} ` : managerId,
         })

@@ -36,6 +36,8 @@ import {
   ApiValidationError,
 } from '../common/swagger/api-response.decorator';
 
+// TODO: Implement the guard by admin or manager of the organization or its parent organizations
+
 @ApiTags('Team')
 @ApiServerError()
 @Controller('team')
@@ -49,7 +51,7 @@ export class TeamController {
   @ApiOperation({
     summary: 'Créer une équipe',
     description:
-      'Route actuellement publique. Le nom doit être unique ; le département doit exister. Le responsable est optionnel.',
+      'Session requise ; contrôle du périmètre de management non implémenté. Le nom doit être unique ; le organisation doit exister. Le responsable est optionnel.',
   })
   @ApiBody({ type: TeamDto })
   @ApiSuccessResponse({ type: TeamDetailsDto, status: 201, message: 'team_created' })
@@ -64,7 +66,7 @@ export class TeamController {
   @ApiOperation({
     summary: 'Mettre à jour une équipe',
     description:
-      'Route actuellement publique. Nom et département requis. Le responsable omis reste inchangé ; null le retire. Le nom actuel de cette équipe est autorisé.',
+      'Session requise ; contrôle du périmètre de management non implémenté. Nom et organisation requis. Le responsable omis reste inchangé ; null le retire. Le nom actuel de cette équipe est autorisé.',
   })
   @ApiResourceId('team-administration')
   @ApiBody({ type: TeamDto })
@@ -81,7 +83,7 @@ export class TeamController {
   @ApiOperation({
     summary: 'Modifier partiellement une équipe',
     description:
-      'Route actuellement publique. Seuls les champs fournis sont modifiés. Omettre les champs inchangés ; null peut retirer le responsable. Le nom actuel de cette équipe est autorisé.',
+      'Session requise ; contrôle du périmètre de management non implémenté. Seuls les champs fournis sont modifiés. Omettre les champs inchangés ; null peut retirer le responsable. Le nom actuel de cette équipe est autorisé.',
   })
   @ApiResourceId('team-administration')
   @ApiBody({ type: PartialTeamDto })
@@ -98,7 +100,7 @@ export class TeamController {
   @ApiOperation({
     summary: 'Supprimer une équipe',
     description:
-      'Route actuellement publique. Réaffecter ses membres avant la suppression. La suppression est exécutée avant la réponse 202.',
+      'Session requise ; contrôle du périmètre de management non implémenté. Réaffecter ses membres avant la suppression. La suppression est exécutée avant la réponse 202.',
   })
   @ApiResourceId('team-administration')
   @ApiSuccessResponse({ type: TeamDetailsDto, status: 202, message: 'team_deleted' })
@@ -114,7 +116,7 @@ export class TeamController {
   @ApiOperation({
     summary: 'Lister les équipes',
     description:
-      'Route actuellement publique. Tri par nom croissant, avec département, responsable et membres. Le statut actuel est 302.',
+      'Session requise ; contrôle du périmètre de management non implémenté. Tri par nom croissant, avec organisation, responsable et membres. ',
   })
   @ApiSuccessResponse({ type: TeamWithRelationsDto, status: HttpStatus.OK, message: 'team_listed', isArray: true })
   @ApiValidationError()
@@ -127,10 +129,11 @@ export class TeamController {
   @ApiOperation({
     summary: 'Consulter une équipe',
     description:
-      'Route actuellement publique. Inclut département, responsable et membres. Le statut actuel est 302 ; une équipe absente renvoie data: {} sans erreur 404.',
+      'Session requise ; contrôle du périmètre de management non implémenté. Inclut organisation, responsable et membres. Une équipe absente renvoie une erreur 404.',
   })
   @ApiResourceId('team-administration')
-  @ApiSuccessResponse({ type: TeamWithRelationsDto, status: HttpStatus.OK, allowEmpty: true })
+  @ApiSuccessResponse({ type: TeamWithRelationsDto, status: HttpStatus.OK })
+  @ApiNotFoundError('not_found')
   findOne(@Param('id') id: string) {
     return this.teamService.findOne(id);
   }

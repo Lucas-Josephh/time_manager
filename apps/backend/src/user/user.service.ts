@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto'; // Utilisation du Request DTO
 import { createAuth } from '../lib/auth';
 
 @Injectable()
@@ -19,16 +20,15 @@ export class UserService {
     this.auth = createAuth(prisma, config);
   }
 
-  // POST /api/users/register (Création d'un utilisateur via Better Auth)
+  // POST /api/users (Création d'un utilisateur via Better Auth)
   async createUser(dto: CreateUserDto) {
-    // 1. Better Auth crée le compte, hache le mot de passe et valide les champs requis
     const authUser = await this.auth.api.signUpEmail({
       body: {
         email: dto.email,
         password: dto.password,
         name: dto.firstname,
-        lastname: dto.lastname, // Mappé vers lastname
-      } as any,
+        lastname: dto.lastname,
+      },
     });
 
     if (!authUser) {
@@ -37,15 +37,30 @@ export class UserService {
       );
     }
 
-    // 2. Modifier d'autres champs non gérés directement par Better Auth (ex: mustChangePassword)
     const updatedUser = await this.prisma.user.update({
       where: { email: dto.email },
       data: {
         mustChangePassword: true,
+        teamId: dto.teamId,
       },
     });
 
-    return {};
+    return updatedUser;
+  }
+
+  // PATCH /api/users/:id (Mise à jour partielle des détails)
+  async updateParamUser(id: string, dto: UpdateUserDto) {
+    await this.findOne(id); // Vérifie l'existence
+
+    return this.prisma.user.update({
+      where: { id },
+      data: {
+        firstname: dto.firstname,
+        lastname: dto.lastname,
+        phone: dto.phone,
+        teamId: dto.teamId,
+      },
+    });
   }
 
   // GET /api/users (avec pagination et filtres)
@@ -100,19 +115,18 @@ export class UserService {
   }
 
   // PUT /api/users/:id
-  async update(
-    id: string,
-    data: {
-      email?: string;
-      username?: string;
-      firstname?: string;
-      lastname?: string;
-    },
-  ) {
+  async update(id: string, dto: UpdateUserDto) {
     await this.findOne(id); // Vérifie l'existence
+
     return this.prisma.user.update({
       where: { id },
-      data,
+      data: {
+        firstname: dto.firstname,
+        lastname: dto.lastname,
+        phone: dto.phone,
+        teamId: dto.teamId,
+        email: dto.email,
+      },
     });
   }
 

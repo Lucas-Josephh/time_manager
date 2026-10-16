@@ -37,7 +37,7 @@ model User {
   id            String    @id
   firstname     String
   lastname      String
-  email         String
+  email         String    @unique
   phone         String?
   isAdmin       Boolean   @default(false)
   emailVerified Boolean   @default(false)

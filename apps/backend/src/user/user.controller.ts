@@ -9,25 +9,38 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Patch,
+  NotFoundException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto'; // Ton Request DTO pour les mises à jour
 import { ResponseMessage } from '../common/decorator/response-message.decorator';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 
+@ApiTags('Users')
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  // POST /api/users (Inscription / Création)
   @Post()
+  @ApiOperation({ summary: 'Créer un nouvel utilisateur' })
+  @ApiResponse({ status: 201, description: 'Utilisateur créé avec succès.' })
+  @ApiResponse({ status: 400, description: 'Données invalides.' })
   @ResponseMessage('user_created_successfully')
   @HttpCode(HttpStatus.CREATED)
   async register(@Body() createUserDto: CreateUserDto) {
     return this.userService.createUser(createUserDto);
   }
 
-  // GET /api/users?page=1&limit=10&email=...
   @Get()
+  @ApiOperation({
+    summary: 'Récupérer la liste des utilisateurs avec pagination et filtres',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des utilisateurs récupérée avec succès.',
+  })
   findAll(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -37,29 +50,60 @@ export class UserController {
     return this.userService.findAll({ page, limit, email, username });
   }
 
-  // GET /api/users/:id
   @Get(':id')
+  @ApiOperation({
+    summary: "Récupérer les détails d'un utilisateur par son ID",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Détails de l utilisateur récupérés avec succès.',
+  })
+  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé.' })
   findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
 
-  // PUT /api/users/:id
   @Put(':id')
+  @ApiOperation({
+    summary: "Mettre à jour les informations d'un utilisateur par son ID",
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Utilisateur mis à jour avec succès.',
+  })
+  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé.' })
   update(
     @Param('id') id: string,
-    @Body()
-    body: {
-      email?: string;
-      username?: string;
-      firstname?: string;
-      lastname?: string;
-    },
+    @Body() updateUserDto: UpdateUserDto, // Utilisation propre du Request DTO
   ) {
-    return this.userService.update(id, body);
+    return this.userService.update(id, updateUserDto);
   }
 
-  // DELETE /api/users/:id
+  @Patch(':id')
+  @ApiOperation({
+    summary: "Mettre à jour les champs détaillés d'un utilisateur par son ID",
+  })
+  @ApiParam({ name: 'id', description: "ID de l'utilisateur à modifier" })
+  async updateParamUser(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto, // ⚠️ On utilise un Request DTO et non un Response DTO
+  ) {
+    try {
+      return await this.userService.updateParamUser(id, updateUserDto);
+    } catch (error) {
+      throw new NotFoundException(`Utilisateur avec l'ID ${id} introuvable.`);
+    }
+  }
+
   @Delete(':id')
+  @ApiOperation({ summary: 'Supprimer un utilisateur par son ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Utilisateur supprimé avec succès.',
+  })
+  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé.' })
+  @ResponseMessage('user_deleted_successfully')
+  @HttpCode(HttpStatus.OK)
   remove(@Param('id') id: string) {
     return this.userService.remove(id);
   }

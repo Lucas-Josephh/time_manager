@@ -1,3 +1,4 @@
+import { PASSWORD_REQUIREMENTS_REGEX, PASSWORD_REQUIREMENTS_CODE } from '../common/decorator/password.decorator';
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { prismaAdapter } from '@better-auth/prisma-adapter';
 import { ConfigService } from '@nestjs/config';
@@ -95,8 +96,6 @@ export function createAuth(
       enabled: true,
       requireEmailVerification: false,
       disableSignUp: false,
-      minPasswordLength: 12,
-      maxPasswordLength: 128,
       onPasswordReset: async ({ user }) => {
         await prisma.user.update({
           where: { id: user.id },
@@ -121,11 +120,11 @@ export function createAuth(
 
         if (
           typeof password !== 'string' ||
-          !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/.test(password)
+          !PASSWORD_REQUIREMENTS_REGEX.test(password)
         ) {
           throw new APIError('BAD_REQUEST', {
-            message:
-              'Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial.',
+            code: PASSWORD_REQUIREMENTS_CODE,
+            message: PASSWORD_REQUIREMENTS_CODE,
           });
         }
       }),
@@ -173,13 +172,13 @@ export function createAuth(
         translations: {
           en: {
             ...locales.en,
-            PASSWORD_REQUIREMENTS_NOT_MET:
-              'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character.',
+            password_requirements_not_met:
+              'Password must contain between 12 and 128 characters, including an uppercase letter, a lowercase letter, a number and a special character.',
           },
           fr: {
             ...locales.fr,
-            PASSWORD_REQUIREMENTS_NOT_MET:
-              'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial.',
+            password_requirements_not_met:
+              'Le mot de passe doit contenir entre 12 et 128 caractères, dont une majuscule, une minuscule, un chiffre et un caractère spécial.',
           },
         },
       }),

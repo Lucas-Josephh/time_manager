@@ -5,8 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto'; // Utilisation du Request DTO
+import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { createAuth } from '../lib/auth';
 
 @Injectable()

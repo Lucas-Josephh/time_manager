@@ -13,8 +13,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto'; // Ton Request DTO pour les mises à jour
+import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { ResponseMessage } from '../common/decorator/response-message.decorator';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 
@@ -63,21 +62,21 @@ export class UserController {
     return this.userService.findOne(id);
   }
 
-  @Put(':id')
-  @ApiOperation({
-    summary: "Mettre à jour les informations d'un utilisateur par son ID",
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Utilisateur mis à jour avec succès.',
-  })
-  @ApiResponse({ status: 404, description: 'Utilisateur non trouvé.' })
-  update(
-    @Param('id') id: string,
-    @Body() updateUserDto: UpdateUserDto, // Utilisation propre du Request DTO
-  ) {
-    return this.userService.update(id, updateUserDto);
-  }
+  // @Put(':id')
+  // @ApiOperation({
+  //   summary: "Mettre à jour les informations d'un utilisateur par son ID",
+  // })
+  // @ApiResponse({
+  //   status: 200,
+  //   description: 'Utilisateur mis à jour avec succès.',
+  // })
+  // @ApiResponse({ status: 404, description: 'Utilisateur non trouvé.' })
+  // update(
+  //   @Param('id') id: string,
+  //   @Body() updateUserDto: UpdateUserDto, // Utilisation propre du Request DTO
+  // ) {
+  //   return this.userService.update(id, updateUserDto);
+  // }
 
   @Patch(':id')
   @ApiOperation({

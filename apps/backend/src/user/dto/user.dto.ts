@@ -5,8 +5,6 @@ import {
   IsOptional,
   IsPhoneNumber,
   IsString,
-  MaxLength,
-  MinLength,
 } from 'class-validator';
 import { Unique } from '../../common/decorator/unique.decorator';
 import { Reference } from 'src/common/decorator/reference.decorator';
@@ -14,7 +12,7 @@ import { Exclude, Expose, Transform, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 // Assure-toi que le chemin d'import vers ton TeamDetailsDto est correct
 import { TeamDetailsDto } from 'src/team/dto/team.dto';
-import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '../../lib/auth';
+import { IsPassword } from '../../common/decorator/password.decorator';
 
 /**
  * DTO léger pour les listes ou les relations (ex: résumé d'un utilisateur)
@@ -128,10 +126,14 @@ export class CreateUserDto {
   )
   email!: string;
 
+  @ApiProperty({
+    description: 'Mot de passe de 12 à 128 caractères avec une majuscule, une minuscule, un chiffre et un caractère spécial.',
+    example: 'Abcdefgh12!?',
+    pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{12,128}$',
+  })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(MAX_PASSWORD_LENGTH)
-  @MinLength(MIN_PASSWORD_LENGTH) // Par exemple, un minimum de 6 caractères
+  @IsPassword()
   password!: string;
 
   @ApiProperty({
@@ -144,11 +146,6 @@ export class CreateUserDto {
   @IsPhoneNumber()
   phone?: string;
 
-  @ApiProperty({
-    description: 'The secure password for the account',
-    example: 'SecurePassword123!',
-    minLength: 12,
-  })
   @ApiProperty({
     description: 'The ID of the team the user belongs to',
     example: 'team_id_123',

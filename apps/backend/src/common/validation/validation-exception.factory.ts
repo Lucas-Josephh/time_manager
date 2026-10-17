@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
 
 const VALIDATION_CODES: Readonly<Record<string, string>> = {
+  isPassword: 'password_requirements_not_met',
   isUnique: 'already_exists',
   isString: 'need_string',
   isNotEmpty: 'is_required',

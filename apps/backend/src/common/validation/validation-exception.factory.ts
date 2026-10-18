@@ -17,6 +17,7 @@ const VALIDATION_CODES: Readonly<Record<string, string>> = {
   isEnum: 'invalid_enum_value',
   referenceExists: 'reference_not_found',
   whitelistValidation: 'validation_unknown_field',
+  arrayUnique: 'validation_duplicate_array_value',
 };
 
 // Une seule erreur par champ, indépendante de l'ordre des décorateurs.
@@ -29,7 +30,12 @@ function getErrorCode(error: ValidationError): string | undefined {
   const priorityRule = RULE_PRIORITY.find((rule) => rules.includes(rule));
   const rule = priorityRule ?? rules[0];
   if (!rule) return undefined;
-  return VALIDATION_CODES[rule] ?? 'validation_invalid';
+
+  const error_code: string = VALIDATION_CODES[rule] ?? 'validation_invalid';
+  if(VALIDATION_CODES[rule] === undefined)
+    console.warn(`Unknown validation rule: ${rule}`);
+
+  return error_code;
 }
 
 function formatErrors(

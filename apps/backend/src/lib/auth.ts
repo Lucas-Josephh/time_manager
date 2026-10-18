@@ -8,6 +8,7 @@ import { createAuthMiddleware, APIError } from 'better-auth/api';
 export function createAuth(
   prisma: PrismaService,
   config: ConfigService,
+  { provisionUsers = false }: { provisionUsers?: boolean } = {},
 ): ReturnType<
   typeof betterAuth<BetterAuthOptions & { plugins: [ReturnType<typeof i18n>] }>
 > {
@@ -76,7 +77,8 @@ export function createAuth(
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
-      disableSignUp: true,
+      disableSignUp: !provisionUsers,
+      ...(provisionUsers ? { autoSignIn: false } : {}),
       minPasswordLength: 12,
       maxPasswordLength: 128,
     },
@@ -114,7 +116,7 @@ export function createAuth(
         teamId: {
           type: 'string',
           required: false,
-          input: false,
+          input: provisionUsers,
         },
         isAdmin: {
           type: 'boolean',

@@ -3,7 +3,7 @@ import { setOrganizationValidationContext } from '../decorator/valid-organizatio
 import { Inject, Injectable, Scope, ValidationPipe } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import type { ValidatorOptions } from 'class-validator';
-import { PartialTeamDto, TeamDto } from '../../team/dto/team.dto';
+import { PartialSetTeamDto, SetTeamDto } from '../../team/dto/team.dto';
 import { excludeUniqueRecord } from '../decorator/unique.decorator';
 import { validationExceptionFactory } from './validation-exception.factory';
 
@@ -34,7 +34,7 @@ export class RequestValidationPipe extends ValidationPipe {
     if (!isUpdate || !params.id) return;
 
     // L'identifiant vient de la route, jamais du body fourni par le client.
-    if (dto instanceof TeamDto || dto instanceof PartialTeamDto) {
+    if (dto instanceof SetTeamDto || dto instanceof PartialSetTeamDto) {
       excludeUniqueRecord(dto, 'team', params.id);
     }
     if (dto instanceof OrganizationDto || dto instanceof PartialOrganizationDto) {

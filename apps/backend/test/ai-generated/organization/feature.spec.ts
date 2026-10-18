@@ -101,7 +101,7 @@ describe('Organization CRUD contracts', () => {
   it('rejects updates of an absent organization', async () => {
     delegate.findUnique.mockResolvedValue(null);
     await request(app.getHttpServer()).patch('/api/organizations/missing').send({ name: 'New' }).expect(404)
-      .expect({ success: false, message: 'organization_not_found', data: {} });
+      .expect({ success: false, message: 'not_found', data: {} });
     expect(delegate.update).not.toHaveBeenCalled();
   });
 
@@ -133,7 +133,7 @@ describe('Organization CRUD contracts', () => {
 
   it.each([
     ['P2003', 409, 'reference_conflict'],
-    ['P2025', 404, 'organization_not_found'],
+    ['P2025', 404, 'not_found'],
   ] as const)('maps deletion failure %s', async (code, status, message) => {
     delegate.delete.mockRejectedValue(dbError(code));
     await request(app.getHttpServer()).delete(`/api/organizations/${organization.id}`).expect(status)

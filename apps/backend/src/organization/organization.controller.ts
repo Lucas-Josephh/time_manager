@@ -95,7 +95,7 @@ export class OrganizationController {
   })
   @ResponseMessage('organization_updated')
   @ApiResourceId('department-it')
-  @ApiNotFoundError('organization_not_found')
+  @ApiNotFoundError('not_found')
   @ApiWriteErrors()
   @ApiSuccessResponse({
     type: OrganizationDetailsDto,
@@ -113,7 +113,7 @@ export class OrganizationController {
   })
   @ResponseMessage('organization_deleted')
   @ApiResourceId('department-it')
-  @ApiNotFoundError('organization_not_found')
+  @ApiNotFoundError('not_found')
   @ApiConflictError()
   @ApiSuccessResponse({
     type: OrganizationDetailsDto,

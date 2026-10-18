@@ -15,15 +15,5 @@ export function mapPrismaException(exception: unknown): unknown {
   const mapping = PRISMA_ERRORS[exception.code];
   if (!mapping) return exception;
 
-  const model = exception.meta?.modelName;
-  const resource =
-    typeof model === 'string'
-      ? model.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
-      : undefined;
-  const message =
-    exception.code === 'P2025' && resource
-      ? `${resource}_not_found`
-      : mapping.message;
-
-  return new HttpException(message, mapping.status);
+  return new HttpException(mapping.message, mapping.status);
 }

@@ -72,7 +72,7 @@ export class TeamController {
   @ApiBody({ type: TeamDto })
   @ApiSuccessResponse({ type: TeamDetailsDto, status: 200, message: 'team_updated' })
   @ApiWriteErrors()
-  @ApiNotFoundError('team_not_found')
+  @ApiNotFoundError('not_found')
   update(@Param('id') id: string, @Body() dto: TeamDto) {
     return this.teamService.replace(id, dto);
   }
@@ -89,7 +89,7 @@ export class TeamController {
   @ApiBody({ type: PartialTeamDto })
   @ApiSuccessResponse({ type: TeamDetailsDto, status: 200, message: 'team_partially_updated' })
   @ApiWriteErrors()
-  @ApiNotFoundError('team_not_found')
+  @ApiNotFoundError('not_found')
   partialUpdate(@Param('id') id: string, @Body() dto: PartialTeamDto) {
     return this.teamService.update(id, dto);
   }
@@ -104,7 +104,7 @@ export class TeamController {
   })
   @ApiResourceId('team-administration')
   @ApiSuccessResponse({ type: TeamDetailsDto, status: 202, message: 'team_deleted' })
-  @ApiNotFoundError('team_not_found')
+  @ApiNotFoundError('not_found')
   @ApiConflictError()
   delete(@Param('id') id: string) {
     return this.teamService.delete(id);

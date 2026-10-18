@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { NotFoundIfNull } from '../common/decorator/not-found-if-null.decorator';
+import { requireResource } from '../common/require-resource';
 import { PrismaService } from '../prisma/prisma.service';
 import { PartialTeamDto, QueryTeamDto, TeamDto } from './dto/team.dto';
 import { Prisma } from '../generated/prisma/client';
@@ -44,16 +44,17 @@ export class TeamService {
     });
   }
 
-  @NotFoundIfNull()
-  async findOne(id: string) {
-    return this.prisma.team.findUnique({
-      where: { id },
-      include: {
-        manager: true,
-        organization: true,
-        members: true,
-      },
-    });
+  findOne(id: string) {
+    return requireResource(
+      this.prisma.team.findUnique({
+        where: { id },
+        include: {
+          manager: true,
+          organization: true,
+          members: true,
+        },
+      }),
+    );
   }
 
   findAll(filters: QueryTeamDto = {}) {

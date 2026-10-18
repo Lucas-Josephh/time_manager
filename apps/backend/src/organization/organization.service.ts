@@ -1,6 +1,5 @@
 import { checkOrganizationParent } from './organization-hierarchy';
 import { requireResource } from '../common/require-resource';
-import { NotFoundIfNull } from '../common/decorator/not-found-if-null.decorator';
 import {
   ConflictException,
   Injectable,
@@ -35,9 +34,10 @@ export class OrganizationService {
     });
   }
 
-  @NotFoundIfNull()
-  async findOne(id: string) {
-    return this.prisma.organization.findUnique({ where: { id } });
+  findOne(id: string) {
+    return requireResource(
+      this.prisma.organization.findUnique({ where: { id } }),
+    );
   }
 
   update(id: string, dto: PartialOrganizationDto) {
@@ -49,7 +49,6 @@ export class OrganizationService {
             where: { id },
             select: { id: true },
           }),
-          'organization',
         );
         const result = await checkOrganizationParent(
           id,
@@ -63,7 +62,7 @@ export class OrganizationService {
         if (result === 'cycle')
           throw new ConflictException('organization_cycle');
         if (result === 'missing')
-          throw new NotFoundException('organization_parent_not_found');
+          throw new NotFoundException('not_found');
         return tx.organization.update({ where: { id }, data: dto });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

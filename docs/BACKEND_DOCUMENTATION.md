@@ -127,172 +127,37 @@ Pour un utilisateur existant,
 le profil et le rôle sont conservés un mot de passe existant n'est pas remplacé.
 Utiliser un email en minuscules, le seeder ne le normalisant pas.
 
-## Routes disponibles
+## Documentation de l’API
 
-### Santé et Swagger
+Swagger est la référence pour les routes NestJS, les paramètres, les DTO,
+les statuts HTTP et les exemples de réponses :
 
-| Route                | Réponse ou contenu                                                                                                               |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/health`    | `{ "success": true, "message": "health_check_successful", "data": { "status": "ok" } }` public, ne vérifie pas la connexion à la base |
-| `GET /api/docs`      | Interface Swagger des contrôleurs NestJS                                                                                         |
-| `GET /api/docs-json` | Document OpenAPI JSON                                                                                                            |
-| `GET /api/docs-yaml` | Document OpenAPI YAML                                                                                                            |
+- En local : <http://localhost:3001/api/docs>.
+- Via Docker/Nginx : <http://localhost:8080/api/docs>.
+- Spécifications exportables : `/api/docs-json` et `/api/docs-yaml`.
 
-Pour les décorateurs réutilisables, les DTO de sortie et les conventions OpenAPI,
-consulter [Documenter l’API](API_DOCUMENTATION.md).
+## Développer un contrôleur NestJS
 
-Swagger documente les contrôleurs NestJS uniquement. Le handler Better Auth,
-monté sous `/api/auth`, n'est pas inclus dans ce document.
+Retourner les données directement ; `ResponseInterceptor` construit l’enveloppe.
+Choisir le message avec `@ResponseMessage(...)` et le DTO de sortie avec
+`@SerializeResponse(...)`. Ne pas construire une seconde enveloppe dans le
+contrôleur. Voir les [conventions de sérialisation](../apps/backend/src/common/serialization/README.md).
 
-### Répondre depuis un contrôleur NestJS
+Lever une exception NestJS pour signaler un échec ; `HttpExceptionFilter` la
+formate. Pour une recherche obligatoire, utiliser `requireResource`. Les services
+laissent remonter les erreurs Prisma connues, traduites par le mapper commun.
+Voir [Validation et erreurs](VALIDATION_AND_ERRORS.md) pour leur fonctionnement.
 
-Les réponses JSON des contrôleurs NestJS utilisent cette enveloppe :
+Documenter chaque route avec `@ApiTags`, `@ApiOperation` et les décorateurs de
+`common/swagger/api-response.decorator.ts`, notamment `ApiSuccessResponse`
+et les réponses d’erreur adaptées. Décrire les propriétés des DTO avec
+`@ApiProperty` ou `@ApiPropertyOptional` et les paramètres de route et de recherche
+avec les décorateurs Swagger correspondants. Les décorateurs Swagger décrivent
+le contrat ; ils ne remplacent ni la validation ni la sérialisation.
 
-```json
-{
-  "success": true,
-  "message": "users_retrieved",
-  "data": []
-}
-```
+## Authentification
 
-- `success` indique si la requête a réussi.
-- `message` est un code en `snake_case`, par exemple `users_retrieved` ou
-  `user_not_found`. Ce code permet au frontend de choisir le texte à afficher.
-- `data` contient les données retournées par le contrôleur : objet, liste ou
-  autre valeur JSON. Un retour `null` ou `undefined` devient `{}`.
-
-`ResponseInterceptor` et `HttpExceptionFilter` sont enregistrés globalement
-dans `AppModule` via `APP_INTERCEPTOR` et `APP_FILTER`.
-`RequestValidationPipe` est enregistré via `APP_PIPE`. Le filtre traduit les
-erreurs Prisma connues avant de produire l'enveloppe : les services laissent
-remonter ces erreurs sans répéter leur traduction HTTP.
-Voir [Validation et erreurs](VALIDATION_AND_ERRORS.md) pour les codes et exemples.
-
-#### Retourner un succès
-
-Retourner uniquement les données depuis le contrôleur et choisir le message
-avec `@ResponseMessage(...)`. Exemple pour un futur contrôleur utilisateurs :
-
-```ts
-import { Controller, Get } from '@nestjs/common';
-import { ResponseMessage } from './common/decorator/response-message.decorator';
-
-@Controller('users')
-export class UsersController {
-  @Get()
-  @ResponseMessage('users_retrieved')
-  findAll() {
-    return [{ id: '123', firstname: 'Alice' }];
-  }
-}
-```
-
-Cet exemple suppose un contrôleur placé directement dans `src` ; adapter le
-chemin de l'import à son emplacement et enregistrer le contrôleur dans un module.
-L'interceptor transforme son résultat en :
-
-```json
-{
-  "success": true,
-  "message": "users_retrieved",
-  "data": [{ "id": "123", "firstname": "Alice" }]
-}
-```
-
-Le décorateur stocke le message dans les métadonnées de la méthode ;
-l'interceptor le lit avec `Reflector`. Sans décorateur, le message est
-`request_successful`. Il peut aussi être défini sur la classe du contrôleur ;
-le message de la méthode est prioritaire.
-
-**Ne pas retourner soi-même `{ success, message, data }` dans le contrôleur** :
-l'interceptor ajouterait une seconde enveloppe. Utiliser le retour normal de
-la méthode ; une réponse envoyée directement avec `@Res()` contourne cette
-transformation.
-
-#### Retourner une erreur
-
-Lever une exception NestJS depuis le contrôleur ou le service :
-
-```ts
-import { NotFoundException } from '@nestjs/common';
-
-throw new NotFoundException('user_not_found');
-```
-
-Le filtre renvoie le statut HTTP **404** avec :
-
-```json
-{
-  "success": false,
-  "message": "user_not_found",
-  "data": {}
-}
-```
-
-Le message personnalisé est accepté pour les erreurs HTTP inférieures à 500
-s'il respecte `^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$`. Une phrase ou une liste de
-messages utilise le code par défaut du statut :
-
-| Statut HTTP                  | Message par défaut      |
-| ---------------------------- | ----------------------- |
-| 400                          | `bad_request`           |
-| 401                          | `unauthorized`          |
-| 403                          | `forbidden`             |
-| 404                          | `not_found`             |
-| 405                          | `method_not_allowed`    |
-| 409                          | `conflict`              |
-| 422                          | `validation_failed`     |
-| 429                          | `too_many_requests`     |
-| Autre statut inférieur à 500 | `request_failed`        |
-| 500 et plus                  | `internal_server_error` |
-
-Une exception inattendue produit un statut 500. Les détails des erreurs serveur
-sont journalisés côté backend ; la réponse contient uniquement
-`internal_server_error` et `data: {}`. Le filtre traite les exceptions non gérées :
-retourner un objet d'erreur au lieu de lever une exception serait considéré
-comme un succès par l'interceptor.
-
-Conserver les statuts HTTP appropriés : 200 pour une lecture, 201 pour une
-création, 404 pour une ressource absente, etc. Pour retourner cette enveloppe
-JSON, ne pas utiliser 204, car ce statut ne contient pas de corps.
-Documenter l'enveloppe réelle avec `ApiSuccessResponse` et les décorateurs
-d'erreur communs ; voir [Documenter l’API](API_DOCUMENTATION.md).
-
-#### Transmettre des valeurs de remplacement pour une erreur
-
-Conserver `message` comme code de traduction et transmettre les valeurs à
-remplacer dans `data`. Exemple depuis un contrôleur ou un service :
-
-```ts
-throw new NotFoundException({
-  message: 'user_not_found',
-  data: { userId: '123' },
-});
-```
-
-La réponse HTTP 404 devient :
-
-```json
-{
-  "success": false,
-  "message": "user_not_found",
-  "data": { "userId": "123" }
-}
-```
-
-Côté frontend, la traduction `user_not_found` peut être
-« L’utilisateur {userId} est introuvable. ». Le frontend remplace `{userId}`
-par `data.userId`, pour afficher « L’utilisateur 123 est introuvable. ».
-L'API transmet le code et les valeurs ; elle n'effectue pas la traduction.
-
-Le filtre transmet `data` uniquement pour une erreur HTTP inférieure à 500
-avec un code de message valide et un objet `data` non nul, qui n'est pas un
-tableau. Sinon, `data` reste `{}`. Les erreurs serveur conservent toujours
-`internal_server_error` et `data: {}`. Ces valeurs étant visibles par le client,
-inclure uniquement les informations nécessaires à l'affichage.
-
-#### Better Auth : circuit de réponse distinct
+### Better Auth : circuit de réponse distinct
 
 **Les routes `/api/auth/*` gérées par Better Auth ne passent pas par
 `ResponseInterceptor` ni par `HttpExceptionFilter` NestJS. Elles ne reçoivent
@@ -385,55 +250,6 @@ les entrées utilisateur Better Auth.
 `@UseGuards(AuthGuard)`. Le guard vérifie la session depuis les en-têtes de la
 requête, renvoie une erreur 401 si elle est invalide et ajoute les données à
 `request.session`. Il ne vérifie pas le rôle administrateur.
-
-### Équipes et départements
-
-Les contrôleurs actuels utilisent `/team` au singulier et `/departments` au pluriel.
-Ils n'ont pas encore de guard d'authentification.
-
-| Route                      | Statut de succès actuel | Message                  | Comportement                                                |
-| -------------------------- | ----------------------- | ------------------------ | ----------------------------------------------------------- |
-| `POST /api/team`           | 201                     | `team_created`           | Créer une équipe                                            |
-| `PUT /api/team/:id`        | 200                     | `team_updated`           | Renseigner le nom et le département ; responsable optionnel |
-| `PATCH /api/team/:id`      | 200                     | `team_partially_updated` | Modifier uniquement les champs fournis                      |
-| `DELETE /api/team/:id`     | 202                     | `team_deleted`           | Supprimer l'équipe ; 404 si elle est absente                |
-| `GET /api/team`            | 302                     | `team_listed`            | Lister les équipes triées par nom                           |
-| `GET /api/team/:id`        | 302                     | `request_successful`     | Consulter une équipe                                        |
-| `GET /api/departments`     | 200                     | `request_successful`     | Lister les départements triés par nom                       |
-| `GET /api/departments/:id` | 200                     | `request_successful`     | Consulter un département ; 404 s'il est absent              |
-
-Les statuts 302 des lectures d'équipes sont ceux du code actuel ; ce ne sont
-pas les statuts 200 généralement attendus pour ces opérations.
-Les lectures d'équipes incluent `manager`, `department` et `members`.
-Les utilisateurs inclus exposent uniquement `id`, `firstname`, `lastname` et
-`image` ; les départements exposent uniquement `id` et `name`, y compris
-dans leurs propres routes. Les règles sont portées par les DTO de sortie.
-La liste des équipes accepte `name`, `departmentId`, `managerId` et `memberId`
-comme filtres combinés avec un ET.
-Actuellement, une lecture d'équipe absente retourne `null`, transformé en
-`data: {}` par l'interceptor, sans erreur 404.
-
-Exemple de création :
-
-```bash
-curl -X POST http://localhost:3001/api/team \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Support","departmentId":"department-it"}'
-```
-
-Exemple de modification partielle :
-
-```bash
-curl -X PATCH http://localhost:3001/api/team/IDENTIFIANT_EQUIPE \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Support"}'
-```
-
-Conserver le nom de l'équipe courante est autorisé ; choisir le nom d'une autre
-équipe renvoie `already_exists` sur le champ `name`. Voir les règles complètes
-dans [Validation et erreurs](VALIDATION_AND_ERRORS.md).
-
-Les routes `/api/users` et `/api/users/:id` ne sont pas encore disponibles.
 
 ## Exemples avec cookies
 

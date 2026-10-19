@@ -23,13 +23,14 @@
   "Navigation": {
     "menu": "Menu",
     "dashboard": "Dashboard",
-    "timeClock": "Time clock",
-    "timesheet": "Timesheet",
+    "timeClock": "Clock In / Out",
+    "timesheet": "My Timesheet",
     "schedule": "Schedule",
     "teams": "Teams",
     "employees": "Employees",
     "requests": "Requests",
-    "reports": "Reports"
+    "reports": "Reports",
+    "settings": "Settings"
   },
   "HomePage": {
     "header": "Header",

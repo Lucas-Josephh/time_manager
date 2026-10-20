@@ -68,9 +68,11 @@ export default function DashboardHeader() {
           <Button variant="secondary" icon={Bell}></Button>
           <Button variant="secondary" className="user-actions">
             <Avatar>YB</Avatar>
-            <div>
+            <div className="dashboard-header-actions-info">
               <p>Yarelly Berger</p>
-              <p>Role</p>
+              <p className="dashboard-header-actions-info__role">
+                Frontend Developer
+              </p>
             </div>
 
             <ChevronDown />

@@ -11,10 +11,6 @@ export const tabs = {
     labelKey: 'timesheet',
     href: '/timesheet',
   },
-  schedule: {
-    labelKey: 'schedule',
-    href: '/schedule',
-  },
   teams: {
     labelKey: 'teams',
     href: '/teams',
@@ -23,13 +19,13 @@ export const tabs = {
     labelKey: 'employees',
     href: '/employees',
   },
-  requests: {
-    labelKey: 'requests',
-    href: '/requests',
-  },
   reports: {
     labelKey: 'reports',
     href: '/reports',
+  },
+  settings: {
+    labelKey: 'settings',
+    href: '/settings',
   },
 } as const;
 

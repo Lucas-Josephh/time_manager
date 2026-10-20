@@ -65,7 +65,7 @@ async function main() {
     if (teamId) {
       const team = await prisma.team.findUnique({ where: { id: teamId } });
       if (!team) {
-        throw new Error('L’équipe indiquée par --team-id est introuvable');
+        throw new Error('L\'équipe indiquée par --team-id est introuvable');
       }
     }
 

@@ -8,6 +8,48 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ScheduleType {
+  FIXED
+  FLEXIBLE
+  SEMI_FLEXIBLE
+}
+
+enum ExpectedPeriod {
+  DAY
+  WEEK
+  MONTH
+}
+
+model WorkPolicy {
+  id              String         @id @default(uuid())
+  name            String
+  minBreakMinutes Int
+  maxBreakMinutes Int?
+  isActive        Boolean        @default(true)
+  scheduleType    ScheduleType
+  expectedMinutes Int
+  expectedPeriod  ExpectedPeriod
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  users         User[]
+  teams         Team[]
+  organizations Organization[]
+  settings      WorkPolicySettings[]
+
+  @@map("work_policy")
+}
+
+// The application uses the single settings record with id "global".
+model WorkPolicySettings {
+  id                  String     @id @default("global")
+  defaultWorkPolicyId String
+  defaultWorkPolicy   WorkPolicy @relation(fields: [defaultWorkPolicyId], references: [id], onDelete: Restrict)
+
+  @@index([defaultWorkPolicyId])
+  @@map("work_policy_settings")
+}
+
 model Organization {
   id        String   @id @default(uuid())
   name      String
@@ -24,6 +66,10 @@ model Organization {
   teams Team[]
   users User[] @relation("OrganizationMembers")
 
+  workPolicyId String?
+  workPolicy   WorkPolicy? @relation(fields: [workPolicyId], references: [id], onDelete: SetNull)
+
+  @@index([workPolicyId])
   @@index([parentId])
   @@index([managerId])
   @@map("organization")
@@ -44,6 +90,10 @@ model Team {
 
   members User[] @relation("TeamMembers")
 
+  workPolicyId String?
+  workPolicy   WorkPolicy? @relation(fields: [workPolicyId], references: [id], onDelete: SetNull)
+
+  @@index([workPolicyId])
   @@index([organizationId])
   @@index([managerId])
   @@map("team")
@@ -74,7 +124,11 @@ model User {
 
   managedTeams Team[] @relation("TeamManager")
 
+  workPolicyId String?
+  workPolicy   WorkPolicy? @relation(fields: [workPolicyId], references: [id], onDelete: SetNull)
+
   @@unique([email])
+  @@index([workPolicyId])
   @@index([organizationId])
   @@index([teamId])
   @@map("user")

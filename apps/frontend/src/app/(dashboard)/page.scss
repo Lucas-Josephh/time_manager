@@ -1,14 +1,13 @@
 .screen--dashboard {
   display: grid;
   grid-template-areas:
-    "menu header"
-    "menu content";
+    'menu header'
+    'menu content';
   grid-template-columns: 260px minmax(0, 1fr);
   grid-template-rows: auto 1fr;
 }
 
 .dashboard-menu {
-  background-color: #c95b17;
   grid-area: menu;
 
   p {
@@ -33,8 +32,8 @@
 @media (max-width: 1024px) {
   .screen--dashboard {
     grid-template-areas:
-      "header"
-      "content";
+      'header'
+      'content';
     grid-template-columns: minmax(0, 1fr);
   }
 

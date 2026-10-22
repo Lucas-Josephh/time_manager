@@ -12,8 +12,8 @@ propre circuit ; voir la [documentation du backend](BACKEND_DOCUMENTATION.md#aut
 
 | Couche                | Responsabilité                                                             | Fichier dans `apps/backend/src/`                    |
 | --------------------- | -------------------------------------------------------------------------- | --------------------------------------------------- |
-| DTO et décorateurs    | Décrire les champs, leur format, leur unicité et leurs références          | `team/dto/team.dto.ts`, `common/decorator/`         |
-| Pipe global           | Transformer le body, valider le DTO et fournir le contexte de modification | `common/validation/request-validation.pipe.ts`      |
+| DTO et décorateurs    | Décrire les champs et leur format | `team/dto/team.dto.ts` |
+| Pipe global | Transformer les entrées et valider leur format | `common/validation/validation.config.ts` |
 | Factory de validation | Convertir les règles invalides en codes par champ                          | `common/validation/validation-exception.factory.ts` |
 | Service et Prisma     | Exécuter l'opération et faire respecter les contraintes en base            | `team/team.service.ts`                              |
 | Mapper Prisma         | Traduire les erreurs Prisma connues en exceptions HTTP                     | `common/filters/prisma-exception.mapper.ts`         |
@@ -29,8 +29,9 @@ validation et l'opération Prisma. Le filtre gère aussi ces conflits concurrent
 
 ## Validation des DTO
 
-`RequestValidationPipe` est global et instancié par requête. Il transforme les
-entrées en instances de DTO avant de les valider :
+Le `ValidationPipe` standard de Nest est global. Sa configuration est dans
+`common/validation/validation.config.ts`. Il transforme les entrées en instances
+de DTO avant de les valider :
 
 - `transform: true` applique les transformations `class-transformer` avant les
   contrôles. Les types TypeScript ne remplacent pas les règles de validation.
@@ -40,32 +41,74 @@ entrées en instances de DTO avant de les valider :
 - `exceptionFactory` confie les erreurs à `validationExceptionFactory`.
 
 Une validation refusée interrompt la requête avant le contrôleur et le service.
-Les validateurs de référence et d’unicité peuvent effectuer des lectures en base.
+Le décorateur `@Reference(model)` peut effectuer une lecture en base.
 
 ### Références et unicité
 
-`@Reference(model)` vérifie l’existence d’un identifiant avec `findUnique`.
-Les règles de type et de présence restent portées par les décorateurs du DTO.
+`@Reference(model)` est conservé dans les DTO. Il vérifie qu\'un identifiant
+existe avec `findUnique`. Les noms de modèles acceptés sont dérivés de Prisma,
+sans liste de cas à maintenir. Les règles de format restent dans `@IsString`
+et `@IsNotEmpty`, et les références optionnelles utilisent `@IsOptional`.
+Une référence absente produit `reference_not_found`. Une panne de base reste
+une erreur serveur.
 
-`@Unique(model, field)` recherche un doublon avec `findFirst`. La comparaison suit
-celle de PostgreSQL ; le décorateur ne normalise pas la casse.
+`ReferenceExistsConstraint` reçoit `PrismaService` via Nest. Le branchement
+`useContainer` dans `configureApp` permet cette injection ; `fallbackOnErrors`
+laisse `class-validator` construire ses propres classes internes.
 
-Pour les modifications d’équipe, le pipe appelle `excludeUniqueRecord` avant la
-validation pour exclure l’enregistrement courant. L’identifiant provient de
-`request.params.id`, jamais du body. Le contexte est stocké dans un `WeakMap`,
-séparément des données fournies par le client.
+L\'unicité en modification dépend de l\'identifiant de la route : elle est donc
+contrôlée explicitement dans le service avec `requireUnique(query, field)` :
 
-Le pipe configure également le contexte de validation de la hiérarchie pour les
-DTO d’organisation. Pour un nouveau DTO de modification nécessitant ce contexte,
-compléter explicitement `applyUpdateContext`.
+```ts
+await requireUnique(
+  prisma.team.findFirst({
+    where: { name: dto.name, id: { not: id } },
+    select: { id: true },
+  }),
+  'name',
+);
+```
 
-### Injection des validateurs
+Ce helper refuse un résultat non nul avec `already_exists`. Il ne connaît
+aucun modèle Prisma. Pour un nouveau modèle, construire sa requête dans son
+service et réutiliser la même fonction.
 
-Les contraintes de validation sont des providers NestJS recevant `PrismaService`.
-`configureApp` branche `class-validator` au `ModuleRef` avec `strict: false` et
-`fallbackOnErrors: true`. Ce repli permet la construction des classes internes
-de `class-validator` qui ne sont pas des providers Nest. Conserver ce branchement
-lors de l’initialisation de l’application et des tests HTTP.
+L\'identifiant à exclure en modification est un argument explicite du service,
+issu de la route. Aucun identifiant n\'est extrait du body et aucun contexte
+n\'est stocké dans un `WeakMap` ou un `AsyncLocalStorage`.
+
+La hiérarchie des organisations est contrôlée dans la transaction du service
+avec `checkOrganizationParent`. Un cycle produit l\'erreur de champ
+`parentId: organization_cycle`. La transaction sérialisable protège aussi
+contre les modifications concurrentes.
+
+### Ordre des contrôles
+
+Les guards d’authentification s’exécutent d’abord sur les routes protégées.
+Les routes ciblant une équipe ou une organisation déclarent ensuite
+`@ResourceExists('team')` ou `@ResourceExists('organization')`. Ce guard
+vérifie l’identifiant de la route avant les pipes : une cible absente produit
+une 404 même si le body ou la query est invalide. Le DTO, dont les références
+`@Reference`, est validé seulement si la cible existe.
+
+Le guard est générique : le modèle vient du décorateur et les modèles acceptés
+sont dérivés de Prisma. Aucun `if/else` par modèle n’est nécessaire.
+Le paramètre est configurable :
+
+```ts
+@ResourceExists('user', { param: 'userId', trimId: true })
+```
+
+Ce décorateur se place sur les méthodes ciblant une ressource, pas sur les
+routes de collection. S’il y a un `@UseGuards(AuthGuard)` sur la méthode,
+placer `@ResourceExists` au-dessus : Nest enregistrera l’authentification avant
+la vérification d’existence. Un guard d’authentification de contrôleur passe
+toujours avant les guards de méthode.
+
+La route des utilisateurs disponibles active `trimId` pour respecter son DTO
+de paramètres. Les identifiants vides sont laissés à la validation de format.
+Les services et les contraintes SQL continuent à protéger les opérations si
+une ressource disparaît entre la vérification et l’écriture.
 
 ### Construction des erreurs
 
@@ -83,7 +126,7 @@ plutôt que recopier sa liste dans ce guide.
 
 Le filtre appelle `mapPrismaException` avant de formater la réponse. Le registre
 `PRISMA_ERRORS` centralise les traductions dans
-`common/filters/prisma-exception.mapper.ts`. Les services n’ont pas à répéter
+`common/filters/prisma-exception.mapper.ts`. Les services n\'ont pas à répéter
 ces traductions dans des `try/catch`.
 
 Les erreurs inattendues sont journalisées côté backend ; leurs détails ne sont
@@ -91,11 +134,11 @@ pas exposés au client. Les commandes CLI et le seed ne passent pas par ce filtr
 
 ## Affectation des membres
 
-La création et la modification des membres d’une équipe sont transactionnelles.
-L’affectation conditionnelle empêche de transférer un utilisateur affecté par une
-requête concurrente. En modification, l’écriture de l’équipe verrouille celle-ci
+La création et la modification des membres d\'une équipe sont transactionnelles.
+L\'affectation conditionnelle empêche de transférer un utilisateur affecté par une
+requête concurrente. En modification, l\'écriture de l\'équipe verrouille celle-ci
 pour sérialiser les remplacements concurrents. Une affectation impossible annule
-la transaction. Les règles d’entrée et les réponses sont décrites dans Swagger.
+la transaction. Les règles d\'entrée et les réponses sont décrites dans Swagger.
 
 ## Étendre la gestion des erreurs
 
@@ -114,7 +157,7 @@ Une recherche facultative conserve son résultat `null`. Un résultat `null` ne
 déclenche pas `P2025` automatiquement. Les écritures directes restent prises en
 charge par le mapper Prisma, sans recherche préalable systématique.
 
-Lorsqu’un contrat change, mettre à jour les DTO, les décorateurs Swagger et les
+Lorsqu\'un contrat change, mettre à jour les DTO, les décorateurs Swagger et les
 tests concernés. Les conventions de contribution sont décrites dans la
 [documentation du backend](BACKEND_DOCUMENTATION.md#développer-un-contrôleur-nestjs).
 

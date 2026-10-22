@@ -35,6 +35,21 @@ describe('Organization HTTP API', () => {
     });
   });
 
+  it('trims the name search and combines it with the other filters', async () => {
+    prisma.organization.findMany.mockResolvedValue([]);
+    await request(app.getHttpServer())
+      .get('/api/organizations?name=%20TeCh%20&parentId=root&managerId=manager')
+      .expect(200);
+    expect(prisma.organization.findMany).toHaveBeenCalledWith({
+      where: {
+        name: { contains: 'TeCh', mode: 'insensitive' },
+        parentId: 'root',
+        managerId: 'manager',
+      },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
+  });
+
   it('returns an empty list', async () => {
     prisma.organization.findMany.mockResolvedValue([]);
     await request(app.getHttpServer())

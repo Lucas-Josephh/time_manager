@@ -4,6 +4,7 @@ import { createHttpTestApp } from '../support/http-test-app';
 export function useTeamFixture() {
   let app: INestApplication;
   const prisma = {
+    $transaction: jest.fn(),
     team: {
       create: jest.fn(),
       update: jest.fn(),
@@ -12,8 +13,8 @@ export function useTeamFixture() {
       findUnique: jest.fn(),
       findMany: jest.fn(),
     },
-    organization: { findUnique: jest.fn() },
-    user: { findUnique: jest.fn() },
+    organization: { findUnique: jest.fn(), findMany: jest.fn() },
+    user: { findUnique: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
   };
   const dto = { name: 'Support', organizationId: 'department-it' };
   const team = { id: 'team-support', ...dto, managerId: null };
@@ -31,9 +32,12 @@ export function useTeamFixture() {
   });
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.$transaction.mockImplementation((callback: (tx: typeof prisma) => unknown) => callback(prisma));
+    prisma.organization.findMany.mockResolvedValue([]);
+    prisma.user.updateMany.mockImplementation(({ where }: { where: { id: { in: string[] } } }) => Promise.resolve({ count: where.id.in.length }));
     prisma.team.findFirst.mockResolvedValue(null);
     prisma.organization.findUnique.mockResolvedValue({ id: dto.organizationId });
-    prisma.user.findUnique.mockResolvedValue({ id: 'user-manager' });
+    prisma.user.findUnique.mockResolvedValue({ id: 'user-manager', isAdmin: true });
     prisma.team.create.mockResolvedValue(team);
     prisma.team.update.mockResolvedValue(team);
     prisma.team.delete.mockResolvedValue(team);

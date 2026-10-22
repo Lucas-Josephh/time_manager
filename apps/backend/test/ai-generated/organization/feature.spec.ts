@@ -7,7 +7,7 @@ import { createHttpTestApp } from '../support/http-test-app';
 describe('Organization CRUD contracts', () => {
   let app: INestApplication;
   const organization = {
-    id: 'org-engineering', name: 'Engineering', description: null,
+    id: 'org-engineering', name: 'Engineering',
     parentId: null, managerId: null,
     createdAt: '2026-10-16T10:00:00.000Z', updatedAt: '2026-10-16T10:00:00.000Z',
   };
@@ -34,7 +34,7 @@ describe('Organization CRUD contracts', () => {
     delegate.delete.mockResolvedValue(organization);
     delegate.findMany.mockResolvedValue([organization]);
     prisma.user.findUnique.mockResolvedValue({ id: 'manager' });
-    prisma.$transaction.mockImplementation(async (callback) => callback({ organization: delegate }));
+    prisma.$transaction.mockImplementation(async (callback) => callback({ organization: delegate, user: prisma.user }));
   });
   afterEach(() => { jest.restoreAllMocks(); });
 
@@ -50,7 +50,7 @@ describe('Organization CRUD contracts', () => {
   });
 
   it('combines list filters without exposing internal fields', async () => {
-    delegate.findMany.mockResolvedValue([{ ...organization, users: [{ email: 'private@example.com' }], secret: true }]);
+    delegate.findMany.mockResolvedValue([{ ...organization, users: [{ email: 'private@example.com' }], secret: true, description: 'Unsupported' }]);
     const response = await request(app.getHttpServer()).get('/api/organizations')
       .query({ name: 'eng', parentId: 'root', managerId: 'manager' }).expect(200);
     expect(response.body.data).toEqual([organization]);
@@ -62,7 +62,7 @@ describe('Organization CRUD contracts', () => {
 
   it.each([
     {}, { name: null }, { name: 42 }, { name: '   ' }, { name: 'x'.repeat(256) },
-    { name: 'Valid', description: 'x'.repeat(2001) },
+    { name: 'Valid', description: 'Unsupported' },
     { name: 'Valid', parentId: '' }, { name: 'Valid', managerId: 42 },
     { name: 'Valid', unexpected: true },
   ])('rejects invalid creation data %#', async (body) => {
@@ -83,7 +83,7 @@ describe('Organization CRUD contracts', () => {
   });
 
   it('creates with parent and manager and serializes nullable fields and dates', async () => {
-    const body = { name: ' Engineering ', parentId: 'root', managerId: 'manager', description: 'Technical teams' };
+    const body = { name: ' Engineering ', parentId: 'root', managerId: 'manager' };
     const result = { ...organization, ...body, name: 'Engineering' };
     delegate.create.mockResolvedValue({ ...result, users: [{ email: 'private@example.com' }] });
     await request(app.getHttpServer()).post('/api/organizations').send(body).expect(201)
@@ -92,10 +92,28 @@ describe('Organization CRUD contracts', () => {
   });
 
   it('clears optional fields without changing the name', async () => {
-    const body = { parentId: null, managerId: null, description: null };
+    const body = { parentId: null, managerId: null };
     await request(app.getHttpServer()).patch(`/api/organizations/${organization.id}`).send(body).expect(200);
     expect(delegate.update).toHaveBeenCalledWith({ where: { id: organization.id }, data: body });
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), { isolationLevel: 'Serializable' });
+  });
+
+  it('rejects the removed description field on updates', async () => {
+    const response = await request(app.getHttpServer()).patch(`/api/organizations/${organization.id}`)
+      .send({ description: null }).expect(400);
+    expect(response.body.data.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: 'description', messages: ['validation_unknown_field'] }),
+    ]));
+    expect(delegate.update).not.toHaveBeenCalled();
+  });
+
+  it('checks the update target before validating the DTO', async () => {
+    delegate.findUnique.mockResolvedValue(null);
+    await request(app.getHttpServer()).patch('/api/organizations/missing')
+      .send({ name: 42, unexpected: true }).expect(404)
+      .expect({ success: false, message: 'not_found', data: {} });
+    expect(delegate.findUnique).toHaveBeenCalledTimes(1);
+    expect(delegate.update).not.toHaveBeenCalled();
   });
 
   it('rejects updates of an absent organization', async () => {

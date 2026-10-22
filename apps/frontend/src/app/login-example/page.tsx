@@ -102,8 +102,8 @@ export default function Home() {
               Se connecter avec Microsoft 365
             </button>
             <p className="auth-help">
-              Utilise le compte Microsoft 365 dont l’adresse email a été ajoutée
-              par ton administrateur. L’association se fait automatiquement à la
+              Utilise le compte Microsoft 365 dont l\'adresse email a été ajoutée
+              par ton administrateur. L\'association se fait automatiquement à la
               première connexion.
             </p>
             <form onSubmit={login}>

@@ -72,7 +72,7 @@ Generated Prisma code (`apps/backend/src/generated/prisma/`), dependencies, and 
 
 ## Prerequisites and versions
 
-- Node.js **24 LTS**, version **24.9+** (`nvm use`). Jest needs this version to load NestJS 12’s ESM packages from the CommonJS backend. The test scripts enable Node’s VM module support as required by Jest.
+- Node.js **24 LTS**, version **24.9+** (`nvm use`). Jest needs this version to load NestJS 12\'s ESM packages from the CommonJS backend. The test scripts enable Node\'s VM module support as required by Jest.
 - pnpm **12.9.1**, pinned in `package.json`.
 - Docker Engine/Desktop and Docker Compose v2.
 

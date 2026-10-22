@@ -83,11 +83,41 @@ Appliquer les migrations existantes avec
 pendant le développement, utiliser `pnpm prisma:migrate`.
 `pnpm prisma:studio` ouvre l'interface de consultation et modification des données.
 
-Un utilisateur doit appartenir à une équipe (`user.teamId` obligatoire).
+Un utilisateur peut être sans équipe (`user.teamId` nullable).
 Le responsable d'une équipe est optionnel (`team.managerId` nullable), ce qui
 permet de créer l'équipe avant son premier utilisateur. La suppression d'une
 équipe ayant encore des membres est restreinte : réaffecter les utilisateurs avant
 de la supprimer.
+
+## Modification des membres d\'une équipe
+
+Pour `PUT /api/team/:id` et `PATCH /api/team/:id`, le responsable est
+**toujours membre** de l\'équipe : il est ajouté automatiquement même s\'il est
+absent de `memberIds`. Il doit être sans équipe ou déjà membre de cette équipe,
+et appartenir à son organisation ou à une organisation descendante.
+
+| Champs envoyés | Résultat |
+| --- | --- |
+| `memberIds: []`, responsable conservé ou défini | Seul le responsable reste membre. |
+| `memberIds: []` et `managerId: null` | Aucun responsable et aucun membre : l\'équipe est vide. |
+| `memberIds` omis | Les membres existants sont conservés ; le nouveau responsable est ajouté si défini. |
+| `managerId: null`, `memberIds` omis | Le rôle de responsable est retiré ; l\'ancien responsable reste membre. |
+
+Pour vider une équipe avec `PATCH` :
+
+```json
+{
+  "memberIds": [],
+  "managerId": null
+}
+```
+
+Avec `PUT`, `name` et `organizationId` restent également requis.
+Une liste `memberIds` non vide remplace les membres, en y incluant toujours
+le responsable conservé ou défini. Toutes les modifications sont atomiques :
+un utilisateur indisponible provoque une erreur `409 team_members_unavailable`,
+avec les utilisateurs concernés dans `data.unavailableMembers`, et annule
+l\'opération entière.
 
 ## Création des utilisateurs
 
@@ -127,7 +157,7 @@ Pour un utilisateur existant,
 le profil et le rôle sont conservés un mot de passe existant n'est pas remplacé.
 Utiliser un email en minuscules, le seeder ne le normalisant pas.
 
-## Documentation de l’API
+## Documentation de l\'API
 
 Swagger est la référence pour les routes NestJS, les paramètres, les DTO,
 les statuts HTTP et les exemples de réponses :
@@ -138,7 +168,7 @@ les statuts HTTP et les exemples de réponses :
 
 ## Développer un contrôleur NestJS
 
-Retourner les données directement ; `ResponseInterceptor` construit l’enveloppe.
+Retourner les données directement ; `ResponseInterceptor` construit l\'enveloppe.
 Choisir le message avec `@ResponseMessage(...)` et le DTO de sortie avec
 `@SerializeResponse(...)`. Ne pas construire une seconde enveloppe dans le
 contrôleur. Voir les [conventions de sérialisation](../apps/backend/src/common/serialization/README.md).
@@ -150,7 +180,7 @@ Voir [Validation et erreurs](VALIDATION_AND_ERRORS.md) pour leur fonctionnement.
 
 Documenter chaque route avec `@ApiTags`, `@ApiOperation` et les décorateurs de
 `common/swagger/api-response.decorator.ts`, notamment `ApiSuccessResponse`
-et les réponses d’erreur adaptées. Décrire les propriétés des DTO avec
+et les réponses d\'erreur adaptées. Décrire les propriétés des DTO avec
 `@ApiProperty` ou `@ApiPropertyOptional` et les paramètres de route et de recherche
 avec les décorateurs Swagger correspondants. Les décorateurs Swagger décrivent
 le contrat ; ils ne remplacent ni la validation ni la sérialisation.

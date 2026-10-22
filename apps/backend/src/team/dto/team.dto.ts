@@ -1,12 +1,11 @@
+import { Reference } from '../../common/decorator/reference.decorator';
 import { OrganizationDetailsDto } from '../../organization/dto/organization.dto';
 import { UserSummaryDto } from '../../user/dto/user.dto';
 import { Exclude, Expose, Transform, Type } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
-import { Reference } from '../../common/decorator/reference.decorator';
-import { Unique } from '../../common/decorator/unique.decorator';
+import { ArrayUnique, IsArray, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 
-export class TeamDto {
+export class SetTeamDto {
   @ApiProperty({
     description:
       'Nom unique, nettoyé des espaces aux extrémités. En modification, le nom actuel de cette équipe est autorisé.',
@@ -18,7 +17,6 @@ export class TeamDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  @Unique('team', 'name')
   name!: string;
 
   @ApiPropertyOptional({
@@ -26,7 +24,7 @@ export class TeamDto {
     nullable: true,
     minLength: 1,
     description:
-      'Identifiant d’un utilisateur existant. null retire le responsable ; un champ omis ne le modifie pas.',
+      'Utilisateur sans équipe ou déjà membre de cette équipe, appartenant à son organisation ou une descendante. Ajouté automatiquement aux membres. null retire uniquement le rôle de responsable ; omis le conserve.',
     example: 'default-admin',
   })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
@@ -37,7 +35,7 @@ export class TeamDto {
   managerId?: string | null;
 
   @ApiProperty({
-    description: 'Identifiant d’un organisation existant.',
+    description: 'Identifiant d\'un organisation existant.',
     example: 'department-it',
     minLength: 1,
   })
@@ -46,11 +44,29 @@ export class TeamDto {
   @IsNotEmpty()
   @Reference('organization')
   organizationId!: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['user-1', 'user-2'],
+    description:
+      'Identifiants uniques des membres de cette organisation ou de ses descendantes, sans équipe ou déjà dans cette équipe. Remplace la liste fournie ; [] conserve uniquement le responsable si managerId est conservé ou défini ; [] avec managerId: null dans la même requête vide complètement l\'équipe. Omis conserve les membres existants et ajoute le nouveau responsable si défini. Le responsable est toujours inclus.',
+  })
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((id: unknown) => (typeof id === 'string' ? id.trim() : id))
+      : value,
+  )
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  memberIds?: string[];
 }
 
-export class PartialTeamDto extends PartialType(TeamDto, {}) {}
+export class PartialSetTeamDto extends PartialType(SetTeamDto, { skipNullProperties: false }) {}
 
-export class QueryTeamDto {
+export class QuerySetTeamDto {
   @IsOptional()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
@@ -74,7 +90,7 @@ export class QueryTeamDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @ApiPropertyOptional({ description: "Identifiant d’un utilisateur membre de l’équipe." })
+  @ApiPropertyOptional({ description: "Identifiant d\'un utilisateur membre de l\'équipe." })
   memberId?: string;
 }
 
@@ -130,7 +146,7 @@ export class TeamWithRelationsDto extends TeamDetailsDto {
   @Expose()
   @ApiProperty({
     type: [UserSummaryDto],
-    description: 'Profils utilisateurs des membres de l’équipe.',
+    description: 'Profils utilisateurs des membres de l\'équipe.',
     example: [],
   })
   @Type(() => UserSummaryDto)

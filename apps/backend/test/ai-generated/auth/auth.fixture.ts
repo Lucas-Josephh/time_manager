@@ -10,7 +10,11 @@ import { configureApp } from '../../../src/configure-app';
 import { createAuth } from '../../../src/lib/auth';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 
-export function useAuthFixture() {
+export function useAuthFixture(): {
+  readonly app: INestApplication;
+  readonly auth: ReturnType<typeof createAuth>;
+  origin: string;
+} {
   let app: INestApplication;
   let auth: ReturnType<typeof createAuth>;
 

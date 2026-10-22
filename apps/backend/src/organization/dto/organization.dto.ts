@@ -1,32 +1,33 @@
-import { ValidOrganizationParent } from '../../common/decorator/valid-organization-parent.decorator';
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { Exclude, Expose, Transform } from 'class-transformer';
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { Reference } from '../../common/decorator/reference.decorator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { Exclude, Expose, Transform, Type } from 'class-transformer';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class OrganizationDto {
   @ApiProperty({ example: 'Technique', minLength: 1, maxLength: 255 })
-  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   name!: string;
 
-  @ApiPropertyOptional({ type: String, nullable: true, maxLength: 2000 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(2000)
-  description?: string | null;
-
-  @ApiPropertyOptional({ type: String, nullable: true, description: 'Parent existant. null rend l’organisation racine. Les cycles sont interdits.' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      'Parent existant. null rend l\'organisation racine. Les cycles sont interdits.',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @ValidOrganizationParent()
   @Reference('organization')
   parentId?: string | null;
 
-  @ApiPropertyOptional({ type: String, nullable: true, description: 'Responsable existant. null retire le responsable.' })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: 'Responsable existant. null retire le responsable.',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
@@ -34,17 +35,26 @@ export class OrganizationDto {
   managerId?: string | null;
 }
 
-export class PartialOrganizationDto extends PartialType(OrganizationDto, { skipNullProperties: false }) {}
+export class PartialOrganizationDto extends PartialType(OrganizationDto, {
+  skipNullProperties: false,
+}) {}
 
 export class QueryOrganizationDto {
-  @ApiPropertyOptional({ description: 'Recherche partielle sur le nom, sans distinction de casse.' })
+  @ApiPropertyOptional({
+    description: 'Recherche partielle sur le nom, sans distinction de casse.',
+  })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
   name?: string;
 
-  @ApiPropertyOptional({ description: 'Filtrer les enfants directs d’une organisation.' })
+  @ApiPropertyOptional({
+    description:
+      'Liste : enfants directs. Arborescence : organisation ciblée et ses descendants.',
+  })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsOptional()
   @IsString()
   @IsNotEmpty()
@@ -69,10 +79,6 @@ export class OrganizationDetailsDto {
 
   @Expose()
   @ApiProperty({ type: String, nullable: true })
-  description!: string | null;
-
-  @Expose()
-  @ApiProperty({ type: String, nullable: true })
   parentId!: string | null;
 
   @Expose()
@@ -86,4 +92,12 @@ export class OrganizationDetailsDto {
   @Expose()
   @ApiProperty({ format: 'date-time' })
   updatedAt!: Date;
+}
+
+@Exclude()
+export class OrganizationTreeDto extends OrganizationDetailsDto {
+  @Expose()
+  @Type(() => OrganizationTreeDto)
+  @ApiProperty({ type: () => [OrganizationTreeDto] })
+  children!: OrganizationTreeDto[];
 }

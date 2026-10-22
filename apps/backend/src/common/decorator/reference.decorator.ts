@@ -1,47 +1,37 @@
-// Conserve uniquement les propriétés Prisma ayant un findUnique.
-import { PrismaService } from '../../prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
-import {
-  Validate,
-  ValidationArguments,
-  ValidatorConstraint,
-  ValidatorConstraintInterface,
-} from 'class-validator';
+import { Validate, ValidatorConstraint } from 'class-validator';
+import type { ValidationArguments, ValidatorConstraintInterface } from 'class-validator';
+import { PrismaService } from '../../prisma/prisma.service';
+import type { Prisma } from '../../generated/prisma/client';
 
-export type ReferenceModel = {
-  [K in keyof PrismaService]-?: PrismaService[K] extends { findUnique: unknown }
-    ? K
-    : never;
-}[keyof PrismaService];
+// Prisma model names become client properties: Organization -> organization.
+export type ReferenceModel = Uncapitalize<Prisma.ModelName>;
 
-// Convention : les modèles utilisés ont un ID unique de type string.
+// All referenced models use a unique string primary key named id.
 type ReferenceDelegate = {
   findUnique(args: {
     where: { id: string };
     select: { id: true };
-  }): Promise<{ id: string } | null>;
+  }): PromiseLike<{ id: string } | null>;
 };
 
 @Injectable()
 @ValidatorConstraint({ name: 'referenceExists', async: true })
 export class ReferenceExistsConstraint implements ValidatorConstraintInterface {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  validate(
-    value: unknown,
-    args?: ValidationArguments,
-  ): Promise<boolean> | boolean {
-    if (typeof value !== 'string' || value.trim() === '') {
-      return true;
-    }
+  async validate(value: unknown, args: ValidationArguments): Promise<boolean> {
+    // Format errors are handled by @IsString and @IsNotEmpty.
+    if (typeof value !== 'string' || !value.trim()) return true;
 
-    const model = args?.constraints[0] as ReferenceModel;
-    const delegate = this.prismaService[model] as unknown as ReferenceDelegate;
-
-    return delegate
-      .findUnique({ where: { id: value }, select: { id: true } })
-      .then((result) => !!result)
-      .catch(() => false);
+    const [model] = args.constraints as [ReferenceModel];
+    const delegate = this.prisma[model] as unknown as ReferenceDelegate;
+    const resource = await delegate.findUnique({
+      where: { id: value },
+      select: { id: true },
+    });
+    // Database errors propagate; an outage is not a missing reference.
+    return resource !== null;
   }
 }
 

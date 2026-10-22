@@ -2,8 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
 
 const VALIDATION_CODES: Readonly<Record<string, string>> = {
-  validOrganizationParent: 'organization_cycle',
-  isUnique: 'already_exists',
+  referenceExists: 'reference_not_found',
   isString: 'need_string',
   isNotEmpty: 'is_required',
   isDefined: 'is_required',
@@ -15,15 +14,12 @@ const VALIDATION_CODES: Readonly<Record<string, string>> = {
   isBoolean: 'invalid_boolean',
   isDateString: 'invalid_date_string',
   isEnum: 'invalid_enum_value',
-  referenceExists: 'reference_not_found',
   whitelistValidation: 'validation_unknown_field',
   arrayUnique: 'validation_duplicate_array_value',
 };
 
-// Une seule erreur par champ, indépendante de l'ordre des décorateurs.
+// Define the priority of validation rules to determine which error code to return first.
 const RULE_PRIORITY = ['isNotEmpty', 'isDefined', 'isString'];
-
-type FieldError = { field: string; messages: string[] };
 
 function getErrorCode(error: ValidationError): string | undefined {
   const rules = Object.keys(error.constraints ?? {});
@@ -31,12 +27,10 @@ function getErrorCode(error: ValidationError): string | undefined {
   const rule = priorityRule ?? rules[0];
   if (!rule) return undefined;
 
-  const error_code: string = VALIDATION_CODES[rule] ?? 'validation_invalid';
-  if(VALIDATION_CODES[rule] === undefined)
-    console.warn(`Unknown validation rule: ${rule}`);
-
-  return error_code;
+  return VALIDATION_CODES[rule] ?? 'validation_invalid';
 }
+
+type FieldError = { field: string; messages: string[] };
 
 function formatErrors(
   errors: ValidationError[],
@@ -58,9 +52,18 @@ function formatErrors(
   return result;
 }
 
-export function validationExceptionFactory(errors: ValidationError[]): BadRequestException {
+function validationException(errors: FieldError[]): BadRequestException {
   return new BadRequestException({
     message: 'validation_failed',
-    data: { errors: formatErrors(errors) },
+    data: { errors },
   });
+}
+
+/** Same error envelope for explicit service checks and DTO validation. */
+export function fieldValidationException(field: string, code: string): BadRequestException {
+  return validationException([{ field, messages: [code] }]);
+}
+
+export function validationExceptionFactory(errors: ValidationError[]): BadRequestException {
+  return validationException(formatErrors(errors));
 }

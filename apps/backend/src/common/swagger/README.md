@@ -4,7 +4,7 @@ Chaque contrôleur possède un fichier voisin `<ressource>.swagger.ts`.
 Ce fichier expose des décorateurs composés avec `applyDecorators` :
 
 - `Api<Ressource>Controller()` regroupe les tags et les réponses communes.
-- `Api<Ressource><Action>()` regroupe le résumé, la description, les paramètres explicites, le corps et les réponses d’une route.
+- `Api<Ressource><Action>()` regroupe le résumé, la description, les paramètres explicites, le corps et les réponses d\'une route.
 
 Exemple dans un contrôleur :
 
@@ -16,7 +16,7 @@ tree(@Query() query: QueryOrganizationDto, @Req() request: AuthRequest) {
 }
 ```
 
-Les routes, guards, codes HTTP, messages de réponse et décorateurs de sérialisation restent dans le contrôleur : ils déterminent le comportement de l’API.
+Les routes, guards, codes HTTP, messages de réponse et décorateurs de sérialisation restent dans le contrôleur : ils déterminent le comportement de l\'API.
 Les propriétés des schémas restent documentées dans les DTO avec `ApiProperty` et `ApiPropertyOptional`.
 
 Réutiliser les décorateurs de `api-response.decorator.ts` pour les enveloppes de réponse et les erreurs.

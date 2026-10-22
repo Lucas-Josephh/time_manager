@@ -15,7 +15,7 @@ export function ApiAppController() {
 
 export function ApiAppHealth() {
   return applyDecorators(
-    ApiOperation({ summary: 'Vérifier que l’API répond' }),
+    ApiOperation({ summary: 'Vérifier que l\'API répond' }),
     ApiSuccessResponse({ type: HealthDto, message: 'health_check_successful' }),
   );
 }

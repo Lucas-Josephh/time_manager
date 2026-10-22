@@ -43,7 +43,6 @@ describe('DTO response serialization', () => {
     id: 'u1',
     firstname: 'Alice',
     lastname: 'Martin',
-    image: null,
   };
 
   it('filters nested users and organizations while preserving inherited team fields', async () => {

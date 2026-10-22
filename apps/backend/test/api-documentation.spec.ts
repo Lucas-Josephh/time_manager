@@ -1,3 +1,4 @@
+import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/auth/auth.service';
 import { AppController } from '../src/app.controller';
 import { Test } from '@nestjs/testing';
@@ -12,6 +13,7 @@ describe('Shared API documentation', () => {
     const module = await Test.createTestingModule({
       controllers: [TeamController, OrganizationController, AppController],
       providers: [
+        { provide: PrismaService, useValue: {} },
         { provide: AuthService, useValue: {} },
         { provide: TeamService, useValue: {} },
         { provide: OrganizationService, useValue: {} },
@@ -27,6 +29,28 @@ describe('Shared API documentation', () => {
       );
       const teams = document.paths['/api/team'];
       const team = document.paths['/api/team/{id}'];
+      const availableUsers = document.paths['/api/team/{id}/available-users'].get;
+      expect(availableUsers?.responses['200']).toMatchObject({
+        content: {
+          'application/json': {
+            schema: {
+              properties: {
+                message: { enum: ['team_available_users_listed'] },
+                data: { type: 'array', items: { $ref: '#/components/schemas/AvailableTeamUserDto' } },
+              },
+            },
+          },
+        },
+      });
+      for (const status of ['400', '401', '403', '404', '500']) {
+        expect(availableUsers?.responses).toHaveProperty(status);
+      }
+      expect(availableUsers?.parameters).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: 'id', in: 'path', required: true }),
+      ]));
+      expect(document.components?.schemas?.AvailableTeamUserDto).toMatchObject({
+        properties: { id: {}, firstname: {}, lastname: {} },
+      });
       const organizations = document.paths['/api/organizations'];
       const organization = document.paths['/api/organizations/{id}'];
       for (const operation of [
@@ -58,12 +82,16 @@ describe('Shared API documentation', () => {
             schema: {
               properties: {
                 message: { enum: ['team_created'] },
-                data: { $ref: '#/components/schemas/TeamDetailsDto' },
+                data: { $ref: '#/components/schemas/TeamWithRelationsDto' },
               },
             },
           },
         },
       });
+      for (const status of ['401', '403']) {
+        expect(teams.post?.responses).toHaveProperty(status);
+      }
+      expect(document.components?.schemas?.AvailableTeamUserDto).not.toHaveProperty('properties.image');
       expect(teams.get?.parameters).toEqual(
         expect.arrayContaining(
           ['name', 'organizationId', 'managerId', 'memberId'].map((name) =>

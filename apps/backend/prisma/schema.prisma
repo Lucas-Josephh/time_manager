@@ -69,7 +69,6 @@ model User {
   team   Team?   @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Restrict)
   managedTeams Team[] @relation("TeamManager")
 
-  @@unique([email])
   @@index([organizationId])
   @@index([teamId])
   @@map("user")

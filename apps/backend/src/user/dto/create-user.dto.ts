@@ -7,7 +7,6 @@ import {
   IsPhoneNumber,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { Unique } from '../../common/decorator/unique.decorator';
 import { Reference } from 'src/common/decorator/reference.decorator';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -40,7 +39,6 @@ export class CreateUserDto {
   })
   @IsEmail({})
   @IsNotEmpty()
-  @Unique('user', 'email')
   @Transform(({ value }: { value: string }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )

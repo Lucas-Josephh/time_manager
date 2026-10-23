@@ -1,5 +1,7 @@
+import { ReferenceExistsConstraint } from './common/decorator/reference.decorator';
+import { validationOptions } from './common/validation/validation.config';
 import { AuthModule } from './auth/auth.module';
-import { Module } from '@nestjs/common';
+import { Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { resolve } from 'node:path';
 import { AppController } from './app.controller';
@@ -7,12 +9,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
-import { DepartmentModule } from './department/department.module';
+import { OrganizationModule } from './organization/organization.module';
 import { TeamModule } from './team/team.module';
-import { ReferenceExistsConstraint } from './common/decorator/reference.decorator';
-import { UniqueConstraint } from './common/decorator/unique.decorator';
-import { RequestValidationPipe } from './common/validation/request-validation.pipe';
-import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -25,15 +23,17 @@ import { UserModule } from './user/user.module';
     }),
     PrismaModule,
     AuthModule,
-    DepartmentModule,
+    OrganizationModule,
     TeamModule,
     UserModule,
   ],
   controllers: [AppController],
   providers: [
-    { provide: APP_PIPE, useClass: RequestValidationPipe },
     ReferenceExistsConstraint,
-    UniqueConstraint,
+    {
+      provide: APP_PIPE,
+      useFactory: () => new ValidationPipe(validationOptions),
+    },
     {
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,

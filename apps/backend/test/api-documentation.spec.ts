@@ -1,18 +1,22 @@
+import { PrismaService } from '../src/prisma/prisma.service';
+import { AuthService } from '../src/auth/auth.service';
 import { AppController } from '../src/app.controller';
 import { Test } from '@nestjs/testing';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { TeamController } from '../src/team/team.controller';
 import { TeamService } from '../src/team/team.service';
-import { DepartmentController } from '../src/department/department.controller';
-import { DepartmentService } from '../src/department/department.service';
+import { OrganizationController } from '../src/organization/organization.controller';
+import { OrganizationService } from '../src/organization/organization.service';
 
 describe('Shared API documentation', () => {
   it('documents real envelopes, relations, filters and reusable errors', async () => {
     const module = await Test.createTestingModule({
-      controllers: [TeamController, DepartmentController, AppController],
+      controllers: [TeamController, OrganizationController, AppController],
       providers: [
+        { provide: PrismaService, useValue: {} },
+        { provide: AuthService, useValue: {} },
         { provide: TeamService, useValue: {} },
-        { provide: DepartmentService, useValue: {} },
+        { provide: OrganizationService, useValue: {} },
       ],
     }).compile();
     const app = module.createNestApplication();
@@ -25,8 +29,30 @@ describe('Shared API documentation', () => {
       );
       const teams = document.paths['/api/team'];
       const team = document.paths['/api/team/{id}'];
-      const departments = document.paths['/api/departments'];
-      const department = document.paths['/api/departments/{id}'];
+      const availableUsers = document.paths['/api/team/{id}/available-users'].get;
+      expect(availableUsers?.responses['200']).toMatchObject({
+        content: {
+          'application/json': {
+            schema: {
+              properties: {
+                message: { enum: ['team_available_users_listed'] },
+                data: { type: 'array', items: { $ref: '#/components/schemas/AvailableTeamUserDto' } },
+              },
+            },
+          },
+        },
+      });
+      for (const status of ['400', '401', '403', '404', '500']) {
+        expect(availableUsers?.responses).toHaveProperty(status);
+      }
+      expect(availableUsers?.parameters).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: 'id', in: 'path', required: true }),
+      ]));
+      expect(document.components?.schemas?.AvailableTeamUserDto).toMatchObject({
+        properties: { id: {}, firstname: {}, lastname: {} },
+      });
+      const organizations = document.paths['/api/organizations'];
+      const organization = document.paths['/api/organizations/{id}'];
       for (const operation of [
         teams.get,
         teams.post,
@@ -34,8 +60,8 @@ describe('Shared API documentation', () => {
         team.put,
         team.patch,
         team.delete,
-        departments.get,
-        department.get,
+        organizations.get,
+        organization.get,
       ]) {
         expect(operation?.responses['500']).toMatchObject({
           content: {
@@ -56,31 +82,32 @@ describe('Shared API documentation', () => {
             schema: {
               properties: {
                 message: { enum: ['team_created'] },
-                data: { $ref: '#/components/schemas/TeamDetailsDto' },
+                data: { $ref: '#/components/schemas/TeamWithRelationsDto' },
               },
             },
           },
         },
       });
+      for (const status of ['401', '403']) {
+        expect(teams.post?.responses).toHaveProperty(status);
+      }
+      expect(document.components?.schemas?.AvailableTeamUserDto).not.toHaveProperty('properties.image');
       expect(teams.get?.parameters).toEqual(
         expect.arrayContaining(
-          ['name', 'departmentId', 'managerId', 'memberId'].map((name) =>
+          ['name', 'organizationId', 'managerId', 'memberId'].map((name) =>
             expect.objectContaining({ name, in: 'query', required: false }),
           ),
         ),
       );
       expect(teams.get?.responses).toHaveProperty('400');
-      expect(team.get?.responses).not.toHaveProperty('404');
+      expect(team.get?.responses).toHaveProperty('404');
       expect(team.get?.responses['200']).toMatchObject({
         content: {
           'application/json': {
             schema: {
               properties: {
                 data: {
-                  oneOf: [
-                    { $ref: '#/components/schemas/TeamWithRelationsDto' },
-                    { type: 'object', additionalProperties: false },
-                  ],
+                  $ref: '#/components/schemas/TeamWithRelationsDto',
                 },
               },
             },
@@ -91,23 +118,23 @@ describe('Shared API documentation', () => {
         expect(operation?.responses).toHaveProperty('400');
         expect(operation?.responses).toHaveProperty('409');
       }
-      expect(department.get?.responses['404']).toMatchObject({
+      expect(organization.get?.responses['404']).toMatchObject({
         content: {
           'application/json': {
             schema: {
-              properties: { message: { enum: ['department_not_found'] } },
+              properties: { message: { enum: ['not_found'] } },
             },
           },
         },
       });
-      expect(departments.get?.responses['200']).toMatchObject({
+      expect(organizations.get?.responses['200']).toMatchObject({
         content: {
           'application/json': {
             schema: {
               properties: {
                 data: {
                   type: 'array',
-                  items: { $ref: '#/components/schemas/DepartmentDetailsDto' },
+                  items: { $ref: '#/components/schemas/OrganizationDetailsDto' },
                 },
               },
             },
@@ -129,10 +156,10 @@ describe('Shared API documentation', () => {
         },
       );
       const schemas = document.components?.schemas;
-      expect(schemas?.DepartmentDetailsDto).toMatchObject({
+      expect(schemas?.OrganizationDetailsDto).toMatchObject({
         properties: { id: {}, name: {} },
       });
-      expect(schemas?.DepartmentDetailsDto).not.toHaveProperty(
+      expect(schemas?.OrganizationDetailsDto).toHaveProperty(
         'properties.createdAt',
       );
       expect(schemas?.UserSummaryDto).not.toHaveProperty('properties.email');

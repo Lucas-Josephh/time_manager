@@ -5,32 +5,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { i18n, locales } from '@better-auth/i18n';
 import { createAuthMiddleware, APIError } from 'better-auth/api';
 
-type AuthOptions = BetterAuthOptions & {
-  plugins: [ReturnType<typeof i18n>];
-  user: {
-    fields: { name: 'firstname' };
-    additionalFields: {
-      lastname: {
-        type: 'string';
-        required: true;
-        defaultValue: string;
-        input: true;
-      };
-      phone: { type: 'string'; required: false };
-      teamId: { type: 'string'; required: false; input: false };
-      isAdmin: {
-        type: 'boolean';
-        defaultValue: false;
-        input: false;
-      };
-    };
-  };
-};
-
 export function createAuth(
   prisma: PrismaService,
   config: ConfigService,
-): ReturnType<typeof betterAuth<AuthOptions>> {
+  { provisionUsers = false }: { provisionUsers?: boolean } = {},
+): ReturnType<
+  typeof betterAuth<BetterAuthOptions & { plugins: [ReturnType<typeof i18n>] }>
+> {
   const baseURL = config.getOrThrow<string>('BETTER_AUTH_URL');
   const frontend = config.getOrThrow<string>('FRONTEND_URL');
   const secret = config.getOrThrow<string>('BETTER_AUTH_SECRET');
@@ -60,7 +41,9 @@ export function createAuth(
       'Microsoft authentication requires a specific organization tenant',
     );
 
-  const options: AuthOptions = {
+  const options: BetterAuthOptions & {
+    plugins: [ReturnType<typeof i18n>];
+  } = {
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
     secret,
     baseURL,
@@ -94,30 +77,19 @@ export function createAuth(
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
-      disableSignUp: false,
+      disableSignUp: !provisionUsers,
+      ...(provisionUsers ? { autoSignIn: false } : {}),
       minPasswordLength: 12,
       maxPasswordLength: 128,
-      onPasswordReset: async ({ user }) => {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { mustChangePassword: false },
-        });
-      },
     },
 
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (
-          ctx.path !== '/sign-up/email' &&
-          ctx.path !== '/reset-password'
-        ) {
+        if (ctx.path !== '/sign-up/email') {
           return;
         }
 
-        const password =
-          ctx.path === '/sign-up/email'
-            ? ctx.body?.password
-            : ctx.body?.newPassword;
+        const password = ctx.body?.password;
 
         if (
           typeof password !== 'string' ||
@@ -136,8 +108,6 @@ export function createAuth(
         lastname: {
           type: 'string',
           required: true,
-          defaultValue: '',
-          input: true,
         },
         phone: {
           type: 'string',
@@ -146,7 +116,7 @@ export function createAuth(
         teamId: {
           type: 'string',
           required: false,
-          input: false,
+          input: provisionUsers,
         },
         isAdmin: {
           type: 'boolean',

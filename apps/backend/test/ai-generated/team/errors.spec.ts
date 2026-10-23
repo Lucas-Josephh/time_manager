@@ -9,9 +9,9 @@ describe('Team HTTP API: errors', () => {
     ['post', 'create', 'P2002', 409, 'already_exists'],
     ['post', 'create', 'P2003', 409, 'reference_conflict'],
     ['delete', 'delete', 'P2003', 409, 'reference_conflict'],
-    ['put', 'update', 'P2025', 404, 'team_not_found'],
-    ['patch', 'update', 'P2025', 404, 'team_not_found'],
-    ['delete', 'delete', 'P2025', 404, 'team_not_found'],
+    ['put', 'update', 'P2025', 404, 'not_found'],
+    ['patch', 'update', 'P2025', 404, 'not_found'],
+    ['delete', 'delete', 'P2025', 404, 'not_found'],
   ] as const)(
     'maps %s database error %s %s',
     async (method, operation, code, status, message) => {

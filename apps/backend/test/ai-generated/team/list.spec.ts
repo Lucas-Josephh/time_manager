@@ -10,19 +10,19 @@ describe('Team HTTP API: list', () => {
       { name: ' Support ' },
       { name: { contains: 'Support', mode: 'insensitive' } },
     ],
-    [{ departmentId: 'dept' }, { departmentId: 'dept' }],
+    [{ organizationId: 'dept' }, { organizationId: 'dept' }],
     [{ managerId: 'manager' }, { managerId: 'manager' }],
     [{ memberId: 'member' }, { members: { some: { id: 'member' } } }],
     [
       {
         name: 'Support',
-        departmentId: 'dept',
+        organizationId: 'dept',
         managerId: 'manager',
         memberId: 'member',
       },
       {
         name: { contains: 'Support', mode: 'insensitive' },
-        departmentId: 'dept',
+        organizationId: 'dept',
         managerId: 'manager',
         members: { some: { id: 'member' } },
       },

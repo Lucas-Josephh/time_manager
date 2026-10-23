@@ -19,10 +19,6 @@ export class UserSummaryDto {
   @Expose()
   @ApiProperty({ example: 'Martin' })
   lastname!: string;
-
-  @Expose()
-  @ApiProperty({ type: String, nullable: true, example: null })
-  image!: string | null;
 }
 
 /**

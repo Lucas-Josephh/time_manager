@@ -1,3 +1,14 @@
+import { ResourceExists } from '../common/guards/resource-exists.guard';
+import {
+  ApiTeamController,
+  ApiTeamCreate,
+  ApiTeamReplace,
+  ApiTeamUpdate,
+  ApiTeamDelete,
+  ApiTeamFindAll,
+  ApiTeamFindAvailableUsers,
+  ApiTeamFindOne,
+} from './team.swagger';
 import {
   Body,
   Controller,
@@ -10,100 +21,69 @@ import {
   Post,
   Put,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { TeamService } from './team.service';
+import { AuthGuard, type AuthRequest } from '../auth/auth.guard';
 import {
-  PartialTeamDto,
-  QueryTeamDto,
-  TeamDto,
+  AvailableTeamUserDto,
+  AvailableTeamUsersParamsDto,
+} from './dto/available-team-user.dto';
+import {
+  PartialSetTeamDto,
+  QuerySetTeamDto,
+  SetTeamDto,
   TeamDetailsDto,
   TeamWithRelationsDto,
 } from './dto/team.dto';
 import { ResponseMessage } from '../common/decorator/response-message.decorator';
 import { SerializeResponse } from '../common/serialization/serialize-response.decorator';
-import {
-  ApiBody,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
-import {
-  ApiConflictError,
-  ApiResourceId,
-  ApiNotFoundError,
-  ApiServerError,
-  ApiSuccessResponse,
-  ApiWriteErrors,
-  ApiValidationError,
-} from '../common/swagger/api-response.decorator';
 
-@ApiTags('Team')
-@ApiServerError()
+// TODO: Implement management guards for the remaining CRUD routes.
+
+@ApiTeamController()
 @Controller('team')
-@SerializeResponse(TeamWithRelationsDto)
+@SerializeResponse(TeamDetailsDto)
 export class TeamController {
   constructor(private readonly teamService: TeamService) {}
 
   @ResponseMessage('team_created')
   @HttpCode(HttpStatus.CREATED)
   @Post()
-  @ApiOperation({
-    summary: 'Créer une équipe',
-    description:
-      'Route actuellement publique. Le nom doit être unique ; le département doit exister. Le responsable est optionnel.',
-  })
-  @ApiBody({ type: TeamDto })
-  @ApiSuccessResponse({ type: TeamDetailsDto, status: 201, message: 'team_created' })
-  @ApiWriteErrors()
-  create(@Body() dto: TeamDto) {
+  @UseGuards(AuthGuard)
+  @ApiTeamCreate()
+  @SerializeResponse(TeamWithRelationsDto)
+  async create(@Body() dto: SetTeamDto, @Req() request: AuthRequest) {
+    await this.teamService.assertCanCreate(dto.organizationId, request.session!.user.id);
     return this.teamService.create(dto);
   }
 
   @ResponseMessage('team_updated')
   @HttpCode(HttpStatus.OK)
+  @ResourceExists('team')
   @Put(':id')
-  @ApiOperation({
-    summary: 'Mettre à jour une équipe',
-    description:
-      'Route actuellement publique. Nom et département requis. Le responsable omis reste inchangé ; null le retire. Le nom actuel de cette équipe est autorisé.',
-  })
-  @ApiResourceId('team-administration')
-  @ApiBody({ type: TeamDto })
-  @ApiSuccessResponse({ type: TeamDetailsDto, status: 200, message: 'team_updated' })
-  @ApiWriteErrors()
-  @ApiNotFoundError('team_not_found')
-  update(@Param('id') id: string, @Body() dto: TeamDto) {
+  @ApiTeamReplace()
+  @SerializeResponse(TeamWithRelationsDto)
+  replace(@Param('id') id: string, @Body() dto: SetTeamDto) {
     return this.teamService.replace(id, dto);
   }
 
   @ResponseMessage('team_partially_updated')
   @HttpCode(HttpStatus.OK)
+  @ResourceExists('team')
   @Patch(':id')
-  @ApiOperation({
-    summary: 'Modifier partiellement une équipe',
-    description:
-      'Route actuellement publique. Seuls les champs fournis sont modifiés. Omettre les champs inchangés ; null peut retirer le responsable. Le nom actuel de cette équipe est autorisé.',
-  })
-  @ApiResourceId('team-administration')
-  @ApiBody({ type: PartialTeamDto })
-  @ApiSuccessResponse({ type: TeamDetailsDto, status: 200, message: 'team_partially_updated' })
-  @ApiWriteErrors()
-  @ApiNotFoundError('team_not_found')
-  partialUpdate(@Param('id') id: string, @Body() dto: PartialTeamDto) {
+  @ApiTeamUpdate()
+  @SerializeResponse(TeamWithRelationsDto)
+  update(@Param('id') id: string, @Body() dto: PartialSetTeamDto) {
     return this.teamService.update(id, dto);
   }
 
   @ResponseMessage('team_deleted')
   @HttpCode(HttpStatus.ACCEPTED)
+  @ResourceExists('team')
   @Delete(':id')
-  @ApiOperation({
-    summary: 'Supprimer une équipe',
-    description:
-      'Route actuellement publique. Réaffecter ses membres avant la suppression. La suppression est exécutée avant la réponse 202.',
-  })
-  @ApiResourceId('team-administration')
-  @ApiSuccessResponse({ type: TeamDetailsDto, status: 202, message: 'team_deleted' })
-  @ApiNotFoundError('team_not_found')
-  @ApiConflictError()
+  @ApiTeamDelete()
   delete(@Param('id') id: string) {
     return this.teamService.delete(id);
   }
@@ -111,26 +91,33 @@ export class TeamController {
   @Get()
   @ResponseMessage('team_listed')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Lister les équipes',
-    description:
-      'Route actuellement publique. Tri par nom croissant, avec département, responsable et membres. Le statut actuel est 302.',
-  })
-  @ApiSuccessResponse({ type: TeamWithRelationsDto, status: HttpStatus.OK, message: 'team_listed', isArray: true })
-  @ApiValidationError()
-  findAll(@Query() query: QueryTeamDto) {
+  @ApiTeamFindAll()
+  @SerializeResponse(TeamWithRelationsDto)
+  findAll(@Query() query: QuerySetTeamDto) {
     return this.teamService.findAll(query);
   }
 
+  @ResourceExists('team', { trimId: true })
+  @Get(':id/available-users')
+  @UseGuards(AuthGuard)
+  @SerializeResponse(AvailableTeamUserDto)
+  @ResponseMessage('team_available_users_listed')
+  @ApiTeamFindAvailableUsers()
+  findAvailableUsers(
+    @Param() params: AvailableTeamUsersParamsDto,
+    @Req() request: AuthRequest,
+  ) {
+    return this.teamService.findAvailableUsers(
+      params.id,
+      request.session!.user.id,
+    );
+  }
+
+  @ResourceExists('team')
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Consulter une équipe',
-    description:
-      'Route actuellement publique. Inclut département, responsable et membres. Le statut actuel est 302 ; une équipe absente renvoie data: {} sans erreur 404.',
-  })
-  @ApiResourceId('team-administration')
-  @ApiSuccessResponse({ type: TeamWithRelationsDto, status: HttpStatus.OK, allowEmpty: true })
+  @ApiTeamFindOne()
+  @SerializeResponse(TeamWithRelationsDto)
   findOne(@Param('id') id: string) {
     return this.teamService.findOne(id);
   }

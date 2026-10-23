@@ -7,9 +7,9 @@ Les objets, les listes et les relations déclarées avec `@Type` sont pris en ch
 Un résultat null ou undefined conserve le comportement `data: {}`.
 
 Chaque DTO de sortie porte `@Exclude()` et expose ses champs avec `@Expose()`.
-Les utilisateurs exposent id, firstname, lastname et image ; les départements
-exposent id et name. Une relation utilise `@Type(() => RelatedDto)` pour appliquer
-les règles de son DTO. Les champs absents ne sont pas ajoutés au JSON.
+Une relation utilise `@Type(() => RelatedDto)` pour appliquer les règles de son
+DTO. Les champs absents ne sont pas ajoutés au JSON. Les champs publics de chaque
+ressource sont décrits par ses DTO et dans Swagger.
 
 Pour une nouvelle réponse, déclarer son DTO et l'associer au contrôleur :
 aucun registre de modèles ni fonction de sérialisation à ajouter.

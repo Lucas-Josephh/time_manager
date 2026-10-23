@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { resolve } from 'node:path';
 import { PrismaModule } from '../prisma/prisma.module';
 import { parseArgs } from 'util';
 import { NestFactory } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
-import { randomUUID } from 'crypto';
+import { createAuth } from '../lib/auth';
 
 @Module({
   imports: [
@@ -18,13 +18,13 @@ import { randomUUID } from 'crypto';
 })
 export class CreateUserCommand {}
 
-
 async function main() {
   const { values } = parseArgs({
     options: {
       email: { type: 'string' },
       firstname: { type: 'string' },
       lastname: { type: 'string' },
+      password: { type: 'string' },
       'team-id': { type: 'string' },
     },
   });
@@ -32,6 +32,7 @@ async function main() {
   const email = values.email?.trim().toLowerCase();
   const firstname = values.firstname?.trim();
   const lastname = values.lastname?.trim();
+  const password = values.password;
   const teamId = values['team-id']?.trim();
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -40,6 +41,10 @@ async function main() {
 
   if (!firstname || !lastname) {
     throw new Error('--firstname et --lastname sont requis');
+  }
+
+  if (!password) {
+    throw new Error('--password est requis');
   }
 
   const app = await NestFactory.createApplicationContext(CreateUserCommand, {
@@ -60,19 +65,22 @@ async function main() {
     if (teamId) {
       const team = await prisma.team.findUnique({ where: { id: teamId } });
       if (!team) {
-        throw new Error('L’équipe indiquée par --team-id est introuvable');
+        throw new Error('L\'équipe indiquée par --team-id est introuvable');
       }
     }
 
-    const user = await prisma.user.create({
-      data: {
-        id: randomUUID(),
-        email,
-        firstname,
-        lastname,
-        teamId: teamId || null,
-      },
+    const auth = createAuth(prisma, app.get(ConfigService), {
+      provisionUsers: true,
     });
+
+    const body = {
+      email,
+      name: firstname,
+      lastname,
+      password,
+      ...(teamId ? { teamId } : {}),
+    };
+    const { user } = await auth.api.signUpEmail({ body });
 
     console.log(`Utilisateur créé : ${user.email}`);
   } finally {

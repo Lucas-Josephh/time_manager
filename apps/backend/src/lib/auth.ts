@@ -28,6 +28,14 @@ type AuthOptions = BetterAuthOptions & {
   };
 };
 
+/**
+ * Creates and configures the Better Auth instance with the provided Prisma service and configuration.
+ *
+ * @param prisma - The Prisma service instance for database interactions.
+ * @param config - The configuration service instance for accessing environment variables.
+ * @param param2 - An object containing optional parameters for configuring the authentication instance.
+ * @param param2.provisionUsers - Whether to allow user provisioning (default: false).
+ */
 export function createAuth(
   prisma: PrismaService,
   config: ConfigService,

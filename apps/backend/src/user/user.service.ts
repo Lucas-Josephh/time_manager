@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
 import { createAuth } from '../lib/auth';
+import { Prisma } from '../generated/prisma/client';
 
 @Injectable()
 export class UserService {
@@ -16,7 +17,9 @@ export class UserService {
     private readonly prisma: PrismaService,
     config: ConfigService,
   ) {
-    this.auth = createAuth(prisma, config);
+    this.auth = createAuth(prisma, config, {
+      provisionUsers: true
+    });
   }
 
   // POST /api/users (Création d'un utilisateur via Better Auth)
@@ -73,7 +76,7 @@ export class UserService {
     const limit = Number(query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.UserWhereInput = {};
     if (query.email) {
       where.email = { contains: query.email, mode: 'insensitive' };
     }

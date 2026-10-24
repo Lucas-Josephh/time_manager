@@ -1,142 +1,161 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { buildUserName } from './user-name';
+import { APIError } from 'better-auth/api';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { TeamService } from '../team/team.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateUserDto, UpdateUserDto } from './dto/user.dto';
+import { CreateUserDto, QueryUserDto, UpdateUserDto } from './dto/user.dto';
 import { createAuth } from '../lib/auth';
 import { Prisma } from '../generated/prisma/client';
+import { fieldValidationException } from '../common/validation/validation-exception.factory';
+import { requireResource } from '../common/require-resource';
+import { requireUnique } from '../common/validation/resource-validation';
 
 @Injectable()
 export class UserService {
-  private readonly auth: ReturnType<typeof createAuth>;
-
   constructor(
     private readonly prisma: PrismaService,
-    config: ConfigService,
-  ) {
-    this.auth = createAuth(prisma, config, {
-      provisionUsers: true
-    });
+    private readonly config: ConfigService,
+    private readonly teamService: TeamService,
+  ) {}
+
+  async create(dto: CreateUserDto) {
+    // Credentials and profile must either both be persisted or both rolled back.
+    return this.prisma
+      .$transaction(
+        async (tx) => {
+          const membership =
+            dto.teamId === undefined
+              ? {}
+              : await this.teamService.getProvisioningMembership(
+                  tx,
+                  dto.teamId,
+                );
+
+          // Create a Better Auth instance that uses the same Prisma transaction as the user creation.
+          const auth = createAuth(tx as PrismaService, this.config, {
+            provisionUsers: true,
+          });
+
+          // Create the user in Better Auth, which will also create the corresponding Prisma user record.
+          const { user } = await auth.api.signUpEmail({
+            body: {
+              email: dto.email,
+              password: dto.password,
+              name: buildUserName(dto.firstname, dto.lastname),
+              firstname: dto.firstname,
+              lastname: dto.lastname,
+              ...(dto.phone == null ? {} : { phone: dto.phone }),
+              isAdmin: dto.isAdmin ?? false,
+              mustChangePassword: true,
+              ...membership,
+            },
+          });
+          // Return the complete Prisma profile, including all three name fields.
+          const createdUser = await tx.user.findUnique({
+            where: { id: user.id },
+          });
+          // Better Auth returns a synthetic user for duplicate signup when autoSignIn
+          // is disabled. Handle a duplicate arriving after DTO validation as well.
+          if (!createdUser)
+            throw fieldValidationException('email', 'already_exists');
+          return createdUser;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      )
+      .catch(async (error: unknown) => {
+        // A concurrent insert can pass DTO validation and fail inside Better Auth.
+        // Query only after the failed transaction has rolled back.
+        if (
+          error instanceof APIError &&
+          [
+            'FAILED_TO_CREATE_USER',
+            'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL',
+          ].includes(error.body?.code ?? '')
+        ) {
+          const existing = await this.prisma.user.findUnique({
+            where: { email: dto.email },
+          });
+          if (existing)
+            throw fieldValidationException('email', 'already_exists');
+        }
+        throw error;
+      });
   }
 
-  // POST /api/users (Création d'un utilisateur via Better Auth)
-  async createUser(dto: CreateUserDto) {
-    const authUser = await this.auth.api.signUpEmail({
-      body: {
-        email: dto.email,
-        password: dto.password,
-        name: dto.firstname,
-        lastname: dto.lastname,
-      },
-    });
-
-    if (!authUser) {
-      throw new BadRequestException(
-        'Failed to create authentication credentials.',
-      );
-    }
-
-    const updatedUser = await this.prisma.user.update({
-      where: { email: dto.email },
-      data: {
-        mustChangePassword: true,
-        teamId: dto.teamId,
-      },
-    });
-
-    return updatedUser;
+  findOne(id: string) {
+    return requireResource(this.prisma.user.findUnique({ where: { id } }));
   }
 
-  // PATCH /api/users/:id (Mise à jour partielle des détails)
-  async updateParamUser(id: string, dto: UpdateUserDto) {
-    await this.findOne(id); // Vérifie l'existence
-
-    return this.prisma.user.update({
-      where: { id },
-      data: {
-        firstname: dto.firstname,
-        lastname: dto.lastname,
-        phone: dto.phone,
-        teamId: dto.teamId,
-      },
-    });
-  }
-
-  // GET /api/users (avec pagination et filtres)
-  async findAll(query: {
-    page?: number;
-    limit?: number;
-    email?: string;
-    username?: string;
-  }) {
-    const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 10;
-    const skip = (page - 1) * limit;
-
+  async findAll(query: QueryUserDto = {}) {
+    const { page = 1, limit = 10 } = query;
     const where: Prisma.UserWhereInput = {};
-    if (query.email) {
-      where.email = { contains: query.email, mode: 'insensitive' };
+    for (const field of ['email', 'firstname', 'lastname'] as const) {
+      if (query[field])
+        where[field] = { contains: query[field], mode: 'insensitive' };
     }
-    if (query.username) {
-      where.username = { contains: query.username, mode: 'insensitive' };
-    }
-
-    const [users, total] = await Promise.all([
+    const [items, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
         where,
-        skip,
+        skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
       }),
       this.prisma.user.count({ where }),
     ]);
-
     return {
-      data: users,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      items,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
-  // GET /api/users/:id
-  async findOne(id: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
-    });
-    if (!user) {
-      throw new NotFoundException(`Utilisateur avec l'ID ${id} introuvable`);
-    }
-    return user;
-  }
-
-  // PUT /api/users/:id
   async update(id: string, dto: UpdateUserDto) {
-    await this.findOne(id); // Vérifie l'existence
-
-    return this.prisma.user.update({
-      where: { id },
-      data: {
-        firstname: dto.firstname,
-        lastname: dto.lastname,
-        phone: dto.phone,
-        teamId: dto.teamId,
-        email: dto.email,
+    if (dto.email !== undefined) await this.validateEmail(dto.email, id);
+    const data = {
+      firstname: dto.firstname,
+      lastname: dto.lastname,
+      email: dto.email,
+      phone: dto.phone,
+      isAdmin: dto.isAdmin,
+      ...(dto.email !== undefined ? { emailVerified: false } : {}),
+    };
+    if (dto.firstname === undefined && dto.lastname === undefined) {
+      return this.prisma.user.update({ where: { id }, data });
+    }
+    return this.prisma.$transaction(
+      async (tx) => {
+        const user = await requireResource(
+          tx.user.findUnique({
+            where: { id },
+            select: { firstname: true, lastname: true },
+          }),
+        );
+        return tx.user.update({
+          where: { id },
+          data: {
+            ...data,
+            name: buildUserName(
+              dto.firstname ?? user.firstname,
+              dto.lastname ?? user.lastname,
+            ),
+          },
+        });
       },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
-  // DELETE /api/users/:id
-  async remove(id: string) {
-    await this.findOne(id); // Vérifie l'existence
-    return this.prisma.user.delete({
-      where: { id },
-    });
+  delete(id: string) {
+    return this.prisma.user.delete({ where: { id } });
+  }
+
+  private validateEmail(email: string, id?: string) {
+    return requireUnique(
+      this.prisma.user.findFirst({
+        where: { email, ...(id ? { id: { not: id } } : {}) },
+        select: { id: true },
+      }),
+      'email',
+    );
   }
 }

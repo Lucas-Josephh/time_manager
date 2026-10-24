@@ -33,6 +33,11 @@ export class ResourceExistsGuard implements CanActivate {
     private readonly reflector: Reflector,
   ) {}
 
+  /**
+   * Checks if a resource exists in the database based on the provided options.
+   *
+   * @param context
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const options = this.reflector.get<ResourceOptions>(RESOURCE, context.getHandler());
     if (!options) return true;
@@ -54,8 +59,10 @@ export class ResourceExistsGuard implements CanActivate {
 /**
  * Decorator that checks if a resource exists in the database before proceeding with the request.
  *
- * @param model
- * @param options
+ * @param model - The model name of the resource to check (e.g., 'user', 'team').
+ * @param options - Optional parameters:
+ *  - param: The name of the request parameter that contains the resource ID (default: 'id').
+ *  - trimId: Whether to trim whitespace from the resource ID (default: false).
  * @constructor
  */
 export function ResourceExists(

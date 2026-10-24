@@ -96,12 +96,12 @@ Pour `PUT /api/team/:id` et `PATCH /api/team/:id`, le responsable est
 absent de `memberIds`. Il doit être sans équipe ou déjà membre de cette équipe,
 et appartenir à son organisation ou à une organisation descendante.
 
-| Champs envoyés | Résultat |
-| --- | --- |
-| `memberIds: []`, responsable conservé ou défini | Seul le responsable reste membre. |
-| `memberIds: []` et `managerId: null` | Aucun responsable et aucun membre : l\'équipe est vide. |
-| `memberIds` omis | Les membres existants sont conservés ; le nouveau responsable est ajouté si défini. |
-| `managerId: null`, `memberIds` omis | Le rôle de responsable est retiré ; l\'ancien responsable reste membre. |
+| Champs envoyés                                  | Résultat                                                                            |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `memberIds: []`, responsable conservé ou défini | Seul le responsable reste membre.                                                   |
+| `memberIds: []` et `managerId: null`            | Aucun responsable et aucun membre : l\'équipe est vide.                             |
+| `memberIds` omis                                | Les membres existants sont conservés ; le nouveau responsable est ajouté si défini. |
+| `managerId: null`, `memberIds` omis             | Le rôle de responsable est retiré ; l\'ancien responsable reste membre.             |
 
 Pour vider une équipe avec `PATCH` :
 
@@ -272,9 +272,14 @@ Les contrôles d'origine et CSRF sont activés, ainsi que la limitation des requ
 CORS autorise `FRONTEND_URL` avec credentials. Better Auth utilise cette origine
 comme origine de confiance, en plus de son URL de base.
 
-Better Auth expose `user.name`, stocké dans `firstname`, ainsi que `lastname`,
-`phone`, `teamId` et `isAdmin`. `teamId` et `isAdmin` ne sont pas modifiables via
-les entrées utilisateur Better Auth.
+Better Auth expose trois champs distincts : `user.firstname` (prénom),
+`user.lastname` (nom de famille) et `user.name` (nom d’affichage calculé comme
+prénom + espace + nom). Le mapping de `name` vers `firstname` est supprimé.
+Les profils se modifient avec `firstname` et `lastname` ; `name` n’est pas éditable.
+Les champs `phone`, `teamId` et `isAdmin` restent également exposés.
+`teamId` et `isAdmin` ne sont pas modifiables via les entrées utilisateur Better Auth.
+La migration `20261024160000_add_user_display_name` peuple le nom d’affichage
+pour les comptes existants et installe sa synchronisation en base.
 
 `AuthModule` exporte `AuthGuard` pour protéger les contrôleurs avec
 `@UseGuards(AuthGuard)`. Le guard vérifie la session depuis les en-têtes de la

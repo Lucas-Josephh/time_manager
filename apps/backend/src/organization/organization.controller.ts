@@ -1,3 +1,4 @@
+import { CanManageOrganizations } from './guards/can-manage-organizations.guard';
 import { ResourceExists } from '../common/guards/resource-exists.guard';
 import {
   ApiOrganizationController,
@@ -33,15 +34,13 @@ import { SerializeResponse } from '../common/serialization/serialize-response.de
 import { ResponseMessage } from '../common/decorator/response-message.decorator';
 import { AuthGuard, type AuthRequest } from '../auth/auth.guard';
 
-// TODO: Implement the guard by admin or manager of the organization or its parent organizations
-
 @ApiOrganizationController()
 @Controller('organizations')
-@UseGuards(AuthGuard)
 @SerializeResponse(OrganizationDetailsDto)
 export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
 
+  @CanManageOrganizations()
   @Post()
   @ApiOrganizationCreate()
   @ResponseMessage('organization_created')
@@ -49,24 +48,24 @@ export class OrganizationController {
     return this.organizationService.create(dto);
   }
 
+  @UseGuards(AuthGuard)
   @Get()
   @ApiOrganizationFindAll()
   findAll(@Query() query: QueryOrganizationDto) {
     return this.organizationService.findAll(query);
   }
 
+  @UseGuards(AuthGuard)
   @Get('tree')
   @ResponseMessage('organization_tree_retrieved')
   @SerializeResponse(OrganizationTreeDto)
   @ApiOrganizationTree()
   tree(@Query() query: QueryOrganizationDto, @Req() request: AuthRequest) {
-    return this.organizationService.tree(
-      request.session!.user.id,
-      query,
-    );
+    return this.organizationService.tree(request.session!.user.id, query);
   }
 
   @ResourceExists('organization')
+  @UseGuards(AuthGuard)
   @Get(':id/tree')
   @ResponseMessage('specific_organization_tree_retrieved')
   @SerializeResponse(OrganizationTreeDto)
@@ -76,20 +75,21 @@ export class OrganizationController {
     @Query() query: QueryOrganizationDto,
     @Req() request: AuthRequest,
   ) {
-    return this.organizationService.tree(
-      request.session!.user.id,
-      { ...query, parentId: id },
-    );
+    return this.organizationService.tree(request.session!.user.id, {
+      ...query,
+      parentId: id,
+    });
   }
 
   @ResourceExists('organization')
+  @UseGuards(AuthGuard)
   @Get(':id')
   @ApiOrganizationFindOne()
   findOne(@Param('id') id: string) {
     return this.organizationService.findOne(id);
   }
 
-  @ResourceExists('organization')
+  @CanManageOrganizations({ organizationId: 'id' })
   @Patch(':id')
   @ApiOrganizationUpdate()
   @ResponseMessage('organization_updated')
@@ -97,7 +97,7 @@ export class OrganizationController {
     return this.organizationService.update(id, dto);
   }
 
-  @ResourceExists('organization')
+  @CanManageOrganizations({ organizationId: 'id' })
   @Delete(':id')
   @ApiOrganizationDelete()
   @ResponseMessage('organization_deleted')

@@ -1,191 +1,205 @@
+import { Trim } from '../../common/decorator/trim.decorator';
+import { Exclude, Expose, Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsPhoneNumber,
   IsString,
+  Max,
+  MaxLength,
+  Min,
+  ValidateIf,
 } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Unique } from '../../common/decorator/unique.decorator';
-import { Reference } from 'src/common/decorator/reference.decorator';
-import { Exclude, Expose, Transform, Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
-// Assure-toi que le chemin d'import vers ton TeamDetailsDto est correct
-import { TeamDetailsDto } from 'src/team/dto/team.dto';
+import { Reference } from '../../common/decorator/reference.decorator';
 import { IsPassword } from '../../common/decorator/password.decorator';
 
-/**
- * DTO léger pour les listes ou les relations (ex: résumé d'un utilisateur)
- */
+const lowercase = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? value.toLowerCase() : value;
+
 @Exclude()
 export class UserSummaryDto {
-  @Expose()
-  @ApiProperty({ example: 'default-admin' })
-  id!: string;
-
-  @Expose()
-  @ApiProperty({ example: 'Alice' })
-  firstname!: string;
-
-  @Expose()
-  @ApiProperty({ example: 'Martin' })
-  lastname!: string;
+  @Expose() @ApiProperty() id!: string;
+  @Expose() @ApiProperty() firstname!: string;
+  @Expose() @ApiProperty() lastname!: string;
 }
 
-/**
- * DTO complet pour les détails d'un utilisateur (Response DTO)
- */
-@Exclude() // SÉCURITÉ : Ignore tout par défaut, seules les propriétés avec @Expose seront renvoyées
-export class UserDetailsDto {
+@Exclude()
+export class UserDetailsDto extends UserSummaryDto {
   @Expose()
-  @ApiProperty({ example: 'default-admin' })
-  id!: string;
+  @ApiProperty({
+    description: 'Nom d’affichage calculé à partir du prénom et du nom.',
+    example: 'Alice Martin',
+  })
+  name!: string;
 
   @Expose()
-  @ApiProperty({ example: 'Alice', required: false })
-  firstname?: string;
-
-  @Expose()
-  @ApiProperty({ example: 'Martin', required: false })
-  lastname?: string;
-
-  @Expose()
-  @ApiProperty({ type: String, nullable: true, example: null })
-  image?: string | null;
-
-  @Expose()
-  @ApiProperty({ example: 'alice.martin@example.com' })
+  @ApiProperty()
   email!: string;
 
   @Expose()
-  @ApiProperty({ example: '+33612345678', nullable: true })
-  phone?: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  phone!: string | null;
 
   @Expose()
-  @ApiProperty({ type: String, nullable: true, example: 'team-administration' })
-  teamId?: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  image!: string | null;
 
   @Expose()
-  @ApiProperty({ type: String, nullable: true, example: 'default-admin' })
-  managerId?: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  teamId!: string | null;
 
   @Expose()
-  @ApiProperty({
-    type: String,
-    nullable: true,
-    example: 'department-operations',
-  })
-  departmentId?: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  organizationId!: string | null;
 
   @Expose()
-  @ApiProperty({ type: Boolean, example: false })
+  @ApiProperty()
   isAdmin!: boolean;
 
   @Expose()
-  @Type(() => TeamDetailsDto) // Indispensable pour transformer correctement les objets imbriqués
-  @ApiProperty({ type: TeamDetailsDto, isArray: true, nullable: true })
-  managedTeams?: TeamDetailsDto[];
+  @ApiProperty()
+  mustChangePassword!: boolean;
+
+  @Expose()
+  @ApiProperty({ format: 'date-time' })
+  createdAt!: Date;
+
+  @Expose()
+  @ApiProperty({ format: 'date-time' })
+  updatedAt!: Date;
 }
 
-export class CreateUserDto {
-  @ApiProperty({
-    description: 'The first name of the user',
-    example: 'John',
-  })
+export class UserProfileDto {
+  @ApiProperty()
+  @Trim()
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }: { value: string }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @MaxLength(255)
   firstname!: string;
 
-  @ApiProperty({
-    description: 'The last name of the user',
-    example: 'Doe',
-  })
+  @ApiProperty()
+  @Trim()
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }: { value: string }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @MaxLength(255)
   lastname!: string;
 
-  @ApiProperty({
-    description: 'The email address of the user',
-    example: 'john.doe@example.com',
-  })
-  @IsEmail({})
+  @ApiProperty()
+  @Trim()
+  @Transform(lowercase)
+  @IsEmail()
   @IsNotEmpty()
-  @Unique('user', 'email')
-  @Transform(({ value }: { value: string }) =>
-    typeof value === 'string' ? value.trim().toLowerCase() : value,
-  )
   email!: string;
 
-  @ApiProperty({
-    description: 'Mot de passe de 12 à 128 caractères avec une majuscule, une minuscule, un chiffre et un caractère spécial.',
-    example: 'Abcdefgh12!?',
-    pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{12,128}$',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @IsPassword()
-  password!: string;
-
-  @ApiProperty({
-    description: 'The phone number of the user',
-    example: '+33612345678',
-    required: false,
-  })
-  @IsString()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsPhoneNumber()
-  phone?: string;
-
-  @ApiProperty({
-    description: 'The ID of the team the user belongs to',
-    example: 'team_id_123',
-    required: false,
-  })
-  @IsString()
-  @IsOptional() // Si c'est optionnel, on enlève @IsNotEmpty
-  @Reference('team')
-  teamId?: string; // On utilise '?' au lieu de '!'
-}
-
-export class UpdateUserDto {
-  @ApiProperty({ example: 'Alice', required: false })
-  @IsString()
-  @IsOptional()
-  firstname?: string;
-
-  @ApiProperty({ example: 'Martin', required: false })
-  @IsString()
-  @IsOptional()
-  lastname?: string;
-
-  @ApiProperty({ example: 'alice.martin@example.com', required: false })
-  @IsEmail()
-  @IsOptional()
-  email?: string;
-
-  @ApiProperty({ example: '+33612345678', required: false, nullable: true })
-  @IsString()
-  @IsOptional()
   phone?: string | null;
 
+  @ApiPropertyOptional()
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsBoolean()
+  isAdmin?: boolean;
+}
+
+export class CreateUserDto extends UserProfileDto {
+  @Unique('user', 'email')
+  declare email: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Équipe initiale. Son organisation devient celle du nouvel utilisateur. Les changements ultérieurs passent par Team.',
+  })
+  @Trim()
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsString()
+  @IsNotEmpty()
+  @Reference('team')
+  teamId?: string;
+
   @ApiProperty({
-    type: String,
-    nullable: true,
-    required: false,
-    example: 'team-administration',
+    description:
+      '12 à 128 caractères, avec majuscule, minuscule, chiffre et caractère spécial.',
   })
   @IsString()
-  @IsOptional()
-  teamId?: string | null;
+  @IsPassword()
+  password!: string;
+}
 
-  @ApiProperty({ type: Boolean, required: false, example: false })
-  @IsBoolean()
+export class UpdateUserDto extends PartialType(UserProfileDto, {
+  skipNullProperties: false,
+}) {}
+
+export class QueryUserDto {
+  @ApiPropertyOptional({ default: 1 })
+  @Type(() => Number)
   @IsOptional()
-  isAdmin?: boolean;
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ default: 10, maximum: 100 })
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+
+  @ApiPropertyOptional()
+  @Trim()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  email?: string;
+  @ApiPropertyOptional()
+  @Trim()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  firstname?: string;
+
+  @ApiPropertyOptional()
+  @Trim()
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  lastname?: string;
+}
+
+@Exclude()
+export class UserPaginationDto {
+  @Expose()
+  @ApiProperty()
+  total!: number;
+
+  @Expose()
+  @ApiProperty()
+  page!: number;
+
+  @Expose()
+  @ApiProperty()
+  limit!: number;
+
+  @Expose()
+  @ApiProperty()
+  totalPages!: number;
+}
+
+@Exclude()
+export class UserListDto {
+  @Expose()
+  @Type(() => UserDetailsDto)
+  @ApiProperty({ type: [UserDetailsDto] })
+  items!: UserDetailsDto[];
+
+  @Expose()
+  @Type(() => UserPaginationDto)
+  @ApiProperty({ type: UserPaginationDto })
+  meta!: UserPaginationDto;
 }

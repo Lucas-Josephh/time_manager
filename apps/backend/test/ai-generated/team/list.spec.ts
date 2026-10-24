@@ -10,9 +10,9 @@ describe('Team HTTP API: list', () => {
       { name: ' Support ' },
       { name: { contains: 'Support', mode: 'insensitive' } },
     ],
-    [{ organizationId: 'dept' }, { organizationId: 'dept' }],
-    [{ managerId: 'manager' }, { managerId: 'manager' }],
-    [{ memberId: 'member' }, { members: { some: { id: 'member' } } }],
+    [{ organizationId: ' dept ' }, { organizationId: 'dept' }],
+    [{ managerId: ' manager ' }, { managerId: 'manager' }],
+    [{ memberId: ' member ' }, { members: { some: { id: 'member' } } }],
     [
       {
         name: 'Support',
@@ -48,14 +48,18 @@ describe('Team HTTP API: list', () => {
       .expect(envelope('team_listed', []));
   });
 
-  it.each([{ name: ' ' }, { unexpected: 'value' }, { memberId: ['a', 'b'] }])(
-    'rejects invalid query %j',
-    async (query) => {
-      await request(context.app.getHttpServer())
-        .get('/api/team')
-        .query(query)
-        .expect(400);
-      expect(prisma.team.findMany).not.toHaveBeenCalled();
-    },
-  );
+  it.each([
+    { name: ' ' },
+    { unexpected: 'value' },
+    { memberId: ['a', 'b'] },
+    { organizationId: ' ' },
+    { managerId: ' ' },
+    { memberId: ' ' },
+  ])('rejects invalid query %j', async (query) => {
+    await request(context.app.getHttpServer())
+      .get('/api/team')
+      .query(query)
+      .expect(400);
+    expect(prisma.team.findMany).not.toHaveBeenCalled();
+  });
 });

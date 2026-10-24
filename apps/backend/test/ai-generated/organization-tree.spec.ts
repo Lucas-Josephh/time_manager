@@ -3,6 +3,8 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import request from 'supertest';
 import { createHttpTestApp } from './support/http-test-app';
 
+type TreeNode = { id: string; children: TreeNode[] };
+
 describe('Organization tree HTTP API', () => {
   let app: INestApplication;
   let admin = false;
@@ -25,21 +27,35 @@ describe('Organization tree HTTP API', () => {
   const prisma = {
     user: { findUnique: jest.fn(async () => ({ isAdmin: admin })) },
     organization: {
-      findUnique: jest.fn(async ({ where }: { where: { id: string } }) => rows.find(row => row.id === where.id) ?? null),
-      findMany: jest.fn(async ({ where }: any) =>
-        rows.filter((row) =>
-          where.id !== undefined
-            ? row.id === where.id
-            : where.managerId !== undefined
-              ? row.managerId === where.managerId
-              : where.parentId === null
-                ? row.parentId === null
-                : where.parentId.in.includes(row.parentId),
-        ),
+      findUnique: jest.fn(
+        async ({ where }: { where: { id: string } }) =>
+          rows.find((row) => row.id === where.id) ?? null,
+      ),
+      findMany: jest.fn(
+        async ({
+          where,
+        }: {
+          where: {
+            id?: string;
+            managerId?: string;
+            parentId?: null | { in: string[] };
+          };
+        }) =>
+          rows.filter(
+            (row) =>
+              (where.id === undefined || row.id === where.id) &&
+              (where.managerId === undefined ||
+                row.managerId === where.managerId) &&
+              (where.parentId === undefined ||
+                (where.parentId === null
+                  ? row.parentId === null
+                  : row.parentId !== null &&
+                    where.parentId.in.includes(row.parentId))),
+          ),
       ),
     },
     $transaction: jest.fn(
-      async (callback: any, _options: any): Promise<unknown> =>
+      async (callback: (tx: object) => Promise<unknown>): Promise<unknown> =>
         callback(prisma),
     ),
   };
@@ -75,7 +91,7 @@ describe('Organization tree HTTP API', () => {
 
   it('returns only managed branches, deduplicates nested management and serializes deeply', async () => {
     const { body } = await get().expect(200);
-    expect(body.data.map((node: any) => node.id)).toEqual(['managed']);
+    expect(body.data.map((node: TreeNode) => node.id)).toEqual(['managed']);
     expect(body.data[0].children[0].children[0]).toMatchObject({
       id: 'deep',
       children: [],
@@ -108,8 +124,11 @@ describe('Organization tree HTTP API', () => {
       org('a', 'managed', null, 'same'),
     );
     const { body } = await get().expect(200);
-    expect(body.data.map((node: any) => node.id)).toEqual(['other', 'managed']);
-    expect(body.data[1].children.map((node: any) => node.id)).toEqual([
+    expect(body.data.map((node: TreeNode) => node.id)).toEqual([
+      'other',
+      'managed',
+    ]);
+    expect(body.data[1].children.map((node: TreeNode) => node.id)).toEqual([
       'child',
       'a',
       'z',
@@ -118,7 +137,7 @@ describe('Organization tree HTTP API', () => {
   it('returns all roots for administrators and an isolated subtree', async () => {
     admin = true;
     const { body } = await get().expect(200);
-    expect(body.data.map((node: any) => node.id)).toEqual([
+    expect(body.data.map((node: TreeNode) => node.id)).toEqual([
       'ancestor',
       'isolated',
     ]);
@@ -148,8 +167,8 @@ describe('Organization tree HTTP API', () => {
   it('searches names without case sensitivity and retains authorized ancestors only', async () => {
     rows.push(org('unrelated', 'managed'));
     const { body } = await get('?name=%20DEeP%20').expect(200);
-    expect(body.data.map((node: any) => node.id)).toEqual(['managed']);
-    expect(body.data[0].children.map((node: any) => node.id)).toEqual([
+    expect(body.data.map((node: TreeNode) => node.id)).toEqual(['managed']);
+    expect(body.data[0].children.map((node: TreeNode) => node.id)).toEqual([
       'child',
     ]);
     expect(body.data[0].children[0].children[0].id).toBe('deep');
@@ -170,7 +189,9 @@ describe('Organization tree HTTP API', () => {
   it('combines the standard name and manager filters without widening access', async () => {
     const { body } = await get('?name=deep&managerId=test-user').expect(200);
     expect(body.data[0].children[0].children[0].id).toBe('deep');
-    expect((await get('?name=deep&managerId=other').expect(200)).body.data).toEqual([]);
+    expect(
+      (await get('?name=deep&managerId=other').expect(200)).body.data,
+    ).toEqual([]);
     rows.push(org('private', null, 'other', 'deep'));
     expect((await get('?managerId=other').expect(200)).body.data).toEqual([]);
   });

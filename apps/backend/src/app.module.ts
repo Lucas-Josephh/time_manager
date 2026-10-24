@@ -1,3 +1,4 @@
+import { UniqueConstraint } from './common/decorator/unique.decorator';
 import { ReferenceExistsConstraint } from './common/decorator/reference.decorator';
 import { validationOptions } from './common/validation/validation.config';
 import { AuthModule } from './auth/auth.module';
@@ -31,6 +32,7 @@ import { UserModule } from './user/user.module';
   controllers: [AppController],
   providers: [
     ReferenceExistsConstraint,
+    UniqueConstraint,
     {
       provide: APP_PIPE,
       useFactory: () => new ValidationPipe(validationOptions),

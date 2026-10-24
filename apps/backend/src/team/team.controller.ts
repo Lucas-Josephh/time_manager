@@ -1,3 +1,4 @@
+import { CanManageTeams } from './guards/can-manage-teams.guard';
 import { ResourceExists } from '../common/guards/resource-exists.guard';
 import {
   ApiTeamController,
@@ -40,8 +41,6 @@ import {
 import { ResponseMessage } from '../common/decorator/response-message.decorator';
 import { SerializeResponse } from '../common/serialization/serialize-response.decorator';
 
-// TODO: Implement management guards for the remaining CRUD routes.
-
 @ApiTeamController()
 @Controller('team')
 @SerializeResponse(TeamDetailsDto)
@@ -51,17 +50,16 @@ export class TeamController {
   @ResponseMessage('team_created')
   @HttpCode(HttpStatus.CREATED)
   @Post()
-  @UseGuards(AuthGuard)
   @ApiTeamCreate()
   @SerializeResponse(TeamWithRelationsDto)
-  async create(@Body() dto: SetTeamDto, @Req() request: AuthRequest) {
-    await this.teamService.assertCanCreate(dto.organizationId, request.session!.user.id);
+  @CanManageTeams()
+  create(@Body() dto: SetTeamDto) {
     return this.teamService.create(dto);
   }
 
   @ResponseMessage('team_updated')
   @HttpCode(HttpStatus.OK)
-  @ResourceExists('team')
+  @CanManageTeams({ teamId: 'id' })
   @Put(':id')
   @ApiTeamReplace()
   @SerializeResponse(TeamWithRelationsDto)
@@ -71,7 +69,7 @@ export class TeamController {
 
   @ResponseMessage('team_partially_updated')
   @HttpCode(HttpStatus.OK)
-  @ResourceExists('team')
+  @CanManageTeams({ teamId: 'id' })
   @Patch(':id')
   @ApiTeamUpdate()
   @SerializeResponse(TeamWithRelationsDto)
@@ -81,13 +79,14 @@ export class TeamController {
 
   @ResponseMessage('team_deleted')
   @HttpCode(HttpStatus.ACCEPTED)
-  @ResourceExists('team')
+  @CanManageTeams({ teamId: 'id' })
   @Delete(':id')
   @ApiTeamDelete()
   delete(@Param('id') id: string) {
     return this.teamService.delete(id);
   }
 
+  @UseGuards(AuthGuard)
   @Get()
   @ResponseMessage('team_listed')
   @HttpCode(HttpStatus.OK)
@@ -98,8 +97,8 @@ export class TeamController {
   }
 
   @ResourceExists('team', { trimId: true })
-  @Get(':id/available-users')
   @UseGuards(AuthGuard)
+  @Get(':id/available-users')
   @SerializeResponse(AvailableTeamUserDto)
   @ResponseMessage('team_available_users_listed')
   @ApiTeamFindAvailableUsers()
@@ -114,6 +113,7 @@ export class TeamController {
   }
 
   @ResourceExists('team')
+  @UseGuards(AuthGuard)
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiTeamFindOne()

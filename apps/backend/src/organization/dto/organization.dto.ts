@@ -1,11 +1,12 @@
+import { Trim } from '../../common/decorator/trim.decorator';
 import { Reference } from '../../common/decorator/reference.decorator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { Exclude, Expose, Transform, Type } from 'class-transformer';
+import { Exclude, Expose, Type } from 'class-transformer';
 import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class OrganizationDto {
   @ApiProperty({ example: 'Technique', minLength: 1, maxLength: 255 })
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
@@ -15,12 +16,13 @@ export class OrganizationDto {
     type: String,
     nullable: true,
     description:
-      'Parent existant. null rend l\'organisation racine. Les cycles sont interdits.',
+      "Parent existant. null rend l'organisation racine. Les cycles sont interdits.",
   })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   @Reference('organization')
+  @Trim()
   parentId?: string | null;
 
   @ApiPropertyOptional({
@@ -32,6 +34,7 @@ export class OrganizationDto {
   @IsString()
   @IsNotEmpty()
   @Reference('user')
+  @Trim()
   managerId?: string | null;
 }
 
@@ -43,7 +46,7 @@ export class QueryOrganizationDto {
   @ApiPropertyOptional({
     description: 'Recherche partielle sur le nom, sans distinction de casse.',
   })
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Trim()
   @IsOptional()
   @IsString()
   @IsNotEmpty()
@@ -54,13 +57,14 @@ export class QueryOrganizationDto {
     description:
       'Liste : enfants directs. Arborescence : organisation ciblée et ses descendants.',
   })
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Trim()
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   parentId?: string;
 
   @ApiPropertyOptional({ description: 'Filtrer par responsable.' })
+  @Trim()
   @IsOptional()
   @IsString()
   @IsNotEmpty()

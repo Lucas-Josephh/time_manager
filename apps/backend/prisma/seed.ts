@@ -1,3 +1,4 @@
+import { buildUserName } from '../src/user/user-name';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { hashPassword } from 'better-auth/crypto';
@@ -55,6 +56,7 @@ async function seedDefaultUsers() {
         id: 'default-admin',
         teamId: team.id,
         organizationId: team.organizationId,
+        name: buildUserName('Admin', 'Time Manager'),
         firstname: 'Admin',
         lastname: 'Time Manager',
         email,

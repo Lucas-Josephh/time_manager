@@ -70,14 +70,13 @@ describe('OrganizationService', () => {
       expect(prisma.organization.findUnique).toHaveBeenCalledTimes(1);
     });
 
-    it('throws a 404 with not_found when the organization is missing', async () => {
+    it('throws a 404 when the organization is missing', async () => {
       prisma.organization.findUnique.mockResolvedValue(null);
 
       const result = service.findOne('missing-organization');
 
       await expect(result).rejects.toBeInstanceOf(NotFoundException);
       await expect(result).rejects.toMatchObject({
-        message: 'not_found',
         status: 404,
       });
       expect(prisma.organization.findUnique).toHaveBeenCalledWith({

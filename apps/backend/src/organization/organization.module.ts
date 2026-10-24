@@ -1,3 +1,4 @@
+import { CanManageOrganizationsGuard } from './guards/can-manage-organizations.guard';
 import { AuthModule } from '../auth/auth.module';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -6,7 +7,7 @@ import { OrganizationController } from './organization.controller';
 
 @Module({
   imports: [PrismaModule, AuthModule],
-  providers: [OrganizationService],
+  providers: [OrganizationService, CanManageOrganizationsGuard],
   controllers: [OrganizationController],
 })
 export class OrganizationModule {}

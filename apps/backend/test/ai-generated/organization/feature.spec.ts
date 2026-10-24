@@ -33,7 +33,7 @@ describe('Organization CRUD contracts', () => {
     delegate.update.mockResolvedValue(organization);
     delegate.delete.mockResolvedValue(organization);
     delegate.findMany.mockResolvedValue([organization]);
-    prisma.user.findUnique.mockResolvedValue({ id: 'manager' });
+    prisma.user.findUnique.mockResolvedValue({ id: 'manager', isAdmin: true });
     prisma.$transaction.mockImplementation(async (callback) => callback({ organization: delegate, user: prisma.user }));
   });
   afterEach(() => { jest.restoreAllMocks(); });
@@ -73,7 +73,7 @@ describe('Organization CRUD contracts', () => {
 
   it.each(['parentId', 'managerId'])('rejects a missing %s reference', async (field) => {
     delegate.findUnique.mockResolvedValue(null);
-    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.findUnique.mockImplementation(async ({ where }) => where.id === 'missing' ? null : { id: where.id, isAdmin: true });
     const response = await request(app.getHttpServer()).post('/api/organizations')
       .send({ name: 'Engineering', [field]: 'missing' }).expect(400);
     expect(response.body.data.errors).toEqual(expect.arrayContaining([

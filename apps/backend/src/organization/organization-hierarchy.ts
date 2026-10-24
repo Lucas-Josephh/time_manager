@@ -21,3 +21,44 @@ export async function checkOrganizationParent(
   }
   return 'valid';
 }
+
+/** Return the organization and its ancestors, stopping at a missing parent or a cycle. */
+export async function getOrganizationAncestors<
+  T extends { parentId: string | null },
+>(
+  organizationId: string | null,
+  findParent: (id: string) => PromiseLike<T | null>,
+): Promise<Array<T & { id: string }>> {
+  const ancestors: Array<T & { id: string }> = [];
+  const visited = new Set<string>();
+  let currentId = organizationId;
+
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
+    const organization = await findParent(currentId);
+    if (!organization) break;
+    ancestors.push({ ...organization, id: currentId });
+    currentId = organization.parentId;
+  }
+  return ancestors;
+}
+
+/** Return the root ID and all descendant IDs, without duplicates. */
+export async function getOrganizationDescendantIds(
+  organizationId: string,
+  findChildren: (parentIds: string[]) => PromiseLike<Array<{ id: string }>>,
+): Promise<string[]> {
+  const organizationIds = new Set([organizationId]);
+  let currentParentIds = [organizationId];
+
+  while (currentParentIds.length > 0) {
+    const children = await findChildren(currentParentIds);
+    currentParentIds = [];
+    for (const child of children) {
+      if (organizationIds.has(child.id)) continue;
+      organizationIds.add(child.id);
+      currentParentIds.push(child.id);
+    }
+  }
+  return [...organizationIds];
+}

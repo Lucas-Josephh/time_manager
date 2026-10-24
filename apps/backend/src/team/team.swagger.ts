@@ -1,9 +1,5 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
-import {
-  ApiBody,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiConflictError,
   ApiErrorResponse,
@@ -26,6 +22,12 @@ export function ApiTeamController() {
   return applyDecorators(
     ApiTags('Team'),
     ApiServerError(),
+    ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
+    ApiErrorResponse(
+      403,
+      ['forbidden', 'password_change_required'],
+      'Droits de gestion requis pour les écritures ; mot de passe temporaire à changer si nécessaire.',
+    ),
   );
 }
 
@@ -50,7 +52,11 @@ Les membres doivent être **sans équipe** et appartenir à l\'organisation choi
 La création et les affectations sont **atomiques**.`,
     }),
     ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
-    ApiErrorResponse(403, 'forbidden', 'Administrateur ou manager de cette organisation ou d’une organisation parente requis.'),
+    ApiErrorResponse(
+      403,
+      'forbidden',
+      'Administrateur ou manager de cette organisation ou d’une organisation parente requis.',
+    ),
     ApiBody({ type: SetTeamDto }),
     ApiSuccessResponse({
       type: TeamWithRelationsDto,
@@ -67,7 +73,7 @@ export function ApiTeamReplace() {
     ApiOperation({
       summary: 'Mettre à jour une équipe',
       description: `### Accès
-Session requise. Le contrôle du périmètre de management n\'est pas encore implémenté.
+Session requise. Réservé aux administrateurs, au responsable actuel de cette équipe et aux managers de son organisation ou d’un de ses ancêtres. Un changement d’organisation exige aussi ces droits sur la destination. Tous les membres conservés, y compris le responsable, doivent appartenir à la destination ou à ses descendantes ; sinon la requête est annulée avec 409 team_members_unavailable.
 
 ### Champs
 - **Nom et organisation** : requis.
@@ -101,7 +107,7 @@ export function ApiTeamUpdate() {
     ApiOperation({
       summary: 'Modifier partiellement une équipe',
       description: `### Accès
-Session requise. Le contrôle du périmètre de management n\'est pas encore implémenté.
+Session requise. Réservé aux administrateurs, au responsable actuel de cette équipe et aux managers de son organisation ou d’un de ses ancêtres. Un changement d’organisation exige aussi ces droits sur la destination. Tous les membres conservés, y compris le responsable, doivent appartenir à la destination ou à ses descendantes ; sinon la requête est annulée avec 409 team_members_unavailable.
 
 ### Champs
 - Seuls les champs fournis sont modifiés : omettre les champs inchangés.
@@ -135,7 +141,7 @@ export function ApiTeamDelete() {
     ApiOperation({
       summary: 'Supprimer une équipe',
       description: `### Accès
-Session requise. Le contrôle du périmètre de management n\'est pas encore implémenté.
+Session requise. Réservé aux administrateurs, au responsable actuel de cette équipe et aux managers de son organisation ou d’un de ses ancêtres.
 
 ### Conditions
 Réaffecter les membres avant la suppression.

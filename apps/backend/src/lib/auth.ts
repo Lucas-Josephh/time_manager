@@ -1,3 +1,5 @@
+import { buildUserName } from '../user/user-name';
+import { validateUserProfile } from '../auth/validate-user-profile';
 import {
   PASSWORD_REQUIREMENTS_REGEX,
   PASSWORD_REQUIREMENTS_CODE,
@@ -7,22 +9,33 @@ import { prismaAdapter } from '@better-auth/prisma-adapter';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { i18n, locales } from '@better-auth/i18n';
-import { createAuthMiddleware, APIError } from 'better-auth/api';
+import {
+  createAuthMiddleware,
+  APIError,
+  getSessionFromCtx,
+} from 'better-auth/api';
 
 type AuthOptions = BetterAuthOptions & {
   plugins: [ReturnType<typeof i18n>];
   user: {
-    fields: { name: 'firstname' };
     additionalFields: {
+      firstname: { type: 'string'; required: true };
       lastname: {
         type: 'string';
         required: true;
       };
       phone: { type: 'string'; required: false };
-      teamId: { type: 'string'; required: false };
+      mustChangePassword: {
+        type: 'boolean';
+        defaultValue: true;
+        input: boolean;
+      };
+      teamId: { type: 'string'; required: false; input: boolean };
+      organizationId: { type: 'string'; required: false; input: boolean };
       isAdmin: {
         type: 'boolean';
         defaultValue: false;
+        input: boolean;
       };
     };
   };
@@ -116,7 +129,50 @@ export function createAuth(
 
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (ctx.path !== '/sign-up/email' && ctx.path !== '/reset-password') {
+        if (ctx.path === '/update-user') {
+          const body = await validateUserProfile(ctx.body);
+          if (body.firstname !== undefined || body.lastname !== undefined) {
+            const session = await getSessionFromCtx(ctx);
+            if (!session)
+              throw new APIError('UNAUTHORIZED', {
+                code: 'UNAUTHORIZED',
+                message: 'unauthorized',
+              });
+            const user = await ctx.context.internalAdapter.findUserById(
+              session.user.id,
+            );
+            if (!user)
+              throw new APIError('UNAUTHORIZED', {
+                code: 'UNAUTHORIZED',
+                message: 'unauthorized',
+              });
+            const currentProfile = user as typeof user & {
+              firstname: string;
+              lastname: string;
+            };
+            const name = buildUserName(
+              body.firstname ?? currentProfile.firstname,
+              body.lastname ?? currentProfile.lastname,
+            );
+            return { context: { body: { ...body, name } } };
+          }
+          return { context: { body } };
+        }
+
+        // Provisioning keeps Better Auth's required name in sync with the source fields.
+        if (
+          ctx.path === '/sign-up/email' &&
+          typeof ctx.body?.firstname === 'string' &&
+          typeof ctx.body?.lastname === 'string'
+        ) {
+          ctx.body.name = buildUserName(ctx.body.firstname, ctx.body.lastname);
+        }
+
+        if (
+          !['/sign-up/email', '/reset-password', '/change-password'].includes(
+            ctx.path,
+          )
+        ) {
           return;
         }
 
@@ -124,6 +180,16 @@ export function createAuth(
           ctx.path === '/sign-up/email'
             ? ctx.body?.password
             : ctx.body?.newPassword;
+
+        if (
+          ctx.path === '/change-password' &&
+          password === ctx.body?.currentPassword
+        ) {
+          throw new APIError('BAD_REQUEST', {
+            code: 'PASSWORD_MUST_DIFFER',
+            message: 'PASSWORD_MUST_DIFFER',
+          });
+        }
 
         if (
           typeof password !== 'string' ||
@@ -135,10 +201,24 @@ export function createAuth(
           });
         }
       }),
+      after: createAuthMiddleware(async (ctx) => {
+        if (
+          ctx.path !== '/change-password' ||
+          !ctx.context.session ||
+          ctx.context.returned instanceof APIError
+        )
+          return;
+        await ctx.context.internalAdapter.updateUser(
+          ctx.context.session.user.id,
+          {
+            mustChangePassword: false,
+          },
+        );
+      }),
     },
     user: {
-      fields: { name: 'firstname' },
       additionalFields: {
+        firstname: { type: 'string', required: true },
         lastname: {
           type: 'string',
           required: true,
@@ -147,13 +227,22 @@ export function createAuth(
           type: 'string',
           required: false,
         },
-        teamId: {
+        // Only the server-side provisioning instance accepts these fields.
+        teamId: { type: 'string', required: false, input: provisionUsers },
+        organizationId: {
           type: 'string',
           required: false,
+          input: provisionUsers,
+        },
+        mustChangePassword: {
+          type: 'boolean',
+          defaultValue: true,
+          input: provisionUsers,
         },
         isAdmin: {
           type: 'boolean',
           defaultValue: false,
+          input: provisionUsers,
         },
       },
     },

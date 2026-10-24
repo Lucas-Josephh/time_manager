@@ -4,7 +4,7 @@ import { createHttpTestApp } from '../support/http-test-app';
 
 describe('Organization HTTP API', () => {
   let app: INestApplication;
-  const prisma = { $transaction: async (callback: (tx: object) => unknown) => callback({ organization: prisma.organization }), organization: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() } };
+  const prisma = { user: { findUnique: jest.fn() }, $transaction: async (callback: (tx: object) => unknown) => callback({ organization: prisma.organization }), organization: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() } };
   const organization = { id: 'department-it', name: 'IT' };
 
   beforeAll(async () => {
@@ -15,6 +15,8 @@ describe('Organization HTTP API', () => {
   });
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.user.findUnique.mockResolvedValue({ isAdmin: true });
+    prisma.organization.findUnique.mockResolvedValue(organization);
   });
 
   it('lists organizations and removes undeclared fields', async () => {
@@ -38,7 +40,7 @@ describe('Organization HTTP API', () => {
   it('trims the name search and combines it with the other filters', async () => {
     prisma.organization.findMany.mockResolvedValue([]);
     await request(app.getHttpServer())
-      .get('/api/organizations?name=%20TeCh%20&parentId=root&managerId=manager')
+      .get('/api/organizations?name=%20TeCh%20&parentId=root&managerId=%20manager%20')
       .expect(200);
     expect(prisma.organization.findMany).toHaveBeenCalledWith({
       where: {

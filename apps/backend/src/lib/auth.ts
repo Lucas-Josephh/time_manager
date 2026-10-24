@@ -19,11 +19,10 @@ type AuthOptions = BetterAuthOptions & {
         required: true;
       };
       phone: { type: 'string'; required: false };
-      teamId: { type: 'string'; required: false; input: false };
+      teamId: { type: 'string'; required: false };
       isAdmin: {
         type: 'boolean';
         defaultValue: false;
-        input: false;
       };
     };
   };
@@ -147,7 +146,6 @@ export function createAuth(
         isAdmin: {
           type: 'boolean',
           defaultValue: false,
-          input: false,
         },
       },
     },

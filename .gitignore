@@ -12,6 +12,9 @@ apps/backend/src/generated/prisma/
 *.db
 *.db-journal
 .vscode/
+!.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 .DS_Store
 Thumbs.db

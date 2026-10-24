@@ -2,7 +2,8 @@ import { BadRequestException } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
 
 const VALIDATION_CODES: Readonly<Record<string, string>> = {
-  referenceExists: 'reference_not_found',
+  isPassword: 'password_requirements_not_met',
+  isUnique: 'already_exists',
   isString: 'need_string',
   isNotEmpty: 'is_required',
   isDefined: 'is_required',
@@ -14,6 +15,7 @@ const VALIDATION_CODES: Readonly<Record<string, string>> = {
   isBoolean: 'invalid_boolean',
   isDateString: 'invalid_date_string',
   isEnum: 'invalid_enum_value',
+  referenceExists: 'reference_not_found',
   whitelistValidation: 'validation_unknown_field',
   arrayUnique: 'validation_duplicate_array_value',
 };

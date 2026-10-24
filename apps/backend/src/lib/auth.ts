@@ -1,3 +1,7 @@
+import {
+  PASSWORD_REQUIREMENTS_REGEX,
+  PASSWORD_REQUIREMENTS_CODE,
+} from '../common/decorator/password.decorator';
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { prismaAdapter } from '@better-auth/prisma-adapter';
 import { ConfigService } from '@nestjs/config';
@@ -5,13 +9,31 @@ import { PrismaService } from '../prisma/prisma.service';
 import { i18n, locales } from '@better-auth/i18n';
 import { createAuthMiddleware, APIError } from 'better-auth/api';
 
+type AuthOptions = BetterAuthOptions & {
+  plugins: [ReturnType<typeof i18n>];
+  user: {
+    fields: { name: 'firstname' };
+    additionalFields: {
+      lastname: {
+        type: 'string';
+        required: true;
+      };
+      phone: { type: 'string'; required: false };
+      teamId: { type: 'string'; required: false; input: false };
+      isAdmin: {
+        type: 'boolean';
+        defaultValue: false;
+        input: false;
+      };
+    };
+  };
+};
+
 export function createAuth(
   prisma: PrismaService,
   config: ConfigService,
   { provisionUsers = false }: { provisionUsers?: boolean } = {},
-): ReturnType<
-  typeof betterAuth<BetterAuthOptions & { plugins: [ReturnType<typeof i18n>] }>
-> {
+): ReturnType<typeof betterAuth<AuthOptions>> {
   const baseURL = config.getOrThrow<string>('BETTER_AUTH_URL');
   const frontend = config.getOrThrow<string>('FRONTEND_URL');
   const secret = config.getOrThrow<string>('BETTER_AUTH_SECRET');
@@ -41,9 +63,7 @@ export function createAuth(
       'Microsoft authentication requires a specific organization tenant',
     );
 
-  const options: BetterAuthOptions & {
-    plugins: [ReturnType<typeof i18n>];
-  } = {
+  const options: AuthOptions = {
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
     secret,
     baseURL,
@@ -79,25 +99,32 @@ export function createAuth(
       requireEmailVerification: false,
       disableSignUp: !provisionUsers,
       ...(provisionUsers ? { autoSignIn: false } : {}),
-      minPasswordLength: 12,
-      maxPasswordLength: 128,
+      onPasswordReset: async ({ user }) => {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { mustChangePassword: false },
+        });
+      },
     },
 
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (ctx.path !== '/sign-up/email') {
+        if (ctx.path !== '/sign-up/email' && ctx.path !== '/reset-password') {
           return;
         }
 
-        const password = ctx.body?.password;
+        const password =
+          ctx.path === '/sign-up/email'
+            ? ctx.body?.password
+            : ctx.body?.newPassword;
 
         if (
           typeof password !== 'string' ||
-          !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/.test(password)
+          !PASSWORD_REQUIREMENTS_REGEX.test(password)
         ) {
           throw new APIError('BAD_REQUEST', {
-            message:
-              'Le mot de passe doit contenir une majuscule, une minuscule, un chiffre et un caractère spécial.',
+            code: PASSWORD_REQUIREMENTS_CODE,
+            message: PASSWORD_REQUIREMENTS_CODE,
           });
         }
       }),
@@ -116,7 +143,6 @@ export function createAuth(
         teamId: {
           type: 'string',
           required: false,
-          input: provisionUsers,
         },
         isAdmin: {
           type: 'boolean',

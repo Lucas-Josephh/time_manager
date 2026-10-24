@@ -4,7 +4,9 @@ import { toNodeHandler } from 'better-auth/node';
 import { AuthService } from './auth/auth.service';
 import { ConfigService } from '@nestjs/config';
 import type { INestApplication } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { validationExceptionFactory } from './common/validation/validation-exception.factory';
 
 export function configureApp(app: INestApplication): void {
   // Allows @Reference to receive PrismaService from Nest.
@@ -16,6 +18,14 @@ export function configureApp(app: INestApplication): void {
 
   // Set the global prefix for all routes to 'api' and enable CORS with the frontend URL from the configuration
   app.setGlobalPrefix('api');
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      exceptionFactory: validationExceptionFactory,
+    }),
+  );
   app.enableCors({
     origin: app.get(ConfigService).getOrThrow<string>('FRONTEND_URL'),
     credentials: true,

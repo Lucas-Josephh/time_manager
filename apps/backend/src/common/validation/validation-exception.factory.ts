@@ -10,6 +10,7 @@ const VALIDATION_CODES: Readonly<Record<string, string>> = {
   maxLength: 'max_length_exceeded',
   minLength: 'min_length_not_reached',
   isEmail: 'invalid_email',
+  isPhoneNumber: 'invalid_phone_number',
   isInt: 'invalid_integer',
   isNumber: 'invalid_number',
   isBoolean: 'invalid_boolean',
@@ -23,6 +24,11 @@ const VALIDATION_CODES: Readonly<Record<string, string>> = {
 // Define the priority of validation rules to determine which error code to return first.
 const RULE_PRIORITY = ['isNotEmpty', 'isDefined', 'isString'];
 
+/**
+ * Return the most relevant error code for a given validation error based on the defined priority.
+ *
+ * @param error
+ */
 function getErrorCode(error: ValidationError): string | undefined {
   const rules = Object.keys(error.constraints ?? {});
   const priorityRule = RULE_PRIORITY.find((rule) => rules.includes(rule));
@@ -34,7 +40,13 @@ function getErrorCode(error: ValidationError): string | undefined {
 
 type FieldError = { field: string; messages: string[] };
 
-function formatErrors(
+/**
+ * Recursively formats validation errors into a flat array of field errors.
+ *
+ * @param errors
+ * @param parent
+ */
+export function formatValidationErrors(
   errors: ValidationError[],
   parent = '',
 ): FieldError[] {
@@ -47,7 +59,7 @@ function formatErrors(
       result.push({ field, messages: [code] });
     }
 
-    const childErrors = formatErrors(error.children ?? [], field);
+    const childErrors = formatValidationErrors(error.children ?? [], field);
     result.push(...childErrors);
   }
 
@@ -62,10 +74,15 @@ function validationException(errors: FieldError[]): BadRequestException {
 }
 
 /** Same error envelope for explicit service checks and DTO validation. */
-export function fieldValidationException(field: string, code: string): BadRequestException {
+export function fieldValidationException(
+  field: string,
+  code: string,
+): BadRequestException {
   return validationException([{ field, messages: [code] }]);
 }
 
-export function validationExceptionFactory(errors: ValidationError[]): BadRequestException {
-  return validationException(formatErrors(errors));
+export function validationExceptionFactory(
+  errors: ValidationError[],
+): BadRequestException {
+  return validationException(formatValidationErrors(errors));
 }

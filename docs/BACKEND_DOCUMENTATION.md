@@ -96,12 +96,12 @@ Pour `PUT /api/team/:id` et `PATCH /api/team/:id`, le responsable est
 absent de `memberIds`. Il doit être sans équipe ou déjà membre de cette équipe,
 et appartenir à son organisation ou à une organisation descendante.
 
-| Champs envoyés | Résultat |
-| --- | --- |
-| `memberIds: []`, responsable conservé ou défini | Seul le responsable reste membre. |
-| `memberIds: []` et `managerId: null` | Aucun responsable et aucun membre : l\'équipe est vide. |
-| `memberIds` omis | Les membres existants sont conservés ; le nouveau responsable est ajouté si défini. |
-| `managerId: null`, `memberIds` omis | Le rôle de responsable est retiré ; l\'ancien responsable reste membre. |
+| Champs envoyés                                  | Résultat                                                                            |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `memberIds: []`, responsable conservé ou défini | Seul le responsable reste membre.                                                   |
+| `memberIds: []` et `managerId: null`            | Aucun responsable et aucun membre : l\'équipe est vide.                             |
+| `memberIds` omis                                | Les membres existants sont conservés ; le nouveau responsable est ajouté si défini. |
+| `managerId: null`, `memberIds` omis             | Le rôle de responsable est retiré ; l\'ancien responsable reste membre.             |
 
 Pour vider une équipe avec `PATCH` :
 
@@ -272,9 +272,18 @@ Les contrôles d'origine et CSRF sont activés, ainsi que la limitation des requ
 CORS autorise `FRONTEND_URL` avec credentials. Better Auth utilise cette origine
 comme origine de confiance, en plus de son URL de base.
 
-Better Auth expose `user.name`, stocké dans `firstname`, ainsi que `lastname`,
-`phone`, `teamId` et `isAdmin`. `teamId` et `isAdmin` ne sont pas modifiables via
-les entrées utilisateur Better Auth.
+Better Auth expose trois champs distincts : `user.firstname` (prénom),
+`user.lastname` (nom de famille) et `user.name` (nom d’affichage calculé comme
+prénom + espace + nom). Le mapping de `name` vers `firstname` est supprimé.
+Les DTO User acceptent `firstname` et `lastname`, sans exposer `name` en écriture.
+Les routes Better Auth conservent leur validation et leurs réponses natives,
+sans passer par les DTO NestJS. Le hook de profil synchronise seulement le nom
+d’affichage lorsque le prénom ou le nom change. Le trigger en base maintient
+également ce nom calculé lors des écritures.
+Les champs `phone`, `teamId` et `isAdmin` restent également exposés.
+`teamId` et `isAdmin` ne sont pas modifiables via les entrées utilisateur Better Auth.
+La migration `20261024160000_add_user_display_name` peuple le nom d’affichage
+pour les comptes existants et installe sa synchronisation en base.
 
 `AuthModule` exporte `AuthGuard` pour protéger les contrôleurs avec
 `@UseGuards(AuthGuard)`. Le guard vérifie la session depuis les en-têtes de la
@@ -352,3 +361,16 @@ en mémoire. Les réponses externes de Microsoft sont simulées une connexion
 avec un vrai tenant reste nécessaire pour valider la configuration Entra.
 Les tests `api-documentation.spec.ts` et `response-serialization.spec.ts` vérifient
 les schémas OpenAPI et le filtrage des réponses, sans base réelle.
+
+
+## Pagination des listes
+
+`GET /api/users`, `GET /api/team` et `GET /api/organizations` acceptent
+`page` (entier >= 1, défaut 1) et `limit` (entier entre 1 et 100, défaut 10).
+Les filtres existants sont cumulables avec ces paramètres.
+
+Les résultats se trouvent dans `data.items`. `data.meta` contient `total`
+(nombre de résultats filtrés), `page`, `limit` et `totalPages`.
+Une page hors limites renvoie une liste vide ; si aucun résultat ne correspond,
+`totalPages` vaut 0. Team et Organization ne renvoient plus de tableau direct dans `data`.
+Les arbres d’organisations et les utilisateurs disponibles pour une équipe ne sont pas concernés.

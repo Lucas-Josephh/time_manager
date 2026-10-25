@@ -89,43 +89,56 @@ permet de créer l'équipe avant son premier utilisateur. La suppression d'une
 équipe ayant encore des membres est restreinte : réaffecter les utilisateurs avant
 de la supprimer.
 
-## Modification des membres d\'une équipe
+## Architecture et autorisations Organization
 
-Pour `PATCH /api/team/:id`, le responsable est
-**toujours membre** de l\'équipe : il est ajouté automatiquement même s\'il est
-absent de `memberIds`. Son affectation respecte les droits de l’auteur de la requête.
+Les providers `OrganizationService`, `OrganizationAuthorizationService` et `OrganizationHierarchyService` sont déclarés dans `OrganizationModule` et placés dans `organization/services/`. Le contrôleur se trouve dans `organization/controllers/` et utilise `AuthGuard` pour authentifier les requêtes.
 
-- **Administrateur** : ajout ou transfert de tout utilisateur, quelle que soit son organisation, y compris si elle est nulle.
-- **Manager d’organisation** : ajout ou transfert des utilisateurs de son organisation et de ses descendantes, entre les équipes de ce périmètre. Un utilisateur rattaché à une équipe extérieure ne peut pas être transféré.
-- **Responsable d’équipe** : ajout uniquement des utilisateurs sans équipe, rattachés à l’organisation de son équipe ou à ses descendantes.
+`OrganizationHierarchyService` regroupe les parcours d’ancêtres et descendants, la validation des cycles. Il est exporté par `OrganizationModule` et injecté dans les services Organization et Team. Les méthodes de lecture reçoivent le client transactionnel en argument ; celui-ci n’est jamais stocké dans le provider partagé. La construction triée de l’arbre est assurée par la fonction pure `buildOrganizationTree` dans `organization/utils/build-organization-tree.ts`, sans accès à Prisma. `OrganizationService.tree()` orchestre le chargement puis cette construction.
 
-L’affectation conserve toujours `user.organizationId`. Un membre déjà présent peut être conservé même s’il appartient à une autre organisation. Le transfert d’un responsable retire son rôle dans son ancienne équipe, dans la même transaction.
+Le service métier reçoit l’auteur pour chaque création, modification et suppression. Il charge la cible et vérifie les droits via `OrganizationAuthorizationService` dans la même transaction Serializable que l’écriture. Un appel interne bénéficie ainsi des mêmes contrôles que les routes HTTP.
 
-`GET /api/team/available-users` ne requiert aucune équipe cible : le périmètre est calculé depuis l’utilisateur authentifié. Les administrateurs voient tous les utilisateurs ; les managers d’organisation voient les utilisateurs de leurs organisations et descendants, libres ou transférables depuis une équipe du même périmètre ; les responsables d’équipe voient les utilisateurs libres des organisations de leurs équipes et descendants. Les périmètres se cumulent. Aucun membre n’est exclu au titre d’une équipe cible. Sans droit de gestion : `403`. Les droits et l’éligibilité pour l’organisation cible restent vérifiés lors de la création ou modification ; la liste n’accorde aucun droit de création supplémentaire.
+Les admins peuvent tout gérer. Un manager d’organisation peut gérer son organisation et ses descendants. Un déplacement exige les droits sur la cible actuelle et le nouveau parent. Créer une racine ou détacher une organisation en racine exige un admin ; conserver un parent déjà nul reste autorisé au manager de cette racine. Le manager proposé dans la requête ne donne aucun droit à l’auteur.
 
-Les appartenances utilisateur et équipe ne sont pas un invariant de la hiérarchie : déplacer une organisation conserve les appartenances existantes, sans imposer aux utilisateurs de rejoindre une autre équipe.
+Les règles de lecture existantes sont conservées : liste paginée et détail accessibles aux utilisateurs authentifiés ; arbres limités aux branches gérées, ou à toutes les branches pour l’admin. Le périmètre et les données de l’arbre sont chargés dans une transaction RepeatableRead. Les appartenances ne changent pas lors d’un déplacement.
 
-| Champs envoyés                                  | Résultat                                                                            |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `memberIds: []`, responsable conservé ou défini | Seul le responsable reste membre.                                                   |
-| `memberIds: []` et `managerId: null`            | Aucun responsable et aucun membre : l\'équipe est vide.                             |
-| `memberIds` omis                                | Les membres existants sont conservés ; le nouveau responsable est ajouté si défini. |
-| `managerId: null`, `memberIds` omis             | Le rôle de responsable est retiré ; l\'ancien responsable reste membre.             |
+Après authentification, les DTO sont validés avant l’appel aux services. Une requête PATCH avec un body invalide renvoie donc 400 même si la cible est absente ; avec un body valide, une cible absente renvoie 404.
 
-Pour vider une équipe avec `PATCH` :
+## Équipes et appartenance
 
-```json
-{
-  "memberIds": [],
-  "managerId": null
-}
-```
+Le module utilise des providers injectables dans `team/services/` et deux contrôleurs dans `team/controllers/`. `TeamAuthorizationService` centralise les autorisations et les périmètres. Les services vérifient les droits dans les transactions Serializable pour les écritures.
 
-Une liste `memberIds` non vide remplace les membres, en y incluant toujours
-le responsable conservé ou défini. Toutes les modifications sont atomiques :
-un utilisateur indisponible provoque une erreur `409 team_members_unavailable`,
-avec les utilisateurs concernés dans `data.unavailableMembers`, et annule
-l\'opération entière.
+Un utilisateur appartient au maximum à une équipe, peut manager plusieurs équipes et ne peut pas être membre de celle qu’il manage. L’ajout, le retrait et le transfert ne changent ni son organisation ni ses responsabilités.
+
+| Route | Entrée |
+| --- | --- |
+| `POST /api/team` | `name`, `organizationId`, `managerId?`, `memberIds?`, `transfers?: [{userId, teamId}]` |
+| `PATCH /api/team/:id` | `name?`, `organizationId?` uniquement |
+| `PATCH /api/team/:id/manager` | `managerId` (chaîne ou null) |
+| `POST /api/team/:id/members` | `memberIds` (utilisateurs sans équipe) |
+| `DELETE /api/team/:id/members/:userId` | Retrait explicite |
+| `POST /api/team/:id/transfers` | `userId`, `teamId` |
+
+Les POST membres et transferts répondent 201 ; les DELETE répondent 200. Dans un transfert, teamId désigne l’équipe source et le paramètre :id désigne la destination. Création, suppression, changement de manager et déplacement sont réservés aux admins et managers d’organisation ; le déplacement exige les droits source et destination. Le responsable d’équipe peut lire, renommer et gérer les membres de ses équipes. Un simple membre n’a aucun accès Team. Les listes restent paginées et filtrées par les droits.
+
+Pour ajouter un utilisateur sans équipe, son organisation doit être dans le périmètre cumulé des organisations gérées et des organisations des équipes managées, descendants inclus. L’admin n’a pas cette restriction. Un transfert exige les droits sur les deux équipes, même si l’auteur en est uniquement le responsable.
+
+La nomination peut viser tout utilisateur existant, y compris un membre d’une autre équipe. Un membre de la cible doit d’abord en être retiré explicitement. Un déplacement conserve membres et manager ; une suppression avec membres est refusée.
+
+`GET /api/team/available-users?usage=member|transfer|manager&teamId=...` exige un usage et une cible. Les candidats membres sont sans équipe, les candidats transférables appartiennent à une autre équipe accessible, les candidats managers peuvent appartenir à une autre équipe. Le manager de la cible est exclu des candidats membres. Les contrôles sont répétés lors de l’écriture.
+
+Tous les candidats de création sont vérifiés avant écriture. Une erreur annule toute la transaction. Les candidats membres indisponibles renvoient `409 team_members_unavailable` avec `data.unavailableMembers`.
+
+La commande `pnpm --filter backend team:separate-managers` prévisualise les anciennes appartenances incompatibles. Ajouter `--apply` pour retirer uniquement ces appartenances en préservant les responsabilités. Aucun changement de schéma n’est nécessaire.
+
+## Architecture et autorisations User
+
+Le contrôleur se trouve dans `user/controllers/`. `UserService`, `UserAuthorizationService` et `UserProvisioningService` sont des providers injectables dans `user/services/`. `buildUserName` reste une fonction pure dans `user/utils/`.
+
+Les routes conservent `AuthGuard` et `AdminGuard`. Les services reçoivent aussi l’auteur et contrôlent les droits admin via `UserAuthorizationService`, ce qui protège les appels internes pour les lectures comme pour les écritures. Les créations, modifications et suppressions vérifient les droits dans leur transaction Serializable. Les contrôles de lecture précèdent les requêtes de consultation ; les listes conservent leur pagination et leur transaction RepeatableRead.
+
+`UserService` orchestre la création : vérification des droits, résolution de l’équipe initiale, puis appel à `UserProvisioningService` avec le même client transactionnel. Ce dernier intègre Better Auth, crée les identifiants et récupère le profil complet. Aucun client transactionnel n’est conservé dans un provider partagé. Les erreurs de doublon Better Auth sont interprétées après annulation de la transaction pour préserver la réponse `validation_failed` sur le champ email.
+
+Les changements d’appartenance restent dans Team. Les mises à jour du profil conservent la reconstruction du nom complet et la remise à zéro de `emailVerified` si l’email est modifié. Le guard `ResourceExists` reste présent sur le PATCH User : une cible absente est détectée avant la validation du DTO.
 
 ## Création des utilisateurs
 

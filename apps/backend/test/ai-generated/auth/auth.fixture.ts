@@ -38,7 +38,8 @@ export function useAuthFixture(): {
     const ctx = await auth.$context;
     const user = await ctx.internalAdapter.createUser(
       {
-        name: 'Admin',
+        name: 'Admin Time Manager',
+        firstname: 'Admin',
         lastname: 'Time Manager',
         isAdmin: true,
         email: 'admin@example.com',

@@ -13,11 +13,19 @@ export class AuthService {
     this.auth = createAuth(prisma, config);
   }
 
+  /**
+   * Gets the current session from the request headers.
+   *
+   * @param headers
+   */
   async getSession(headers: IncomingHttpHeaders) {
     const session = await this.auth.api.getSession({
       headers: fromNodeHeaders(headers),
     });
-    if (!session) throw new UnauthorizedException();
+
+    if (!session)
+      throw new UnauthorizedException();
+
     return session;
   }
 }

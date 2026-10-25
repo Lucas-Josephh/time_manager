@@ -1,3 +1,4 @@
+import { buildUserName } from '../user/user-name';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { resolve } from 'node:path';
@@ -11,7 +12,10 @@ import { createAuth } from '../lib/auth';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [resolve(__dirname, '../../.env'), resolve(__dirname, '../../../../.env')],
+      envFilePath: [
+        resolve(__dirname, '../../.env'),
+        resolve(__dirname, '../../../../.env'),
+      ],
     }),
     PrismaModule,
   ],
@@ -25,15 +29,15 @@ async function main() {
       firstname: { type: 'string' },
       lastname: { type: 'string' },
       password: { type: 'string' },
-      'team-id': { type: 'string' },
+      admin: { type: 'boolean' },
     },
   });
 
   const email = values.email?.trim().toLowerCase();
   const firstname = values.firstname?.trim();
   const lastname = values.lastname?.trim();
+  const admin = values.admin ?? false;
   const password = values.password;
-  const teamId = values['team-id']?.trim();
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error('--email doit être une adresse valide');
@@ -62,23 +66,17 @@ async function main() {
       throw new Error('Un utilisateur possède déjà cet email');
     }
 
-    if (teamId) {
-      const team = await prisma.team.findUnique({ where: { id: teamId } });
-      if (!team) {
-        throw new Error('L\'équipe indiquée par --team-id est introuvable');
-      }
-    }
-
     const auth = createAuth(prisma, app.get(ConfigService), {
       provisionUsers: true,
     });
 
     const body = {
       email,
-      name: firstname,
+      name: buildUserName(firstname, lastname),
+      firstname,
       lastname,
       password,
-      ...(teamId ? { teamId } : {}),
+      isAdmin: admin,
     };
     const { user } = await auth.api.signUpEmail({ body });
 

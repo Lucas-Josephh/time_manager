@@ -55,8 +55,12 @@ export async function getOrganizationAncestors(
       where: { id: currentId },
       select: { id: true, parentId: true, managerId: true },
     });
+
+    // If the organization is not found, we stop the search. This could happen if the organization has been deleted or if there is a missing parent in the hierarchy.
     if (!organization) break;
     ancestors.push(organization);
+
+    // Move up to the parent organization for the next iteration. (if null, the loop will exit)
     currentId = organization.parentId;
   }
   return ancestors;
@@ -76,6 +80,7 @@ export async function getOrganizationDescendantIds(
   let currentParentIds = [organizationId];
 
   while (currentParentIds.length > 0) {
+    // Get all children of the current parent organizations.
     const children = await prisma.organization.findMany({
       where: { parentId: { in: currentParentIds } },
       select: { id: true },

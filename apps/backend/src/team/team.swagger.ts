@@ -19,6 +19,14 @@ import {
   TeamListDto,
 } from './dto/team.dto';
 
+const memberRules = `- **Administrateur** : peut ajouter ou transférer tout utilisateur, y compris sans organisation ou déjà dans une autre équipe.
+- **Manager d’organisation** : peut ajouter ou transférer les utilisateurs de son organisation et de ses descendantes entre les équipes de ce même périmètre. Il ne peut pas retirer un utilisateur à une équipe hors de son périmètre.
+- **Responsable d’équipe** : peut ajouter à sa propre équipe uniquement des utilisateurs sans équipe, rattachés à l’organisation de l’équipe ou à ses descendantes.
+- Les utilisateurs déjà membres peuvent être conservés, même si leur organisation diffère de celle de l’équipe.
+- Une affectation ne modifie **jamais** l’organisation de l’utilisateur. Si un responsable est transféré, son ancien rôle de responsable est retiré.
+- Le responsable choisi est automatiquement membre. Les affectations et transferts sont atomiques.
+- Un membre inexistant ou non autorisé provoque **409** \`team_members_unavailable\`, avec \`data.unavailableMembers\` et le motif \`not_found\`, \`already_in_team\` ou \`outside_organization\`.`;
+
 export function ApiTeamController() {
   return applyDecorators(
     ApiTags('Team'),
@@ -45,9 +53,7 @@ Session requise. Réservé aux **administrateurs** et aux **managers de l’orga
 - **Responsable** et **\`memberIds\`** : optionnels.
 
 ### Membres
-Le responsable est automatiquement membre et doit respecter les mêmes règles d\'éligibilité. Il reste membre même si absent de \`memberIds\`. Retirer son rôle seul conserve son appartenance.
-En cas de conflit : **409** \`team_members_unavailable\`, avec \`data.unavailableMembers\` (identifiant, prénom et nom si existant, et motif : \`already_in_team\`, \`outside_organization\` ou \`not_found\`).
-Les membres doivent être **sans équipe** et appartenir à l\'organisation choisie ou à l\'une de ses descendantes.
+${memberRules}
 
 ### Résultat
 La création et les affectations sont **atomiques**.`,
@@ -74,7 +80,7 @@ export function ApiTeamReplace() {
     ApiOperation({
       summary: 'Mettre à jour une équipe',
       description: `### Accès
-Session requise. Réservé aux administrateurs, au responsable actuel de cette équipe et aux managers de son organisation ou d’un de ses ancêtres. Un changement d’organisation exige aussi ces droits sur la destination. Tous les membres conservés, y compris le responsable, doivent appartenir à la destination ou à ses descendantes ; sinon la requête est annulée avec 409 team_members_unavailable.
+Session requise. Réservé aux administrateurs, au responsable actuel de cette équipe et aux managers de son organisation ou d’un de ses ancêtres. Un changement d’organisation exige aussi ces droits sur la destination. Les utilisateurs déjà membres conservent leur organisation et leur appartenance lors du déplacement de l’équipe.
 
 ### Champs
 - **Nom et organisation** : requis.
@@ -82,8 +88,7 @@ Session requise. Réservé aux administrateurs, au responsable actuel de cette �
 - Responsable omis : conservé ; \`null\` : retiré.
 
 ### Membres
-Le responsable est automatiquement membre et doit respecter les mêmes règles d\'éligibilité. Il reste membre même si absent de \`memberIds\`. Retirer son rôle seul conserve son appartenance.
-En cas de conflit : **409** \`team_members_unavailable\`, avec \`data.unavailableMembers\` (identifiant, prénom et nom si existant, et motif : \`already_in_team\`, \`outside_organization\` ou \`not_found\`).
+${memberRules}
 - \`memberIds\` fourni : remplace les membres.
 - \`memberIds: []\` avec un responsable conservé ou défini : seul ce responsable reste membre.
 - \`memberIds: []\` et \`managerId: null\` dans la même requête : retire le responsable et tous les membres ; l\'équipe devient vide.
@@ -108,7 +113,7 @@ export function ApiTeamUpdate() {
     ApiOperation({
       summary: 'Modifier partiellement une équipe',
       description: `### Accès
-Session requise. Réservé aux administrateurs, au responsable actuel de cette équipe et aux managers de son organisation ou d’un de ses ancêtres. Un changement d’organisation exige aussi ces droits sur la destination. Tous les membres conservés, y compris le responsable, doivent appartenir à la destination ou à ses descendantes ; sinon la requête est annulée avec 409 team_members_unavailable.
+Session requise. Réservé aux administrateurs, au responsable actuel de cette équipe et aux managers de son organisation ou d’un de ses ancêtres. Un changement d’organisation exige aussi ces droits sur la destination. Les utilisateurs déjà membres conservent leur organisation et leur appartenance lors du déplacement de l’équipe.
 
 ### Champs
 - Seuls les champs fournis sont modifiés : omettre les champs inchangés.
@@ -116,8 +121,7 @@ Session requise. Réservé aux administrateurs, au responsable actuel de cette �
 - \`null\` peut retirer le responsable.
 
 ### Membres
-Le responsable est automatiquement membre et doit respecter les mêmes règles d\'éligibilité. Il reste membre même si absent de \`memberIds\`. Retirer son rôle seul conserve son appartenance.
-En cas de conflit : **409** \`team_members_unavailable\`, avec \`data.unavailableMembers\` (identifiant, prénom et nom si existant, et motif : \`already_in_team\`, \`outside_organization\` ou \`not_found\`).
+${memberRules}
 - \`memberIds\` fourni : remplace les membres.
 - \`memberIds: []\` avec un responsable conservé ou défini : seul ce responsable reste membre.
 - \`memberIds: []\` et \`managerId: null\` dans la même requête : retire le responsable et tous les membres ; l\'équipe devient vide.
@@ -187,16 +191,18 @@ Session requise. Le contrôle du périmètre de management n\'est pas encore imp
 export function ApiTeamFindAvailableUsers() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Lister les utilisateurs sans équipe disponibles',
+      summary: 'Lister les utilisateurs pouvant rejoindre l’équipe',
       description: `### Accès
-Réservé au **responsable de cette équipe** et aux **administrateurs**.
+Administrateur, manager de l’organisation de cette équipe ou de l’un de ses ancêtres, ou responsable actuel de cette équipe.
 
 ### Périmètre
-Retourne les utilisateurs **sans aucune équipe**, appartenant à l\'organisation de l\'équipe ou à l\'une de ses organisations descendantes.
+- **Administrateur** : utilisateurs de toute organisation ou sans organisation, même déjà membres d’une autre équipe.
+- **Manager d’organisation** : utilisateurs rattachés à son périmètre, sans équipe ou dans une équipe du même périmètre.
+- **Responsable d’équipe** : utilisateurs sans équipe, rattachés à l’organisation de l’équipe ou à ses descendantes.
+Les membres actuels de cette équipe sont exclus.
 
 ### Résultat
-- Tri par **nom**, puis **prénom**, puis **identifiant**.
-- Sans pagination.`,
+Tri par **nom**, puis **prénom**, puis **identifiant**. Sans pagination. Les mêmes règles s’appliquent à l’affectation effective.`,
     }),
     ApiResourceId('team-administration'),
     ApiSuccessResponse({
@@ -208,7 +214,7 @@ Retourne les utilisateurs **sans aucune équipe**, appartenant à l\'organisatio
     ApiErrorResponse(
       403,
       'forbidden',
-      'Responsable de cette équipe ou administrateur requis.',
+      'Administrateur, manager de cette organisation ou de l’un de ses ancêtres, ou responsable de cette équipe requis.',
     ),
     ApiValidationError(),
     ApiNotFoundError('not_found'),

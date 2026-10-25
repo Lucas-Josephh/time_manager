@@ -3,11 +3,8 @@ import { fieldValidationException } from '../common/validation/validation-except
 import {
   checkOrganizationParent,
   getOrganizationAncestors,
-  getOrganizationDescendantIds,
 } from './organization-hierarchy';
-import { requireResource } from '../common/require-resource';
 import {
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -34,11 +31,23 @@ export class OrganizationService {
       where: { id: userId },
       select: { isAdmin: true },
     });
+
+    // If the user does not exist, throw a ForbiddenException. This ensures that only valid users can manage organizations.
     if (!user) throw new ForbiddenException();
+
+    // Administrators can manage all organizations, so no further checks are needed.
     if (user.isAdmin) return;
-    const ancestors = await getOrganizationAncestors(organizationId, this.prisma);
+
+    // Get ancestors of the organization to check if the user is a manager of any ancestor organization.
+    const ancestors = await getOrganizationAncestors(
+      organizationId,
+      this.prisma,
+    );
+
+    // If the user is a manager of any ancestor organization, they can manage the organization.
     if (ancestors.some((organization) => organization.managerId === userId))
       return;
+
     throw new ForbiddenException();
   }
 
@@ -194,88 +203,26 @@ export class OrganizationService {
   }
 
   findOne(id: string) {
-    return requireResource(
-      this.prisma.organization.findUnique({ where: { id } }),
-    );
+    return this.prisma.organization.findUniqueOrThrow({ where: { id } });
   }
 
   update(id: string, dto: PartialOrganizationDto) {
     // Serializable isolation prevents concurrent re-parenting from creating a cycle.
     return this.prisma.$transaction(
       async (tx) => {
-        const organization = await requireResource(
-          tx.organization.findUnique({
-            where: { id },
-            select: { parentId: true },
-          }),
-        );
-        const result = await checkOrganizationParent(
-          id,
-          dto.parentId,
-          tx,
-        );
+        await tx.organization.findUniqueOrThrow({
+          where: { id },
+          select: { id: true },
+        });
+        const result = await checkOrganizationParent(id, dto.parentId, tx);
         if (result === 'cycle')
           throw fieldValidationException('parentId', 'organization_cycle');
         if (result === 'missing')
           throw fieldValidationException('parentId', 'reference_not_found');
-        if (
-          dto.parentId !== undefined &&
-          dto.parentId !== organization.parentId
-        ) {
-          await this.assertTeamMembershipsPreserved(
-            tx,
-            id,
-            organization.parentId,
-            dto.parentId,
-          );
-        }
         return tx.organization.update({ where: { id }, data: dto });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
-  }
-
-  /** Only teams belonging to former ancestors can lose access to the moved users. */
-  private async assertTeamMembershipsPreserved(
-    tx: Prisma.TransactionClient,
-    organizationId: string,
-    currentParentId: string | null,
-    newParentId: string | null,
-  ): Promise<void> {
-    const previousAncestors = await getOrganizationAncestors(
-      currentParentId,
-      tx,
-    );
-    const nextAncestors = await getOrganizationAncestors(
-      newParentId,
-      tx,
-    );
-    const nextAncestorIds = new Set(
-      nextAncestors.map((organization) => organization.id),
-    );
-    const removedAncestorIds = previousAncestors
-      .filter((organization) => !nextAncestorIds.has(organization.id))
-      .map((organization) => organization.id);
-    if (removedAncestorIds.length === 0) return;
-
-    const movedOrganizationIds = await getOrganizationDescendantIds(
-      organizationId,
-      tx,
-    );
-    const affectedMembers = await tx.user.findMany({
-      where: {
-        organizationId: { in: movedOrganizationIds },
-        team: { is: { organizationId: { in: removedAncestorIds } } },
-      },
-      select: { id: true, firstname: true, lastname: true, teamId: true },
-      orderBy: { id: 'asc' },
-    });
-    if (affectedMembers.length > 0) {
-      throw new ConflictException({
-        message: 'organization_move_invalidates_team_memberships',
-        data: { affectedMembers },
-      });
-    }
   }
 
   delete(id: string) {

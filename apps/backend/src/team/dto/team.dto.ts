@@ -34,7 +34,7 @@ export class SetTeamDto {
     nullable: true,
     minLength: 1,
     description:
-      'Utilisateur sans équipe ou déjà membre de cette équipe, appartenant à son organisation ou une descendante. Ajouté automatiquement aux membres. null retire uniquement le rôle de responsable ; omis le conserve.',
+      'Utilisateur éligible selon les droits de l’auteur : transfert autorisé pour un administrateur ou un manager d’organisation dans son périmètre ; utilisateur disponible du périmètre pour un responsable d’équipe. Ajouté automatiquement aux membres. null retire uniquement le rôle de responsable ; omis le conserve.',
     example: 'default-admin',
   })
   @Trim()
@@ -59,7 +59,7 @@ export class SetTeamDto {
     type: [String],
     example: ['user-1', 'user-2'],
     description:
-      'Identifiants uniques des membres de cette organisation ou de ses descendantes, sans équipe ou déjà dans cette équipe. Remplace la liste fournie ; [] conserve uniquement le responsable si managerId est conservé ou défini ; [] avec managerId: null dans la même requête vide complètement l\'équipe. Omis conserve les membres existants et ajoute le nouveau responsable si défini. Le responsable est toujours inclus.',
+      'Identifiants uniques des membres. Administrateur : affectation libre ; manager d’organisation : transferts dans son périmètre ; responsable d’équipe : utilisateurs sans équipe de son organisation ou de ses descendantes. L’organisation des utilisateurs est conservée. Remplace la liste fournie ; [] conserve uniquement le responsable si managerId est conservé ou défini ; [] avec managerId: null dans la même requête vide complètement l\'équipe. Omis conserve les membres existants et ajoute le nouveau responsable si défini. Le responsable est toujours inclus.',
   })
   @Trim({ each: true })
   @ValidateIf((_object, value) => value !== undefined)

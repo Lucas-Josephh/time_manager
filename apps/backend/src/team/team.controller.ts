@@ -54,8 +54,8 @@ export class TeamController {
   @ApiTeamCreate()
   @SerializeResponse(TeamWithRelationsDto)
   @CanManageTeams()
-  create(@Body() dto: SetTeamDto) {
-    return this.teamService.create(dto);
+  create(@Body() dto: SetTeamDto, @Req() request: AuthRequest) {
+    return this.teamService.create(dto, request.session!.user.id);
   }
 
   @ResponseMessage('team_updated')
@@ -64,8 +64,8 @@ export class TeamController {
   @Put(':id')
   @ApiTeamReplace()
   @SerializeResponse(TeamWithRelationsDto)
-  replace(@Param('id') id: string, @Body() dto: SetTeamDto) {
-    return this.teamService.replace(id, dto);
+  replace(@Param('id') id: string, @Body() dto: SetTeamDto, @Req() request: AuthRequest) {
+    return this.teamService.replace(id, dto, request.session!.user.id);
   }
 
   @ResponseMessage('team_partially_updated')
@@ -74,8 +74,8 @@ export class TeamController {
   @Patch(':id')
   @ApiTeamUpdate()
   @SerializeResponse(TeamWithRelationsDto)
-  update(@Param('id') id: string, @Body() dto: PartialSetTeamDto) {
-    return this.teamService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: PartialSetTeamDto, @Req() request: AuthRequest) {
+    return this.teamService.update(id, dto, request.session!.user.id);
   }
 
   @ResponseMessage('team_deleted')

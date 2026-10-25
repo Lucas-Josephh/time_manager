@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import request from 'supertest';
 import { ConflictException } from '@nestjs/common';
 import { TeamService } from '../../../src/team/team.service';
@@ -55,14 +56,14 @@ describe('Team creation: atomic member assignment', () => {
   };
   const tx = {
     organization: { findMany: jest.fn() },
-    team: { create: jest.fn(), findUnique: jest.fn() },
+    team: { create: jest.fn(), findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
     user: { updateMany: jest.fn(), findMany: jest.fn() },
   };
   const prisma = {
     $transaction: jest.fn(),
     team: { findFirst: jest.fn() },
-    organization: { findUnique: jest.fn() },
-    user: { findUnique: jest.fn() },
+    organization: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
+    user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
   };
   const service = new TeamService(prisma as unknown as PrismaService);
 
@@ -119,15 +120,15 @@ describe('Team creation: atomic member assignment', () => {
 describe('Team updates: member replacement', () => {
   const team = { id: 'team', organizationId: 'org' };
   const tx = {
-    team: { update: jest.fn(), findUnique: jest.fn() },
+    team: { update: jest.fn(), findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
     organization: { findMany: jest.fn() },
     user: { updateMany: jest.fn(), findMany: jest.fn() },
   };
   const prisma = {
     $transaction: jest.fn(),
     team: { update: jest.fn(), findFirst: jest.fn() },
-    organization: { findUnique: jest.fn() },
-    user: { findUnique: jest.fn() },
+    organization: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
+    user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
   };
   const service = new TeamService(prisma as unknown as PrismaService);
 
@@ -161,8 +162,7 @@ describe('Team updates: member replacement', () => {
       expect(tx.user.updateMany).toHaveBeenNthCalledWith(1, {
         where: {
           id: { in: ['u1', 'u2'] },
-          OR: [{ teamId: null }, { teamId: team.id }],
-          organizationId: { in: ['org'] },
+          OR: [{ teamId: team.id }, { teamId: null, organizationId: { in: ['org'] } }],
         },
         data: { teamId: team.id },
       });
@@ -203,7 +203,7 @@ describe('Team updates: member replacement', () => {
     await service.update(team.id, { managerId: 'manager' });
     expect(tx.user.updateMany).toHaveBeenCalledTimes(1);
     expect(tx.user.updateMany).toHaveBeenCalledWith({
-      where: { id: { in: ['manager'] }, OR: [{ teamId: null }, { teamId: team.id }], organizationId: { in: ['org'] } },
+      where: { id: { in: ['manager'] }, OR: [{ teamId: team.id }, { teamId: null, organizationId: { in: ['org'] } }] },
       data: { teamId: team.id },
     });
   });

@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createHttpTestApp } from '../support/http-test-app';
@@ -20,11 +21,11 @@ describe('Organization moves preserve team memberships', () => {
   const prisma = {
     $transaction: jest.fn(),
     organization: {
-      findUnique: jest.fn(),
+      findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(),
       findMany: jest.fn(),
       update: jest.fn(),
     },
-    user: { findUnique: jest.fn(), findMany: jest.fn() },
+    user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), findMany: jest.fn() },
   };
   const member = (organizationId: string, teamId: string | null) => ({
     id: 'member',
@@ -83,107 +84,32 @@ describe('Organization moves preserve team memberships', () => {
     );
   });
 
-  it.each(['b', 'deep'])(
-    'refuses a move that invalidates a member attached to %s',
-    async (organizationId) => {
-      members = [member(organizationId, 'team-a')];
-      const response = await request(app.getHttpServer())
-        .patch('/api/organizations/b')
-        .send({ parentId: 'c' })
-        .expect(409);
-      expect(response.body).toEqual({
-        success: false,
-        message: 'organization_move_invalidates_team_memberships',
-        data: {
-          affectedMembers: [
-            {
-              id: 'member',
-              firstname: 'Alice',
-              lastname: 'Martin',
-              teamId: 'team-a',
-            },
-          ],
-        },
-      });
-      expect(prisma.organization.update).not.toHaveBeenCalled();
-      expect(parents.b).toBe('a');
-      expect(prisma.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: {
-            organizationId: { in: ['b', 'deep'] },
-            team: { is: { organizationId: { in: ['a'] } } },
-          },
-        }),
-      );
-      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
-        isolationLevel: 'Serializable',
-      });
-    },
-  );
-
   it.each([
-    ['deep', 'team-b'], // Team and user stay inside the moved branch.
-    ['b', 'team-root'], // The common root remains an ancestor.
-    ['deep', null], // Users without a team cannot lose membership eligibility.
-    ['c', 'team-a'], // An existing inconsistency outside the moved branch is unrelated.
-  ] as const)(
-    'preserves unaffected membership %s / %s',
-    async (organizationId, teamId) => {
-      members = [member(organizationId, teamId)];
-      await request(app.getHttpServer())
-        .patch('/api/organizations/b')
-        .send({ parentId: 'c' })
-        .expect(200);
-      expect(parents.b).toBe('c');
-    },
-  );
-
-  it('allows a move within the same ancestor scope', async () => {
-    members = [member('deep', 'team-a')];
-    await request(app.getHttpServer())
-      .patch('/api/organizations/b')
-      .send({ parentId: 'sibling' })
-      .expect(200);
+    ['b', 'team-a'],
+    ['deep', 'team-a'],
+    ['deep', 'team-b'],
+    ['b', 'team-root'],
+    ['deep', null],
+    ['c', 'team-a'],
+  ] as const)('preserves independent membership %s / %s when moving the branch', async (organizationId, teamId) => {
+    members = [member(organizationId, teamId)];
+    const before = structuredClone(members);
+    await request(app.getHttpServer()).patch('/api/organizations/b')
+      .send({ parentId: 'c' }).expect(200);
+    expect(parents.b).toBe('c');
+    expect(members).toEqual(before);
     expect(prisma.user.findMany).not.toHaveBeenCalled();
+    expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: 'Serializable',
+    });
   });
 
-  it('rejects detaching the branch when members belong to a former ancestor team', async () => {
+  it('allows detaching a branch without modifying its users or teams', async () => {
     members = [member('b', 'team-root')];
-    await request(app.getHttpServer())
-      .patch('/api/organizations/b')
-      .send({ parentId: null })
-      .expect(409);
-    expect(prisma.organization.update).not.toHaveBeenCalled();
-  });
-
-  it('allows moving an empty branch and skips checks for an unchanged parent', async () => {
-    await request(app.getHttpServer())
-      .patch('/api/organizations/b')
-      .send({ parentId: 'c' })
-      .expect(200);
-    prisma.user.findMany.mockClear();
-    await request(app.getHttpServer())
-      .patch('/api/organizations/b')
-      .send({ parentId: 'c' })
-      .expect(200);
+    await request(app.getHttpServer()).patch('/api/organizations/b')
+      .send({ parentId: null }).expect(200);
+    expect(parents.b).toBeNull();
+    expect(members[0].teamId).toBe('team-root');
     expect(prisma.user.findMany).not.toHaveBeenCalled();
-  });
-
-  it('does not inspect memberships for an ordinary name change', async () => {
-    await request(app.getHttpServer())
-      .patch('/api/organizations/b')
-      .send({ name: 'Renamed' })
-      .expect(200);
-    expect(prisma.user.findMany).not.toHaveBeenCalled();
-    expect(prisma.organization.findMany).not.toHaveBeenCalled();
-  });
-
-  it('propagates membership lookup failures without changing the parent', async () => {
-    prisma.user.findMany.mockRejectedValue(new Error('Database unavailable'));
-    await request(app.getHttpServer())
-      .patch('/api/organizations/b')
-      .send({ parentId: 'c' })
-      .expect(500);
-    expect(prisma.organization.update).not.toHaveBeenCalled();
   });
 });

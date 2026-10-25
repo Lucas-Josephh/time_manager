@@ -1,7 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
 import {
   ApiOperation,
-  ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -179,53 +178,18 @@ Session requise. Administrateur ou manager de cette organisation ou de l’un de
 - \`null\` est interdit pour le nom.
 
 ### Conflits
-- **Appartenances aux équipes** : un changement de parent est refusé avec **409** et \`organization_move_invalidates_team_memberships\` si des utilisateurs de la branche déplacée sortent du périmètre de leur équipe. Les utilisateurs concernés sont listés dans \`data.affectedMembers\`. Aucune modification n’est enregistrée.
+Les appartenances aux équipes sont indépendantes de la hiérarchie : un déplacement conserve les équipes des utilisateurs, même si leur organisation sort du périmètre de leur équipe.
 - **Cycle** : contrôlé dans la transaction et refusé avec le code de champ \`organization_cycle\` (**400**). Un conflit concurrent de transaction renvoie **409**.
 - **Modification concurrente** : peut produire \`concurrent_modification\` (**409**). Réessayer la requête.`,
     }),
     ApiResourceId('department-it'),
     ApiNotFoundError('not_found'),
     ApiWriteErrors(),
-    ApiResponse({
-      status: 409,
-      description:
-        'Conflit de référence, modification concurrente ou déplacement invalidant des appartenances aux équipes.',
-      schema: {
-        type: 'object',
-        required: ['success', 'message', 'data'],
-        properties: {
-          success: { type: 'boolean', enum: [false] },
-          message: {
-            type: 'string',
-            enum: [
-              'already_exists',
-              'reference_conflict',
-              'concurrent_modification',
-              'organization_move_invalidates_team_memberships',
-            ],
-          },
-          data: {
-            type: 'object',
-            additionalProperties: false,
-            properties: {
-              affectedMembers: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  required: ['id', 'firstname', 'lastname', 'teamId'],
-                  properties: {
-                    id: { type: 'string' },
-                    firstname: { type: 'string' },
-                    lastname: { type: 'string' },
-                    teamId: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    }),
+    ApiErrorResponse(
+      409,
+      ['already_exists', 'reference_conflict', 'concurrent_modification'],
+      'Conflit de contrainte ou modification concurrente.',
+    ),
     ApiSuccessResponse({
       type: OrganizationDetailsDto,
       message: 'organization_updated',

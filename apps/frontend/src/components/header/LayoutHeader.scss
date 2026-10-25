@@ -32,6 +32,18 @@
   display: flex;
   gap: 20px;
 
+  &-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    &__role {
+      color: var(--color-ink-faint);
+      font-size: 11px;
+      font-weight: normal;
+    }
+  }
+
   p {
     margin: 0;
     padding: 0;
@@ -54,7 +66,7 @@
 
   .button.user-actions {
     > div {
-        display: none;
+      display: none;
     }
   }
 }

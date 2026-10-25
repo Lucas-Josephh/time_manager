@@ -11,6 +11,23 @@
   justify-content: center;
   gap: 8px;
 
+  &-logout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: transparent;
+    color: var(--color-ink-faint);
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.75rem;
+    border: none;
+    cursor: pointer;
+    &:hover {
+      color: var(--color-danger);
+      background-color: #fcebeb;
+    }
+  }
+
   &:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 3px;

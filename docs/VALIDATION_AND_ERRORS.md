@@ -14,8 +14,8 @@ propre circuit ; voir la [documentation du backend](BACKEND_DOCUMENTATION.md#aut
 | --------------------- | -------------------------------------------------------------------------- | --------------------------------------------------- |
 | DTO et décorateurs    | Décrire les champs et leur format | `team/dto/team.dto.ts` |
 | Pipe global | Transformer les entrées et valider leur format | `common/validation/validation.config.ts` |
-| Factory de validation | Convertir les règles invalides en codes par champ                          | `common/validation/validation-exception.factory.ts` |
-| Service et Prisma     | Exécuter l'opération et faire respecter les contraintes en base            | `team/team.service.ts`                              |
+| Formatage de validation | Convertir les règles invalides en codes par champ                          | `common/validation/format-validation-errors.ts` |
+| Service et Prisma     | Exécuter l'opération et faire respecter les contraintes en base            | `team/services/team.service.ts`                              |
 | Mapper Prisma         | Traduire les erreurs Prisma connues en exceptions HTTP                     | `common/filters/prisma-exception.mapper.ts`         |
 | Filtre global         | Produire l'enveloppe JSON des erreurs                                      | `common/filters/http-exception.filter.ts`           |
 
@@ -38,7 +38,7 @@ de DTO avant de les valider :
 - `whitelist: true` reconnaît les propriétés portant un décorateur
   `class-validator`. `@ApiProperty` ou `@Transform` seuls ne suffisent pas.
 - `forbidNonWhitelisted: true` refuse les propriétés supplémentaires.
-- `exceptionFactory` confie les erreurs à `validationExceptionFactory`.
+- `exceptionFactory` construit une `ValidationException` après formatage des erreurs.
 
 Une validation refusée interrompt la requête avant le contrôleur et le service.
 Le décorateur `@Reference(model)` peut effectuer une lecture en base.
@@ -90,11 +90,14 @@ contre les modifications concurrentes.
 ### Ordre des contrôles
 
 Les guards d’authentification s’exécutent d’abord sur les routes protégées.
-Les routes ciblant une équipe ou une organisation déclarent ensuite
-`@ResourceExists('team')` ou `@ResourceExists('organization')`. Ce guard
-vérifie l’identifiant de la route avant les pipes : une cible absente produit
-une 404 même si le body ou la query est invalide. Le DTO, dont les références
-`@Reference`, est validé seulement si la cible existe.
+Pour Team et Organization, les DTO sont ensuite validés, puis les services
+chargent les cibles et vérifient les droits. Pour les écritures, ces lectures,
+les contrôles d’autorisation et les mutations utilisent la même transaction
+Serializable. Un body invalide renvoie 400 avant toute recherche de cible ;
+une cible absente avec un body valide renvoie 404.
+
+Le décorateur générique `@ResourceExists` reste disponible pour les autres
+routes qui souhaitent vérifier la cible avant les pipes.
 
 Le guard est générique : le modèle vient du décorateur et les modèles acceptés
 sont dérivés de Prisma. Aucun `if/else` par modèle n’est nécessaire.
@@ -110,21 +113,22 @@ placer `@ResourceExists` au-dessus : Nest enregistrera l’authentification avan
 la vérification d’existence. Un guard d’authentification de contrôleur passe
 toujours avant les guards de méthode.
 
-La route des utilisateurs disponibles active `trimId` pour respecter son DTO
+Les identifiants de la query des utilisateurs disponibles sont nettoyés par leur DTO
 de paramètres. Les identifiants vides sont laissés à la validation de format.
 Les services et les contraintes SQL continuent à protéger les opérations si
 une ressource disparaît entre la vérification et l’écriture.
 
 ### Construction des erreurs
 
-`validationExceptionFactory` convertit les contraintes en codes par champ et
-construit une `BadRequestException`. Le filtre global formate ensuite la réponse.
-La factory conserve une erreur par champ : `isNotEmpty`, `isDefined`, puis
+`formatValidationErrors` convertit les contraintes en codes par champ.
+Le pipe construit une `ValidationException`, dérivée de `BadRequestException`,
+puis le filtre global formate la réponse.
+Le formatage conserve une erreur par champ : `isNotEmpty`, `isDefined`, puis
 `isString` sont prioritaires ; sinon, la première règle remontée est retenue.
 Les erreurs imbriquées utilisent un chemin avec des points.
 
 Le registre des correspondances est `VALIDATION_CODES` dans
-`common/validation/validation-exception.factory.ts`. Le maintenir dans le code
+`common/validation/format-validation-errors.ts`. Le maintenir dans le code
 plutôt que recopier sa liste dans ce guide.
 
 ## Erreurs de base de données
@@ -177,3 +181,7 @@ pnpm --filter backend test
 
 Les tests se trouvent dans `apps/backend/test`, notamment
 `api-documentation.spec.ts` pour les schémas OpenAPI.
+
+### Exception de validation personnalisée
+
+`ValidationException` (`common/validation/validation.exception.ts`) étend `BadRequestException` et conserve le statut HTTP 400 et l’enveloppe `{ message: 'validation_failed', data: { errors } }`. Les services peuvent lever `ValidationException.forField(field, code)`. Le `ValidationPipe` construit cette même exception après conversion des erreurs class-validator par `formatValidationErrors`.

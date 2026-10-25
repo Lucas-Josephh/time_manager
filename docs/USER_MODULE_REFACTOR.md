@@ -20,11 +20,11 @@ Un administrateur peut créer un utilisateur avec son équipe initiale dans une 
 
 ### Permissions et cohérence Organization / Team
 
-- Ajouter les décorateurs `CanManageOrganizations` et `CanManageTeams`, qui composent l’authentification et le contrôle des droits.
+- Team et Organization conservent `AuthGuard` et vérifient les droits métier dans leurs services via `TeamAuthorizationService` et `OrganizationAuthorizationService`, dans la transaction pour les écritures.
 - Autoriser la gestion selon le rôle administrateur, le management de l’organisation ou de ses ancêtres et, pour une équipe existante, son responsable actuel.
 - Contrôler également les droits sur la destination lors d’un déplacement. La création d’une organisation racine et le détachement en racine restent réservés aux administrateurs.
 - Mutualiser les parcours d’ancêtres et de descendants, et éviter les doublons dans les arbres autorisés.
-- Découper la lecture des arbres : `OrganizationTreeLoader` charge les branches autorisées dans la transaction ; `buildOrganizationTree` assemble et trie les nœuds. La méthode `tree()` orchestre ces deux étapes. Les routes d’arbre ne prennent plus de query ; seul `:id/tree` permet de cibler un sous-arbre. Le filtre récursif et le DTO de query partagé avec les arbres ont été supprimés.
+- Découper la lecture des arbres : `OrganizationService` charge les branches selon le périmètre fourni par `OrganizationAuthorizationService` dans la transaction ; `buildOrganizationTree` dans `organization/utils/` assemble et trie les nœuds. La méthode `tree()` orchestre ces deux étapes. Les routes d’arbre ne prennent plus de query ; seul `:id/tree` permet de cibler un sous-arbre. Le filtre récursif et le DTO de query partagé avec les arbres ont été supprimés.
 - Déterminer les affectations selon le rôle : administrateur sans restriction ; manager d’organisation sur les utilisateurs et équipes de son périmètre ; responsable d’équipe sur les utilisateurs disponibles de son organisation ou de ses descendantes.
 - Conserver l’organisation de l’utilisateur lors de toute affectation ou tout transfert. Un compte sans organisation peut être affecté par un administrateur.
 - Retirer le rôle de responsable dans l’ancienne équipe lorsqu’un responsable est transféré. Effectuer les changements dans la même transaction et annuler l’ensemble si un membre n’est pas autorisé.

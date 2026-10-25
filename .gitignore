@@ -20,3 +20,4 @@ apps/backend/src/generated/prisma/
 Thumbs.db
 *.log
 .pnpm-store/
+.vscode

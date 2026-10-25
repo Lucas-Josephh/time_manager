@@ -9,7 +9,6 @@ import { CreateUserDto, QueryUserDto, UpdateUserDto } from './dto/user.dto';
 import { createAuth } from '../lib/auth';
 import { Prisma } from '../generated/prisma/client';
 import { fieldValidationException } from '../common/validation/validation-exception.factory';
-import { requireUnique } from '../common/validation/resource-validation';
 
 @Injectable()
 export class UserService {
@@ -114,7 +113,6 @@ export class UserService {
   }
 
   async update(id: string, dto: UpdateUserDto) {
-    if (dto.email !== undefined) await this.validateEmail(dto.email, id);
     const data = {
       firstname: dto.firstname,
       lastname: dto.lastname,
@@ -149,15 +147,5 @@ export class UserService {
 
   delete(id: string) {
     return this.prisma.user.delete({ where: { id } });
-  }
-
-  private validateEmail(email: string, id?: string) {
-    return requireUnique(
-      this.prisma.user.findFirst({
-        where: { email, ...(id ? { id: { not: id } } : {}) },
-        select: { id: true },
-      }),
-      'email',
-    );
   }
 }

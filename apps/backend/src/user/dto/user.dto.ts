@@ -211,7 +211,15 @@ export class CreateUserDto extends UserProfileDto {
 
 export class UpdateUserDto extends PartialType(UserProfileDto, {
   skipNullProperties: false,
-}) {}
+}) {
+  @Unique('user', 'email', ({ request }) => {
+    const id = request?.params.id;
+    return request?.method === 'PATCH' && typeof id === 'string'
+      ? { id: { not: id } }
+      : {};
+  })
+  declare email?: string;
+}
 
 export class QueryUserDto extends PaginationQueryDto {
   @ApiPropertyOptional({
@@ -223,6 +231,7 @@ export class QueryUserDto extends PaginationQueryDto {
   @IsString()
   @IsNotEmpty()
   email?: string;
+
   @ApiPropertyOptional({
     description: 'Recherche partielle sur le prénom, sans distinction de casse. Espaces en début et fin supprimés ; chaîne vide interdite.',
     example: 'ali',

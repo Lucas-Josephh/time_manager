@@ -51,6 +51,7 @@ describe('Team membership permissions by actor', () => {
       }),
     },
     team: {
+      findMany: jest.fn(async ({ where }) => teams.filter(item => matches(item, where))),
       findFirst: jest.fn(async () => null),
       findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(async ({ where }) => teams.find(item => matches(item, where)) ?? null),
       create: jest.fn(async ({ data }) => {
@@ -118,7 +119,7 @@ describe('Team membership permissions by actor', () => {
     expect(user('external-user')).toMatchObject({ teamId: 'created', organizationId: 'external' });
   });
 
-  it.each(['patch', 'put'] as const)('lets an org manager transfer between sibling organizations via %s', async method => {
+  it.each(['patch'] as const)('lets an org manager transfer between sibling organizations via %s', async method => {
     actor = 'org-manager';
     await request(app.getHttpServer())[method]('/api/team/target')
       .send({ name: 'Target', organizationId: 'child', memberIds: ['busy', 'sibling-user'] }).expect(200);
@@ -162,12 +163,72 @@ describe('Team membership permissions by actor', () => {
     ['team-manager', ['available']],
   ] as const)('lists eligible candidates for %s', async (id, expected) => {
     actor = id;
-    const response = await request(app.getHttpServer()).get('/api/team/target/available-users').expect(200);
+    const response = await request(app.getHttpServer()).get('/api/team/available-users').expect(200);
     const ids = response.body.data.map((item: { id: string }) => item.id);
     expect(ids).toEqual(expect.arrayContaining(expected));
-    expect(ids).not.toContain('team-manager');
+    if (id === 'team-manager') expect(ids).not.toContain('team-manager');
     if (id !== 'admin') expect(ids).not.toContain('external-user');
     if (id === 'team-manager') expect(ids).not.toContain('busy');
+  });
+
+  it('combines organization and team scopes without granting transfers in team-only scopes', async () => {
+    actor = 'org-manager';
+    teams.push({ id: 'also-managed', organizationId: 'external', managerId: actor });
+    users.push({ id: 'external-free', firstname: 'Free', lastname: 'User', organizationId: 'external', teamId: null });
+    const response = await request(app.getHttpServer()).get('/api/team/available-users').expect(200);
+    const ids = response.body.data.map((item: { id: string }) => item.id);
+    expect(ids).toEqual(expect.arrayContaining(['busy', 'sibling-user', 'external-free']));
+    expect(ids).not.toContain('external-user');
+    expect(ids).not.toContain('external-team');
+  });
+
+  it('combines multiple independently managed organizations and their descendants', async () => {
+    actor = 'org-manager';
+    const external = organizations.find(item => item.id === 'external')!;
+    const previousManager = external.managerId;
+    external.managerId = actor;
+    try {
+      const response = await request(app.getHttpServer()).get('/api/team/available-users').expect(200);
+      const ids = response.body.data.map((item: { id: string }) => item.id);
+      expect(ids).toEqual(expect.arrayContaining(['busy', 'deep-user', 'external-user']));
+    } finally {
+      external.managerId = previousManager;
+    }
+  });
+
+  it('does not grant creation rights to a team manager who can list candidates', async () => {
+    actor = 'team-manager';
+    await request(app.getHttpServer()).get('/api/team/available-users').expect(200);
+    await request(app.getHttpServer()).post('/api/team')
+      .send({ name: 'New', organizationId: 'child', memberIds: ['available'] }).expect(403);
+  });
+
+  it('does not remove the source manager when transferring another member', async () => {
+    user('sibling-user').teamId = 'source';
+    actor = 'org-manager';
+    await add(['sibling-user']).expect(200);
+    expect(user('sibling-user').teamId).toBe('target');
+    expect(teams.find(team => team.id === 'source')?.managerId).toBe('busy');
+  });
+
+  it('validates every requested member before any membership or manager write', async () => {
+    actor = 'team-manager';
+    const response = await add(['available', 'busy', 'unassigned', 'missing']).expect(409);
+    expect(response.body.data.unavailableMembers).toEqual([
+      expect.objectContaining({ id: 'busy', reason: 'already_in_team' }),
+      expect.objectContaining({ id: 'unassigned', reason: 'outside_organization' }),
+      { id: 'missing', reason: 'not_found' },
+    ]);
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+    expect(prisma.team.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('removes all members when both the manager and the member list are cleared', async () => {
+    user('available').teamId = 'target';
+    await request(app.getHttpServer()).patch('/api/team/target')
+      .send({ managerId: null, memberIds: [] }).expect(200);
+    expect(users.filter(item => item.teamId === 'target')).toEqual([]);
+    expect(teams.find(team => team.id === 'target')?.managerId).toBeNull();
   });
 
   it('rolls back an entire admin request when one of its members does not exist', async () => {

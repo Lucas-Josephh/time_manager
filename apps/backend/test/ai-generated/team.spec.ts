@@ -5,7 +5,7 @@ import { useTeamFixture } from './team/team.fixture';
 describe('Team API: organization migration', () => {
   const context = useTeamFixture();
 
-  it.each(['post', 'put', 'patch'] as const)(
+  it.each(['post', 'patch'] as const)(
     'rejects the obsolete departmentId field on %s', async (method) => {
       const response = await request(context.app.getHttpServer())
         [method](method === 'post' ? '/api/team' : `/api/team/${context.team.id}`)

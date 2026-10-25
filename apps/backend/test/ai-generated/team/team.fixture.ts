@@ -36,7 +36,12 @@ export function useTeamFixture() {
     jest.resetAllMocks();
     prisma.$transaction.mockImplementation((callback: (tx: typeof prisma) => unknown) => typeof callback === 'function' ? callback(prisma) : Promise.all(callback));
     prisma.organization.findMany.mockResolvedValue([]);
-    prisma.user.findMany.mockResolvedValue([]);
+    prisma.user.findMany.mockImplementation(async ({ where }) =>
+      (where.id?.in ?? []).map((id: string) => ({
+        id, firstname: 'Test', lastname: 'User', teamId: null,
+        organizationId: dto.organizationId, team: null,
+      })),
+    );
     prisma.user.updateMany.mockImplementation(({ where }: { where: { id: { in: string[] } } }) => Promise.resolve({ count: where.id.in.length }));
     prisma.team.findFirst.mockResolvedValue(null);
     prisma.organization.findUnique.mockResolvedValue({ id: dto.organizationId });

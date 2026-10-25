@@ -54,7 +54,7 @@ describe('Shared API documentation', () => {
       });
       const teams = document.paths['/api/team'];
       const team = document.paths['/api/team/{id}'];
-      const availableUsers = document.paths['/api/team/{id}/available-users'].get;
+      const availableUsers = document.paths['/api/team/available-users'].get;
       expect(availableUsers?.responses['200']).toMatchObject({
         content: {
           'application/json': {
@@ -67,12 +67,11 @@ describe('Shared API documentation', () => {
           },
         },
       });
-      for (const status of ['400', '401', '403', '404', '500']) {
+      for (const status of ['401', '403', '500']) {
         expect(availableUsers?.responses).toHaveProperty(status);
       }
-      expect(availableUsers?.parameters).toEqual(expect.arrayContaining([
-        expect.objectContaining({ name: 'id', in: 'path', required: true }),
-      ]));
+      expect(availableUsers?.parameters ?? []).toEqual([]);
+      expect(document.paths).not.toHaveProperty('/api/team/{id}/available-users');
       expect(document.components?.schemas?.AvailableTeamUserDto).toMatchObject({
         properties: { id: {}, firstname: {}, lastname: {} },
       });
@@ -82,7 +81,6 @@ describe('Shared API documentation', () => {
         teams.get,
         teams.post,
         team.get,
-        team.put,
         team.patch,
         team.delete,
         organizations.get,
@@ -139,7 +137,7 @@ describe('Shared API documentation', () => {
           },
         },
       });
-      for (const operation of [teams.post, team.put, team.patch]) {
+      for (const operation of [teams.post, team.patch]) {
         expect(operation?.responses).toHaveProperty('400');
         expect(operation?.responses).toHaveProperty('409');
       }

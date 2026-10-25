@@ -4,9 +4,10 @@ import { Module } from '@nestjs/common';
 import { TeamController } from './team.controller';
 import { TeamService } from './team.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { OrganizationModule } from '../organization/organization.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, OrganizationModule],
   controllers: [TeamController],
   providers: [TeamService, CanManageTeamsGuard],
   exports: [TeamService],

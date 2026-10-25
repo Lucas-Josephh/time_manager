@@ -292,7 +292,7 @@ describe('User administration HTTP contract', () => {
       })
       .expect(200);
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
-      where: { email: 'new@example.com', id: { not: 'u1' } },
+      where: { AND: [{ email: 'new@example.com' }, { id: { not: 'u1' } }] },
       select: { id: true },
     });
     expect(prisma.user.update).toHaveBeenCalledWith({

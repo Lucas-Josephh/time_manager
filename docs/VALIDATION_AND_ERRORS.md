@@ -56,29 +56,34 @@ une erreur serveur.
 `useContainer` dans `configureApp` permet cette injection ; `fallbackOnErrors`
 laisse `class-validator` construire ses propres classes internes.
 
-L\'unicité en modification dépend de l\'identifiant de la route : elle est donc
-contrôlée explicitement dans le service avec `requireUnique(query, field)` :
+`@Unique(model, field, filter?)` vérifie l'unicité avec `findFirst`.
+Le filtre Prisma est typé selon le modèle. Il peut être fixe ou calculé avec
+`({ request, object }) => filter`. `object` est le DTO en cours de validation ;
+`request` contient la méthode HTTP et les paramètres de route, ou vaut
+`undefined` hors d'une requête HTTP.
 
 ```ts
-await requireUnique(
-  prisma.team.findFirst({
-    where: { name: dto.name, id: { not: id } },
-    select: { id: true },
-  }),
-  'name',
-);
+@Unique('team', 'name', { organizationId: 'organization-1' })
 ```
 
-Ce helper refuse un résultat non nul avec `already_exists`. Il ne connaît
-aucun modèle Prisma. Pour un nouveau modèle, construire sa requête dans son
-service et réutiliser la même fonction.
+Pour exclure la ressource en modification :
 
-L\'identifiant à exclure en modification est un argument explicite du service,
-issu de la route. Aucun identifiant n\'est extrait du body et aucun contexte
-n\'est stocké dans un `WeakMap` ou un `AsyncLocalStorage`.
+```ts
+@Unique('team', 'name', ({ request }) => {
+  const id = request?.params.id;
+  return request?.method === 'PATCH' && typeof id === 'string'
+    ? { id: { not: id } }
+    : {};
+})
+```
+
+Le filtre est combiné avec la valeur du champ via `AND`. Un filtre vide
+vérifie l'unicité globale. Un doublon produit `already_exists`.
+Le contexte de requête est isolé avec `AsyncLocalStorage`, y compris lors
+de requêtes concurrentes. L'ID exclu dans cet exemple provient de la route.
 
 La hiérarchie des organisations est contrôlée dans la transaction du service
-avec `checkOrganizationParent`. Un cycle produit l\'erreur de champ
+avec `validateOrganizationHierarchy`. Un cycle produit l\'erreur de champ
 `parentId: organization_cycle`. La transaction sérialisable protège aussi
 contre les modifications concurrentes.
 

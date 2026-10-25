@@ -23,6 +23,7 @@ const DEFAULT_MESSAGES: Record<number, string> = {
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
   constructor(private readonly adapterHost: HttpAdapterHost) {}

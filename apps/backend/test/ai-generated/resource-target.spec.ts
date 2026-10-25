@@ -22,7 +22,6 @@ describe('Resource lookup and validation order', () => {
 
   it.each([
     ['/api/team/missing', 'team'],
-    ['/api/team/missing/available-users', 'team'],
     ['/api/organizations/missing', 'organization'],
     ['/api/organizations/missing/tree', 'organization'],
   ] as const)('returns 404 for a missing resource on %s', async (path, model) => {
@@ -32,7 +31,6 @@ describe('Resource lookup and validation order', () => {
   });
 
   it.each([
-    ['put', '/api/team/missing'],
     ['patch', '/api/team/missing'],
     ['patch', '/api/organizations/missing'],
   ] as const)('returns 404 before validating the body on %s %s', async (method, path) => {
@@ -50,7 +48,7 @@ describe('Resource lookup and validation order', () => {
     expect(prisma[model].delete).not.toHaveBeenCalled();
   });
 
-  it.each(['/api/organizations/missing', '/api/team/missing/available-users'])(
+  it.each(['/api/organizations/missing', '/api/team/available-users'])(
     'authenticates before looking up %s', async (path) => {
     session.mockRejectedValue(new UnauthorizedException());
     await request(app.getHttpServer()).get(path).expect(401);

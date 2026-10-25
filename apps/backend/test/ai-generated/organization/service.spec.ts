@@ -1,3 +1,5 @@
+import { AuthService } from '../../../src/auth/auth.service';
+import { createTestAuthService } from '../../support/auth-service';
 import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import { Test } from '@nestjs/testing';
 import { OrganizationService } from '../../../src/organization/organization.service';
@@ -28,6 +30,7 @@ describe('OrganizationService', () => {
       providers: [
         OrganizationService,
         { provide: PrismaService, useValue: prisma },
+        { provide: AuthService, useValue: createTestAuthService(prisma) },
       ],
     }).compile();
     service = module.get(OrganizationService);

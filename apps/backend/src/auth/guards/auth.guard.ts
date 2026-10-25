@@ -4,13 +4,8 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import type { IncomingHttpHeaders } from 'node:http';
 import { AuthService } from '../auth.service';
-
-export type AuthRequest = {
-  headers: IncomingHttpHeaders;
-  session?: Awaited<ReturnType<AuthService['getSession']>>;
-};
+import { AuthRequest } from '../auth.types';
 
 @Injectable()
 export class AuthGuard implements CanActivate {

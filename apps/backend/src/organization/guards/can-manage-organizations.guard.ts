@@ -7,12 +7,18 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { AuthGuard, type AuthRequest } from '../../auth/guards/auth.guard';
+import { AuthGuard } from '../../auth/guards/auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrganizationService } from '../organization.service';
+import type { AuthRequest } from '../../auth/auth.types';
 
 const ORGANIZATION_MANAGEMENT = 'organization_management';
 type OrganizationManagementOptions = { organizationId?: string };
+type OrganizationManagementRequest = AuthRequest & {
+  params: Record<string, string>;
+  body?: { parentId?: unknown };
+  method: string;
+};
 
 @Injectable()
 export class CanManageOrganizationsGuard implements CanActivate {
@@ -23,82 +29,69 @@ export class CanManageOrganizationsGuard implements CanActivate {
   ) {}
 
   /**
-   * Checks management rights on the current organization and, when it changes,
-   * its destination parent. Creating or moving an organization to the root
-   * requires administrator privileges.
+   * Check management rights on the existing organization or the requested parent.
    *
-   * @param context
+   * Moving an organization requires rights on both the organization itself and
+   * its new parent: managing either one alone does not authorize the move.
+   *
+   * These checks may revisit shared ancestors or repeat the admin lookup.
+   * An unchanged parent needs no second check. Creating or moving to a root
+   * requires administrator privileges.
    */
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<
-      AuthRequest & {
-        params: Record<string, string>;
-        body?: { parentId?: unknown };
-        method: string;
-      }
-    >();
+    const request = context
+      .switchToHttp()
+      .getRequest<OrganizationManagementRequest>();
 
-    // The decorator runs AuthGuard before this permission guard.
     const userId = request.session!.user.id;
 
-    // Get the organization parameter configured by the decorator, if any.
-    const options = this.reflector.get<OrganizationManagementOptions>(
+    // Get the organizationId from the metadata to fetch the organization from the request params if it exists.
+    const { organizationId } = this.reflector.get<OrganizationManagementOptions>(
       ORGANIZATION_MANAGEMENT,
       context.getHandler(),
     );
 
-    // For an existing organization, verify its current scope before considering
-    // a destination supplied by the request. A missing target produces a 404.
-    let currentParentId: string | null | undefined;
-    if (options.organizationId) {
-      const id = request.params[options.organizationId];
-      const organization = await this.prisma.organization.findUniqueOrThrow({
-        where: { id },
-        select: { parentId: true },
-      });
-      currentParentId = organization.parentId;
+    // Fetch the destination parentId from the request body, if it exists.
+    const parentId = request.body?.parentId;
+    const parentOrganizationId = typeof parentId === 'string' ? parentId.trim() : parentId;
+
+    // If the request is for an existing organization, check if the user can manage it.
+    if (organizationId) {
+      const id = request.params[organizationId];
+      const { parentId: currentParentId } =
+        await this.prisma.organization.findUniqueOrThrow({
+          where: { id },
+          select: { parentId: true },
+        });
       await this.organizationService.assertCanManageOrganizations(id, userId);
+
+      // If the request is a DELETE or the parent is unchanged, no further checks are needed.
+      if (
+        request.method === 'DELETE' ||
+        parentOrganizationId === undefined ||
+        parentOrganizationId === currentParentId
+      )
+        return true;
     }
 
-    // Deletion only requires rights over the current organization.
-    if (request.method === 'DELETE')
-      return true;
-
-    // On PATCH, omitting parentId preserves the current parent. On POST,
-    // omitting it creates a root organization.
-    const parentId = request.body?.parentId;
-    if (parentId === undefined && options.organizationId) return true;
-
-    // Guards run before DTO validation. Malformed parent identifiers are left
-    // to the validation pipe instead of being used in a permissions query.
+    // Leave malformed identifiers to the validation pipe.
     if (
-      parentId !== undefined &&
-      parentId !== null &&
-      (typeof parentId !== 'string' || !parentId.trim())
+      parentOrganizationId != null &&
+      (typeof parentOrganizationId !== 'string' || !parentOrganizationId)
     )
       return true;
 
-    // A null destination means a root. Preserve an unchanged parent without
-    // requiring additional rights on the parent organization.
-    const destination = parentId == null ? null : parentId.trim();
-    if (options.organizationId && destination === currentParentId) return true;
-
-    // A new parent requires management rights in that destination too.
-    // The service reserves a null destination for administrators.
+    // A null or omitted parent creates a root and requires admin rights.
     await this.organizationService.assertCanManageOrganizations(
-      destination,
+      parentOrganizationId ?? null,
       userId,
     );
+
     return true;
   }
 }
 
-/**
- * Authenticate once, then check organization management rights.
- *
- * @param options - Route parameter containing the organization ID for PATCH/DELETE.
- * Without this parameter, the guard checks the requested parent for creation.
- */
+/** Authenticate, then check the existing organization or the requested parent. */
 export function CanManageOrganizations(
   options: OrganizationManagementOptions = {},
 ) {

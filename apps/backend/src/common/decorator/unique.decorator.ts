@@ -1,20 +1,42 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { Injectable } from '@nestjs/common';
 import { Validate, ValidatorConstraint } from 'class-validator';
 import type {
   ValidationArguments,
   ValidatorConstraintInterface,
 } from 'class-validator';
+import type { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { ReferenceModel } from './reference.decorator';
-type UniqueField<M extends ReferenceModel> = Exclude<
-  Extract<
-    keyof NonNullable<
-      NonNullable<Parameters<PrismaService[M]['findFirst']>[0]>['where']
-    >,
-    string
-  >,
-  'AND' | 'OR' | 'NOT'
+
+// Each request has its own context, including concurrent requests.
+export const uniqueValidationRequest = new AsyncLocalStorage<{
+  method: string;
+  params: Record<string, unknown>;
+}>();
+
+type UniqueRequest = NonNullable<ReturnType<typeof uniqueValidationRequest.getStore>>;
+type UniqueContext = { request: UniqueRequest | undefined; object: object };
+
+type UniqueWhere<Model extends ReferenceModel> = NonNullable<
+  Prisma.Args<PrismaService[Model], 'findFirst'>['where']
 >;
+
+/** A Prisma filter, optionally computed from the current validation context. */
+type UniqueFilter<Model extends ReferenceModel> =
+  | UniqueWhere<Model>
+  | ((context: UniqueContext) => UniqueWhere<Model>);
+
+// Restrict the field name to columns of the selected Prisma model.
+type UniqueField<Model extends ReferenceModel> = keyof PrismaService[Model]['fields'];
+
+type UniqueRule = {
+  model: ReferenceModel;
+  field: string;
+  filter: Record<string, unknown> | ((context: UniqueContext) => Record<string, unknown>);
+};
+
+// Shared interface for querying Prisma models.
 type UniqueDelegate = {
   findFirst(args: {
     where: Record<string, unknown>;
@@ -22,53 +44,41 @@ type UniqueDelegate = {
   }): Promise<{ id: string } | null>;
 };
 
-// Le body ne peut pas renseigner ce contexte : seul le serveur le fournit.
-const excludedRecords = new WeakMap<object, Map<ReferenceModel, string>>();
-
-/** À appeler sur l'instance du DTO avant validate(), avec l'ID de la route. */
-export function excludeUniqueRecord(
-  dto: object,
-  model: ReferenceModel,
-  id: string,
-): void {
-  if (!id.trim()) {
-    throw new Error(
-      'An ID is required to exclude a record from uniqueness validation',
-    );
-  }
-  const records = excludedRecords.get(dto) ?? new Map<ReferenceModel, string>();
-  records.set(model, id);
-  excludedRecords.set(dto, records);
-}
 @Injectable()
 @ValidatorConstraint({ name: 'isUnique', async: true })
 export class UniqueConstraint implements ValidatorConstraintInterface {
   constructor(private readonly prisma: PrismaService) {}
-  async validate(value: unknown, args: ValidationArguments): Promise<boolean> {
-    // Les règles de format produisent leur propre erreur, sans requête en base.
-    if (typeof value !== 'string' || value.trim() === '') {
-      return true;
-    }
-    const [model, field] = args.constraints as [ReferenceModel, string];
-    const excludedId = excludedRecords.get(args.object)?.get(model);
-    const where: Record<string, unknown> = { [field]: value };
-    if (excludedId) {
-      where.id = { not: excludedId };
-    }
-    // Convention commune à Reference : clé primaire id de type string.
-    const delegate = this.prisma[model] as unknown as UniqueDelegate;
-    const existing = await delegate.findFirst({
-      where,
-      select: { id: true },
-    });
 
+  async validate(value: unknown, args: ValidationArguments): Promise<boolean> {
+    // Other decorators validate the type and reject empty values.
+    if (typeof value !== 'string' || value.trim() === '') return true;
+
+    const { model, field, filter } = args.constraints[0] as UniqueRule;
+    const extraWhere = typeof filter === 'function'
+      ? filter({ request: uniqueValidationRequest.getStore(), object: args.object })
+      : filter;
+    const where = Object.keys(extraWhere).length
+      ? { AND: [{ [field]: value }, extraWhere] }
+      : { [field]: value };
+
+    const delegate = this.prisma[model] as unknown as UniqueDelegate;
+    const existing = await delegate.findFirst({ where, select: { id: true } });
     return existing === null;
   }
 }
 
-export function Unique<M extends ReferenceModel>(
-  model: M,
-  field: UniqueField<M>,
+/**
+ * A decorator that checks if a given field value is unique in the database for a specified model.
+ *
+ * @param model The Prisma model to check for uniqueness.
+ * @param field The field to check for uniqueness.
+ * @param filter Optional additional filter to apply when checking for uniqueness.
+ * @constructor
+ */
+export function Unique<Model extends ReferenceModel>(
+  model: Model,
+  field: UniqueField<Model>,
+  filter: UniqueFilter<Model> = {},
 ): PropertyDecorator {
-  return Validate(UniqueConstraint, [model, field]);
+  return Validate(UniqueConstraint, [{ model, field, filter }]);
 }

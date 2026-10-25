@@ -1,3 +1,4 @@
+import { uniqueValidationRequest } from './common/decorator/unique.decorator';
 import { ModuleRef } from '@nestjs/core';
 import { useContainer } from 'class-validator';
 import { toNodeHandler } from 'better-auth/node';
@@ -20,6 +21,14 @@ export function configureApp(app: INestApplication): void {
     origin: app.get(ConfigService).getOrThrow<string>('FRONTEND_URL'),
     credentials: true,
   });
+
+  // Route parameters are available when DTO validation runs.
+  // AsyncLocalStorage keeps a separate context for each request.
+  app.use((
+    request: { method: string; params: Record<string, unknown> },
+    _response: unknown,
+    next: () => void,
+  ) => uniqueValidationRequest.run(request, next));
 
   // Register the auth route using better-auth's toNodeHandler
   app.use('/api/auth', toNodeHandler(app.get(AuthService).auth));

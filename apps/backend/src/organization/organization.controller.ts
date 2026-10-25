@@ -29,12 +29,12 @@ import {
   OrganizationDto,
   OrganizationTreeDto,
   PartialOrganizationDto,
-  QueryOrganizationDto,
   QueryOrganizationListDto,
 } from './dto/organization.dto';
 import { SerializeResponse } from '../common/serialization/serialize-response.decorator';
 import { ResponseMessage } from '../common/decorator/response-message.decorator';
-import { AuthGuard, type AuthRequest } from '../auth/guards/auth.guard';
+import { AuthGuard } from '../auth/guards/auth.guard';
+import { AuthRequest } from '../auth/auth.types';
 
 @ApiOrganizationController()
 @Controller('organizations')
@@ -63,8 +63,8 @@ export class OrganizationController {
   @ResponseMessage('organization_tree_retrieved')
   @SerializeResponse(OrganizationTreeDto)
   @ApiOrganizationTree()
-  tree(@Query() query: QueryOrganizationDto, @Req() request: AuthRequest) {
-    return this.organizationService.tree(request.session!.user.id, query);
+  tree(@Req() request: AuthRequest) {
+    return this.organizationService.tree(request.session!.user.id);
   }
 
   @ResourceExists('organization')
@@ -75,16 +75,11 @@ export class OrganizationController {
   @ApiOrganizationSubtree()
   subtree(
     @Param('id') id: string,
-    @Query() query: QueryOrganizationDto,
     @Req() request: AuthRequest,
   ) {
-    return this.organizationService.tree(request.session!.user.id, {
-      ...query,
-      parentId: id,
-    });
+    return this.organizationService.tree(request.session!.user.id, id);
   }
 
-  @ResourceExists('organization')
   @UseGuards(AuthGuard)
   @Get(':id')
   @ApiOrganizationFindOne()

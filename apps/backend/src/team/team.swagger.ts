@@ -20,8 +20,8 @@ import {
 } from './dto/team.dto';
 
 const memberRules = `- **Administrateur** : peut ajouter ou transférer tout utilisateur, y compris sans organisation ou déjà dans une autre équipe.
-- **Manager d’organisation** : peut ajouter ou transférer les utilisateurs de son organisation et de ses descendantes entre les équipes de ce même périmètre. Il ne peut pas retirer un utilisateur à une équipe hors de son périmètre.
-- **Responsable d’équipe** : peut ajouter à sa propre équipe uniquement des utilisateurs sans équipe, rattachés à l’organisation de l’équipe ou à ses descendantes.
+- **Manager d’organisation** : peut ajouter ou transférer les utilisateurs de son organisation et de ses childes entre les équipes de ce même périmètre. Il ne peut pas retirer un utilisateur à une équipe hors de son périmètre.
+- **Responsable d’équipe** : peut ajouter à sa propre équipe uniquement des utilisateurs sans équipe, rattachés à l’organisation de l’équipe ou à ses childes.
 - Les utilisateurs déjà membres peuvent être conservés, même si leur organisation diffère de celle de l’équipe.
 - Une affectation ne modifie **jamais** l’organisation de l’utilisateur. Si un responsable est transféré, son ancien rôle de responsable est retiré.
 - Le responsable choisi est automatiquement membre. Les affectations et transferts sont atomiques.
@@ -75,39 +75,6 @@ La création et les affectations sont **atomiques**.`,
   );
 }
 
-export function ApiTeamReplace() {
-  return applyDecorators(
-    ApiOperation({
-      summary: 'Mettre à jour une équipe',
-      description: `### Accès
-Session requise. Réservé aux administrateurs, au responsable actuel de cette équipe et aux managers de son organisation ou d’un de ses ancêtres. Un changement d’organisation exige aussi ces droits sur la destination. Les utilisateurs déjà membres conservent leur organisation et leur appartenance lors du déplacement de l’équipe.
-
-### Champs
-- **Nom et organisation** : requis.
-- Le nom actuel de cette équipe est autorisé.
-- Responsable omis : conservé ; \`null\` : retiré.
-
-### Membres
-${memberRules}
-- \`memberIds\` fourni : remplace les membres.
-- \`memberIds: []\` avec un responsable conservé ou défini : seul ce responsable reste membre.
-- \`memberIds: []\` et \`managerId: null\` dans la même requête : retire le responsable et tous les membres ; l\'équipe devient vide.
-- \`memberIds\` omis : conserve les membres actuels et ajoute automatiquement le nouveau responsable si défini.
-- Pour \`PUT\`, les champs \`name\` et \`organizationId\` restent requis, y compris pour vider l\'équipe.`,
-    }),
-    ApiResourceId('team-administration'),
-    ApiBody({ type: SetTeamDto }),
-    ApiSuccessResponse({
-      type: TeamWithRelationsDto,
-      status: 200,
-      message: 'team_updated',
-    }),
-    ApiWriteErrors(),
-    ApiNotFoundError('not_found'),
-    ApiConflictError(),
-  );
-}
-
 export function ApiTeamUpdate() {
   return applyDecorators(
     ApiOperation({
@@ -125,8 +92,7 @@ ${memberRules}
 - \`memberIds\` fourni : remplace les membres.
 - \`memberIds: []\` avec un responsable conservé ou défini : seul ce responsable reste membre.
 - \`memberIds: []\` et \`managerId: null\` dans la même requête : retire le responsable et tous les membres ; l\'équipe devient vide.
-- \`memberIds\` omis : conserve les membres actuels et ajoute automatiquement le nouveau responsable si défini.
-- Pour \`PUT\`, les champs \`name\` et \`organizationId\` restent requis, y compris pour vider l\'équipe.`,
+- \`memberIds\` omis : conserve les membres actuels et ajoute automatiquement le nouveau responsable si défini.`,
     }),
     ApiResourceId('team-administration'),
     ApiBody({ type: PartialSetTeamDto }),
@@ -191,33 +157,29 @@ Session requise. Le contrôle du périmètre de management n\'est pas encore imp
 export function ApiTeamFindAvailableUsers() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Lister les utilisateurs pouvant rejoindre l’équipe',
+      summary: 'Lister les utilisateurs accessibles pour constituer une équipe',
       description: `### Accès
-Administrateur, manager de l’organisation de cette équipe ou de l’un de ses ancêtres, ou responsable actuel de cette équipe.
+Session requise. Administrateur, manager d’organisation ou responsable d’équipe.
+Aucun identifiant d’équipe n’est requis.
 
 ### Périmètre
-- **Administrateur** : utilisateurs de toute organisation ou sans organisation, même déjà membres d’une autre équipe.
-- **Manager d’organisation** : utilisateurs rattachés à son périmètre, sans équipe ou dans une équipe du même périmètre.
-- **Responsable d’équipe** : utilisateurs sans équipe, rattachés à l’organisation de l’équipe ou à ses descendantes.
-Les membres actuels de cette équipe sont exclus.
+- **Administrateur** : tous les utilisateurs, y compris sans organisation ou déjà affectés.
+- **Manager d’organisation** : utilisateurs de ses organisations et de leurs descendants, sans équipe ou dans une équipe de ce même périmètre.
+- **Responsable d’équipe** : utilisateurs sans équipe dans les organisations de ses équipes et leurs descendants.
+- Les périmètres se cumulent. Aucun membre n’est exclu au titre d’une équipe cible.
 
 ### Résultat
-Tri par **nom**, puis **prénom**, puis **identifiant**. Sans pagination. Les mêmes règles s’appliquent à l’affectation effective.`,
+Tri par **nom**, puis **prénom**, puis **identifiant**. Sans pagination.
+Les droits et l’éligibilité dans l’organisation cible sont revérifiés lors de l’affectation.
+Être responsable d’équipe ne donne pas le droit d’en créer une.`,
     }),
-    ApiResourceId('team-administration'),
     ApiSuccessResponse({
       type: AvailableTeamUserDto,
       isArray: true,
       message: 'team_available_users_listed',
     }),
     ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
-    ApiErrorResponse(
-      403,
-      'forbidden',
-      'Administrateur, manager de cette organisation ou de l’un de ses ancêtres, ou responsable de cette équipe requis.',
-    ),
-    ApiValidationError(),
-    ApiNotFoundError('not_found'),
+    ApiErrorResponse(403, 'forbidden', 'Aucun droit de gestion d’organisation ou d’équipe.'),
   );
 }
 

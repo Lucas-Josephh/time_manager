@@ -1,4 +1,3 @@
-import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import { type INestApplication, UnauthorizedException } from '@nestjs/common';
 import request from 'supertest';
 import { createHttpTestApp } from '../support/http-test-app';
@@ -7,159 +6,113 @@ describe('Team HTTP API: available users', () => {
   let app: INestApplication;
   const getSession = jest.fn();
   const prisma = {
-    team: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
-    organization: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), findMany: jest.fn() },
-    user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), findMany: jest.fn() },
+    team: { findMany: jest.fn(), findUnique: jest.fn() },
+    organization: { findMany: jest.fn() },
+    user: { findUnique: jest.fn(), findMany: jest.fn() },
   };
-  const profile = {
-    id: 'candidate',
-    firstname: 'Alice',
-    lastname: 'Martin',
-  };
+  const profile = { id: 'candidate', firstname: 'Alice', lastname: 'Martin' };
+  const list = () => request(app.getHttpServer()).get('/api/team/available-users');
 
-  beforeAll(async () => {
-    app = await createHttpTestApp(prisma, getSession);
-  });
-  afterAll(async () => {
-    await app.close();
-  });
+  beforeAll(async () => { app = await createHttpTestApp(prisma, getSession); });
+  afterAll(async () => { await app.close(); });
   beforeEach(() => {
     jest.resetAllMocks();
     getSession.mockResolvedValue({ user: { id: 'manager' } });
-    prisma.team.findUnique.mockResolvedValue({
-      organizationId: 'root',
-      managerId: 'manager',
-    });
     prisma.user.findUnique.mockResolvedValue({ isAdmin: false });
-    prisma.organization.findMany.mockResolvedValue([]);
-    prisma.organization.findUnique.mockResolvedValue(null);
+    prisma.team.findMany.mockResolvedValue([{ organizationId: 'root' }]);
+    prisma.organization.findMany.mockImplementation(async ({ where }) => {
+      if (where.managerId) return [];
+      const parents: string[] = where.parentId.in;
+      if (parents.includes('root')) return [{ id: 'child' }];
+      if (parents.includes('child')) return [{ id: 'grandchild' }];
+      return [];
+    });
     prisma.user.findMany.mockResolvedValue([profile]);
   });
 
-  it('allows the manager and restricts the query to unassigned users in the complete subtree', async () => {
-    prisma.organization.findMany
-      .mockResolvedValueOnce([{ id: 'child' }, { id: 'sibling' }])
-      .mockResolvedValueOnce([{ id: 'grandchild' }])
-      .mockResolvedValueOnce([]);
-    // Extra fields must also be stripped by the method-level serializer.
+  it('lists free users in the team manager’s complete subtree without a team ID', async () => {
     prisma.user.findMany.mockResolvedValue([
       { ...profile, image: 'private-image', email: 'private@example.com', isAdmin: true },
     ]);
-    await request(app.getHttpServer())
-      .get('/api/team/team-id/available-users')
-      .expect(200)
-      .expect({
-        success: true,
-        message: 'team_available_users_listed',
-        data: [profile],
-      });
-    expect(prisma.user.findUnique).toHaveBeenCalledWith({
-      where: { id: 'manager' },
-      select: { isAdmin: true },
+    await list().expect(200).expect({
+      success: true, message: 'team_available_users_listed', data: [profile],
     });
-    expect(prisma.organization.findMany.mock.calls).toEqual([
-      [{ where: { parentId: { in: ['root'] } }, select: { id: true } }],
-      [
-        {
-          where: { parentId: { in: ['child', 'sibling'] } },
-          select: { id: true },
-        },
-      ],
-      [{ where: { parentId: { in: ['grandchild'] } }, select: { id: true } }],
-    ]);
+    expect(getSession).toHaveBeenCalledTimes(1);
+    expect(prisma.team.findUnique).not.toHaveBeenCalled();
+    expect(prisma.team.findMany).toHaveBeenCalledWith({
+      where: { managerId: 'manager' }, select: { organizationId: true },
+    });
     expect(prisma.user.findMany).toHaveBeenCalledWith({
-      where: {
-        organizationId: { in: ['root', 'child', 'sibling', 'grandchild'] },
-        teamId: null,
-      },
+      where: { OR: [{ organizationId: { in: ['root', 'child', 'grandchild'] }, teamId: null }] },
       select: { id: true, firstname: true, lastname: true, image: true },
       orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }, { id: 'asc' }],
     });
   });
 
-  it('allows an administrator who does not manage the team', async () => {
-    getSession.mockResolvedValue({ user: { id: 'admin' } });
+  it('allows administrators without any managed team or organization', async () => {
     prisma.user.findUnique.mockResolvedValue({ isAdmin: true });
-    await request(app.getHttpServer())
-      .get('/api/team/team-id/available-users')
-      .expect(200);
+    await list().expect(200);
+    expect(prisma.user.findMany.mock.calls[0][0].where).toEqual({});
+    expect(prisma.team.findMany).not.toHaveBeenCalled();
+    expect(prisma.organization.findMany).not.toHaveBeenCalled();
   });
 
-  it('rejects a whitespace-only team identifier before querying the database', async () => {
-    await request(app.getHttpServer())
-      .get('/api/team/%20%20/available-users')
-      .expect(400)
-      .expect({
-        success: false,
-        message: 'validation_failed',
-        data: { errors: [{ field: 'id', messages: ['is_required'] }] },
-      });
-    expect(prisma.team.findUnique).not.toHaveBeenCalled();
+  it('allows an organization manager before any team exists', async () => {
+    prisma.team.findMany.mockResolvedValue([]);
+    prisma.organization.findMany.mockImplementation(async ({ where }) =>
+      where.managerId ? [{ id: 'root' }] : []);
+    await list().expect(200);
+    expect(prisma.user.findMany.mock.calls[0][0].where).toEqual({ OR: [{
+      organizationId: { in: ['root'] },
+      OR: [{ teamId: null }, { team: { is: { organizationId: { in: ['root'] } } } }],
+    }] });
   });
 
-  it('trims the team identifier and accepts existing non-UUID identifiers', async () => {
-    await request(app.getHttpServer())
-      .get('/api/team/%20team-id%20/available-users')
-      .expect(200);
-    expect(prisma.team.findUnique).toHaveBeenCalledWith({
-      where: { id: 'team-id' },
-      select: { organizationId: true, managerId: true },
-    });
-  });
-
-  it.each(['employee', 'other-manager'])(
-    'rejects an unauthorized user: %s',
-    async (id) => {
-      getSession.mockResolvedValue({ user: { id, isAdmin: true } });
-      await request(app.getHttpServer())
-        .get('/api/team/team-id/available-users')
-        .expect(403)
-        .expect({ success: false, message: 'forbidden', data: {} });
-      expect(prisma.organization.findMany).not.toHaveBeenCalled();
-      expect(prisma.user.findMany).not.toHaveBeenCalled();
-    },
-  );
-
-  it('rejects an expired or missing session before reading the team', async () => {
-    getSession.mockRejectedValue(new UnauthorizedException());
-    await request(app.getHttpServer())
-      .get('/api/team/team-id/available-users')
-      .expect(401)
-      .expect({ success: false, message: 'unauthorized', data: {} });
-    expect(prisma.team.findUnique).not.toHaveBeenCalled();
-  });
-
-  it('returns 404 for a missing team', async () => {
-    prisma.team.findUnique.mockResolvedValue(null);
-    await request(app.getHttpServer())
-      .get('/api/team/missing/available-users')
-      .expect(404)
-      .expect({ success: false, message: 'not_found', data: {} });
+  it('rejects an authenticated user without management rights', async () => {
+    prisma.team.findMany.mockResolvedValue([]);
+    await list().expect(403).expect({ success: false, message: 'forbidden', data: {} });
     expect(prisma.user.findMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects a missing persisted actor', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    await list().expect(403);
+    expect(prisma.user.findMany).not.toHaveBeenCalled();
+  });
+
+  it('authenticates before reading any scope', async () => {
+    getSession.mockRejectedValue(new UnauthorizedException());
+    await list().expect(401).expect({ success: false, message: 'unauthorized', data: {} });
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.team.findMany).not.toHaveBeenCalled();
+    expect(prisma.organization.findMany).not.toHaveBeenCalled();
   });
 
   it('returns an empty array when no users qualify', async () => {
     prisma.user.findMany.mockResolvedValue([]);
-    await request(app.getHttpServer())
-      .get('/api/team/team-id/available-users')
-      .expect(200)
-      .expect({
-        success: true,
-        message: 'team_available_users_listed',
-        data: [],
-      });
+    await list().expect(200).expect({
+      success: true, message: 'team_available_users_listed', data: [],
+    });
   });
 
-  it('stops revisiting organizations when the hierarchy contains duplicates or a cycle', async () => {
-    prisma.organization.findMany
-      .mockResolvedValueOnce([{ id: 'child' }, { id: 'child' }])
-      .mockResolvedValueOnce([{ id: 'root' }]);
-    await request(app.getHttpServer())
-      .get('/api/team/team-id/available-users')
-      .expect(200);
-    expect(prisma.organization.findMany).toHaveBeenCalledTimes(2);
-    expect(
-      prisma.user.findMany.mock.calls[0][0].where.organizationId.in,
-    ).toEqual(['root', 'child']);
+  it('handles duplicate roots and cycles without revisiting descendants', async () => {
+    prisma.team.findMany.mockResolvedValue([
+      { organizationId: 'root' }, { organizationId: 'root' }, { organizationId: 'child' },
+    ]);
+    prisma.organization.findMany.mockImplementation(async ({ where }) => {
+      if (where.managerId) return [];
+      return where.parentId.in.includes('root')
+        ? [{ id: 'child' }, { id: 'child' }]
+        : [{ id: 'root' }];
+    });
+    await list().expect(200);
+    expect(prisma.user.findMany.mock.calls[0][0].where).toEqual({ OR: [
+      { organizationId: { in: ['root', 'child'] }, teamId: null },
+    ] });
+  });
+
+  it('removes the previous team-specific route', async () => {
+    await request(app.getHttpServer()).get('/api/team/old-team/available-users').expect(404);
+    expect(prisma.user.findMany).not.toHaveBeenCalled();
   });
 });

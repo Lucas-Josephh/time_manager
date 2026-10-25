@@ -3,10 +3,16 @@ import {
   PASSWORD_REQUIREMENTS_REGEX,
   PASSWORD_REQUIREMENTS_CODE,
 } from '../../common/decorator/password.decorator';
-import type { AuthHookContext } from '../types/auth-hook-context';
+import type { AuthTypes } from '../auth.types';
 
-export async function validatePasswordHook(ctx: AuthHookContext) {
-  if (!['/sign-up/email', '/reset-password'].includes(ctx.path)) {
+/**
+ * Validates the password in the request body for specific authentication paths.
+ * Throws an APIError if the password does not meet the defined requirements.
+ *
+ * @param ctx
+ */
+export async function validatePasswordHook(ctx: AuthTypes) {
+  if (!['/sign-up/email', '/change-password', '/reset-password'].includes(ctx.path)) {
     return;
   }
 
@@ -15,10 +21,10 @@ export async function validatePasswordHook(ctx: AuthHookContext) {
       ? ctx.body?.password
       : ctx.body?.newPassword;
 
-  if (
-    typeof password !== 'string' ||
-    !PASSWORD_REQUIREMENTS_REGEX.test(password)
-  ) {
+  // Let Better Auth validate missing fields and invalid types.
+  if (typeof password !== 'string') return;
+
+  if (!PASSWORD_REQUIREMENTS_REGEX.test(password)) {
     throw new APIError('BAD_REQUEST', {
       code: PASSWORD_REQUIREMENTS_CODE,
       message: PASSWORD_REQUIREMENTS_CODE,

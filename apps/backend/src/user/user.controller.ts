@@ -54,7 +54,6 @@ export class UserController {
   }
 
   @Get(':id')
-  @ResourceExists('user')
   @ApiUserDetail()
   findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
@@ -69,7 +68,6 @@ export class UserController {
   }
 
   @Delete(':id')
-  @ResourceExists('user')
   @ApiUserDelete()
   @ResponseMessage('user_deleted')
   delete(@Param('id') id: string) {

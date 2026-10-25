@@ -1,3 +1,4 @@
+import { createTestAuthService } from '../../support/auth-service';
 import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import request from 'supertest';
 import { ConflictException } from '@nestjs/common';
@@ -24,7 +25,7 @@ describe('Team creation: memberIds validation', () => {
     expect(context.prisma.team.create).not.toHaveBeenCalled();
   });
 
-  it.each(['put', 'patch'] as const)(
+  it.each(['patch'] as const)(
     'rejects null memberIds in %s',
     async (method) => {
       await request(context.app.getHttpServer())
@@ -65,7 +66,7 @@ describe('Team creation: atomic member assignment', () => {
     organization: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
     user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
   };
-  const service = new TeamService(prisma as unknown as PrismaService);
+  const service = new TeamService(prisma as unknown as PrismaService, createTestAuthService(prisma));
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -81,7 +82,9 @@ describe('Team creation: atomic member assignment', () => {
     tx.team.create.mockResolvedValue(team);
     tx.team.findUnique.mockResolvedValue(team);
     tx.user.updateMany.mockResolvedValue({ count: 2 });
-    tx.user.findMany.mockResolvedValue([]);
+    tx.user.findMany.mockImplementation(async ({ where }) => where.id.in.map((id: string) => ({
+      id, firstname: 'Test', lastname: 'User', teamId: null, organizationId: 'org', team: null,
+    })));
   });
 
   it('assigns members from the organization and its descendants within the transaction', async () => {
@@ -90,8 +93,6 @@ describe('Team creation: atomic member assignment', () => {
     expect(tx.user.updateMany).toHaveBeenCalledWith({
       where: {
         id: { in: dto.memberIds },
-        teamId: null,
-        organizationId: { in: ['org', 'child'] },
       },
       data: { teamId: 'team' },
     });
@@ -101,18 +102,21 @@ describe('Team creation: atomic member assignment', () => {
     tx.user.updateMany.mockResolvedValue({ count: 1 });
     await service.create({ name: 'Support', organizationId: 'org', managerId: 'manager', memberIds });
     expect(tx.user.updateMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ id: { in: ['manager'] }, teamId: null }),
+      where: expect.objectContaining({ id: { in: ['manager'] } }),
     }));
   });
 
   it.each([0, 1])(
-    'aborts the transaction if only %i members are eligible',
+    'rejects before assignment if only %i requested members exist',
     async (count) => {
-      tx.user.updateMany.mockResolvedValue({ count });
+      tx.user.findMany.mockResolvedValue(dto.memberIds.slice(0, count).map(id => ({
+        id, firstname: 'Test', lastname: 'User', teamId: null, organizationId: 'org', team: null,
+      })));
       await expect(service.create(dto)).rejects.toThrow(ConflictException);
       await expect(service.create(dto)).rejects.toThrow(
         'team_members_unavailable',
       );
+      expect(tx.user.updateMany).not.toHaveBeenCalled();
     },
   );
 });
@@ -130,7 +134,7 @@ describe('Team updates: member replacement', () => {
     organization: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
     user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
   };
-  const service = new TeamService(prisma as unknown as PrismaService);
+  const service = new TeamService(prisma as unknown as PrismaService, createTestAuthService(prisma));
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -144,10 +148,12 @@ describe('Team updates: member replacement', () => {
     tx.team.findUnique.mockResolvedValue(team);
     tx.organization.findMany.mockResolvedValue([]);
     tx.user.updateMany.mockResolvedValue({ count: 2 });
-    tx.user.findMany.mockResolvedValue([]);
+    tx.user.findMany.mockImplementation(async ({ where }) => where.id.in.map((id: string) => ({
+      id, firstname: 'Test', lastname: 'User', teamId: null, organizationId: 'org', team: null,
+    })));
   });
 
-  it.each(['replace', 'update'] as const)(
+  it.each(['update'] as const)(
     '%s replaces members and accepts existing members',
     async (method) => {
       await service[method](team.id, {
@@ -162,7 +168,6 @@ describe('Team updates: member replacement', () => {
       expect(tx.user.updateMany).toHaveBeenNthCalledWith(1, {
         where: {
           id: { in: ['u1', 'u2'] },
-          OR: [{ teamId: team.id }, { teamId: null, organizationId: { in: ['org'] } }],
         },
         data: { teamId: team.id },
       });
@@ -173,7 +178,7 @@ describe('Team updates: member replacement', () => {
     },
   );
 
-  it('identifies unavailable members without reporting successfully assigned members', async () => {
+  it('identifies every unavailable member before assigning anyone', async () => {
     tx.user.updateMany.mockResolvedValue({ count: 1 });
     tx.user.findMany.mockResolvedValue([
       { id: 'ok', firstname: 'A', lastname: 'B', teamId: team.id, organizationId: 'org' },
@@ -194,7 +199,7 @@ describe('Team updates: member replacement', () => {
         ] },
       });
     }
-    expect(tx.user.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.user.updateMany).not.toHaveBeenCalled();
   });
 
   it('assigns the manager without removing existing members when memberIds is omitted', async () => {
@@ -203,7 +208,7 @@ describe('Team updates: member replacement', () => {
     await service.update(team.id, { managerId: 'manager' });
     expect(tx.user.updateMany).toHaveBeenCalledTimes(1);
     expect(tx.user.updateMany).toHaveBeenCalledWith({
-      where: { id: { in: ['manager'] }, OR: [{ teamId: team.id }, { teamId: null, organizationId: { in: ['org'] } }] },
+      where: { id: { in: ['manager'] } },
       data: { teamId: team.id },
     });
   });
@@ -228,7 +233,7 @@ describe('Team updates: member replacement', () => {
         { id: 'manager', firstname: 'A', lastname: 'B', reason: 'already_in_team' },
       ] } },
     });
-    expect(tx.user.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.user.updateMany).not.toHaveBeenCalled();
   });
 
   it('removes only the manager role when managerId is null and members are omitted', async () => {
@@ -269,6 +274,6 @@ describe('Team updates: member replacement', () => {
       where: { parentId: { in: ['new-org'] } },
       select: { id: true },
     });
-    expect(tx.user.updateMany).toHaveBeenCalledTimes(1);
+    expect(tx.user.updateMany).not.toHaveBeenCalled();
   });
 });

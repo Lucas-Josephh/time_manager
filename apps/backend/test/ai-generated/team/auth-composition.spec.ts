@@ -7,12 +7,11 @@ describe('Team authentication composition', () => {
   const context = useTeamFixture();
   const routes = [
     ['post', '/api/team', 201],
-    ['put', '/api/team/team-support', 200],
     ['patch', '/api/team/team-support', 200],
     ['delete', '/api/team/team-support', 202],
     ['get', '/api/team', 200],
     ['get', '/api/team/team-support', 200],
-    ['get', '/api/team/team-support/available-users', 200],
+    ['get', '/api/team/available-users', 200],
   ] as const;
 
   it.each(routes)(

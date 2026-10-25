@@ -25,6 +25,7 @@ describe('Team HTTP API: detail', () => {
           members: [user],
         }),
       );
+    expect(prisma.team.findUnique).toHaveBeenCalledTimes(1);
     expect(prisma.team.findUnique).toHaveBeenCalledWith({
       where: { id: team.id },
       include: relations,

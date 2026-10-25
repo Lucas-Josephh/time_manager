@@ -1,3 +1,4 @@
+import { createTestAuthService } from '../../support/auth-service';
 import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import { BadRequestException } from '@nestjs/common';
 import { OrganizationService } from '../../../src/organization/organization.service';
@@ -6,7 +7,7 @@ import { PrismaService } from '../../../src/prisma/prisma.service';
 describe('Organization hierarchy updates', () => {
   const delegate = { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), update: jest.fn() };
   const prisma = { $transaction: jest.fn(async (callback) => callback({ organization: delegate })) };
-  const service = new OrganizationService(prisma as unknown as PrismaService);
+  const service = new OrganizationService(prisma as unknown as PrismaService, createTestAuthService(prisma));
   beforeEach(() => { delegate.findUnique.mockReset(); delegate.update.mockReset(); });
 
   it('rejects a self parent without writing', async () => {

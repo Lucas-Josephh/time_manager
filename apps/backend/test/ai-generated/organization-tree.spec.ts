@@ -152,49 +152,19 @@ describe('Organization tree HTTP API', () => {
     expect((await get().expect(200)).body.data).toEqual([]);
   });
   it.each([
-    '?parentId=',
-    '?parentId=%20',
+    '?parentId=neighbor',
     '?parentId=a&parentId=b',
+    '?name=missing',
     '?name=%20',
-    '?name=a&name=b',
-  ])('rejects invalid query %s', async (query) => {
-    await get(query).expect(400);
-  });
-  it('also supports targeting a subtree via the tree query', async () => {
-    const query = await get('?parentId=child').expect(200);
-    const path = await subtree('child').expect(200);
-    expect(query.body.data).toEqual(path.body.data);
-  });
-  it('searches names without case sensitivity and retains authorized ancestors only', async () => {
-    rows.push(org('unrelated', 'managed'));
-    const { body } = await get('?name=%20DEeP%20').expect(200);
-    expect(body.data.map((node: TreeNode) => node.id)).toEqual(['managed']);
-    expect(body.data[0].children.map((node: TreeNode) => node.id)).toEqual([
-      'child',
-    ]);
-    expect(body.data[0].children[0].children[0].id).toBe('deep');
-    expect((await get('?name=neighbor').expect(200)).body.data).toEqual([]);
-  });
-  it('combines a name search with a root in either tree route', async () => {
-    const query = await get('?parentId=child&name=deep').expect(200);
-    const path = await request(app.getHttpServer())
-      .get('/api/organizations/child/tree?name=deep')
-      .expect(200);
-    expect(query.body.data).toEqual(path.body.data);
-    expect(query.body.data[0].id).toBe('child');
-    expect(
-      (await get('?parentId=child&name=missing').expect(200)).body.data,
-    ).toEqual([]);
-    await get('?parentId=neighbor&name=missing').expect(404);
-  });
-  it('combines the standard name and manager filters without widening access', async () => {
-    const { body } = await get('?name=deep&managerId=test-user').expect(200);
-    expect(body.data[0].children[0].children[0].id).toBe('deep');
-    expect(
-      (await get('?name=deep&managerId=other').expect(200)).body.data,
-    ).toEqual([]);
-    rows.push(org('private', null, 'other', 'deep'));
-    expect((await get('?managerId=other').expect(200)).body.data).toEqual([]);
+    '?managerId=other',
+    '?page=2&limit=1',
+  ])('ignores query parameters %s without changing access or branches', async query => {
+    const expected = (await get().expect(200)).body.data;
+    expect((await get(query).expect(200)).body.data).toEqual(expected);
+    const expectedSubtree = (await subtree('child').expect(200)).body.data;
+    const response = await request(app.getHttpServer())
+      .get('/api/organizations/child/tree' + query).expect(200);
+    expect(response.body.data).toEqual(expectedSubtree);
   });
   it('requires a session', async () => {
     authenticated = false;
@@ -207,18 +177,16 @@ describe('Organization tree HTTP API', () => {
     );
     const route = doc.paths['/api/organizations/tree'].get!;
     expect(Object.keys(route.responses)).toEqual(
-      expect.arrayContaining(['200', '400', '401', '403', '404', '500']),
+      expect.arrayContaining(['200', '401', '403', '500']),
     );
-    expect(route.parameters).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ in: 'query', name: 'parentId' }),
-        expect.objectContaining({ in: 'query', name: 'name' }),
-      ]),
-    );
+    expect(route.parameters ?? []).toEqual([]);
     const subtreeRoute = doc.paths['/api/organizations/{id}/tree'].get!;
     expect(Object.keys(subtreeRoute.responses)).toEqual(
       expect.arrayContaining(['200', '401', '403', '404', '500']),
     );
+    expect(subtreeRoute.parameters).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ in: 'query' }),
+    ]));
     expect(subtreeRoute.parameters).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ in: 'path', name: 'id', required: true }),

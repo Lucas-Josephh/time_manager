@@ -1,5 +1,6 @@
 import { PaginatedDto, PaginationQueryDto } from '../../common/pagination/pagination.dto';
 import { Trim } from '../../common/decorator/transform/trim.decorator';
+import { Unique } from '../../common/decorator/unique.decorator';
 import { Reference } from '../../common/decorator/reference.decorator';
 import { OrganizationDetailsDto } from '../../organization/dto/organization.dto';
 import { UserSummaryDto } from '../../user/dto/user.dto';
@@ -27,6 +28,12 @@ export class SetTeamDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
+  @Unique('team', 'name', ({ request }) => {
+    const id = request?.params.id;
+    return request?.method === 'PATCH' && typeof id === 'string'
+      ? { id: { not: id } }
+      : {};
+  })
   name!: string;
 
   @ApiPropertyOptional({
@@ -59,7 +66,7 @@ export class SetTeamDto {
     type: [String],
     example: ['user-1', 'user-2'],
     description:
-      'Identifiants uniques des membres. Administrateur : affectation libre ; manager d’organisation : transferts dans son périmètre ; responsable d’équipe : utilisateurs sans équipe de son organisation ou de ses descendantes. L’organisation des utilisateurs est conservée. Remplace la liste fournie ; [] conserve uniquement le responsable si managerId est conservé ou défini ; [] avec managerId: null dans la même requête vide complètement l\'équipe. Omis conserve les membres existants et ajoute le nouveau responsable si défini. Le responsable est toujours inclus.',
+      'Identifiants uniques des membres. Administrateur : affectation libre ; manager d’organisation : transferts dans son périmètre ; responsable d’équipe : utilisateurs sans équipe de son organisation ou de ses childes. L’organisation des utilisateurs est conservée. Remplace la liste fournie ; [] conserve uniquement le responsable si managerId est conservé ou défini ; [] avec managerId: null dans la même requête vide complètement l\'équipe. Omis conserve les membres existants et ajoute le nouveau responsable si défini. Le responsable est toujours inclus.',
   })
   @Trim({ each: true })
   @ValidateIf((_object, value) => value !== undefined)

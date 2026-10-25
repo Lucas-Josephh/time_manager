@@ -23,20 +23,15 @@ import {
 export const organizationDescriptions = {
   tree: `### Accès
 - **Administrateur** : accès à toutes les racines.
-- **Manager** : accès uniquement aux organisations dirigées via \`Organization.managerId\` et à leurs descendants, sans doublons.
+- **Manager** : accès uniquement aux organisations dirigées via \`Organization.managerId\` et à leurs organisations enfants à tous les niveaux, sans doublons.
 
 Le rattachement d\'un utilisateur à une organisation et le management d\'équipe ne donnent aucun droit d\'accès.
 
-### Filtres
-- **\`managerId\`** : sélectionne les organisations du responsable indiqué et conserve leurs ancêtres autorisés.
-- **\`name\`** : recherche partielle, sans distinction de casse. Conserve les correspondances et leurs ancêtres autorisés.
-- **\`parentId\`** : retourne l\'organisation ciblée et tous ses descendants. Une organisation inexistante ou inaccessible renvoie **404**.
-
 ### Résultat
 - Tri par **nom**, puis par **identifiant**, à chaque niveau.
-- Sans pagination ni relations développées.`,
+- Sans filtres de query, pagination ni relations développées.`,
 
-  subtree: `Retourne l\'organisation ciblée et tous ses descendants dans un tableau contenant **une seule racine**.
+  subtree: `Retourne l\'organisation ciblée et toutes ses organisations enfants à tous les niveaux dans un tableau contenant **une seule racine**.
 
 ### Accès
 - **Administrateur** : accès autorisé.
@@ -44,13 +39,9 @@ Le rattachement d\'un utilisateur à une organisation et le management d\'équip
 
 Le rattachement d\'un utilisateur à une organisation et le management d\'équipe ne donnent aucun droit d\'accès.
 
-### Filtres
-- **\`managerId\`** : sélectionne les organisations du responsable indiqué et conserve leurs ancêtres dans ce sous-arbre.
-- **\`name\`** : recherche partielle, sans distinction de casse. Conserve les correspondances et leurs ancêtres dans ce sous-arbre.
-
 ### Résultat
 - Tri par **nom**, puis par **identifiant**.
-- Sans pagination ni relations développées.`,
+- Sans filtres de query, pagination ni relations développées.`,
 } as const;
 
 export function ApiOrganizationController() {
@@ -118,14 +109,12 @@ export function ApiOrganizationTree() {
       summary: "Consulter l'arborescence des organisations",
       description: organizationDescriptions.tree,
     }),
-    ApiValidationError(),
     ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
     ApiErrorResponse(
       403,
       'forbidden',
       "Utilisateur ni administrateur ni responsable d'organisation.",
     ),
-    ApiNotFoundError('not_found', 'Organisation inexistante ou inaccessible.'),
     ApiSuccessResponse({ type: OrganizationTreeDto, isArray: true }),
   );
 }
@@ -137,7 +126,6 @@ export function ApiOrganizationSubtree() {
       description: organizationDescriptions.subtree,
     }),
     ApiResourceId('department-it'),
-    ApiValidationError(),
     ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
     ApiErrorResponse(
       403,

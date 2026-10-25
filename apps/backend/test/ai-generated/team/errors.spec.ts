@@ -9,7 +9,6 @@ describe('Team HTTP API: errors', () => {
     ['post', 'create', 'P2002', 409, 'already_exists'],
     ['post', 'create', 'P2003', 409, 'reference_conflict'],
     ['delete', 'delete', 'P2003', 409, 'reference_conflict'],
-    ['put', 'update', 'P2025', 404, 'not_found'],
     ['patch', 'update', 'P2025', 404, 'not_found'],
     ['delete', 'delete', 'P2025', 404, 'not_found'],
   ] as const)(

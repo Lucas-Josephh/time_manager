@@ -24,6 +24,7 @@ Un administrateur peut créer un utilisateur avec son équipe initiale dans une 
 - Autoriser la gestion selon le rôle administrateur, le management de l’organisation ou de ses ancêtres et, pour une équipe existante, son responsable actuel.
 - Contrôler également les droits sur la destination lors d’un déplacement. La création d’une organisation racine et le détachement en racine restent réservés aux administrateurs.
 - Mutualiser les parcours d’ancêtres et de descendants, et éviter les doublons dans les arbres autorisés.
+- Découper la lecture des arbres : `OrganizationTreeLoader` charge les branches autorisées dans la transaction ; `buildOrganizationTree` assemble et trie les nœuds. La méthode `tree()` orchestre ces deux étapes. Les routes d’arbre ne prennent plus de query ; seul `:id/tree` permet de cibler un sous-arbre. Le filtre récursif et le DTO de query partagé avec les arbres ont été supprimés.
 - Déterminer les affectations selon le rôle : administrateur sans restriction ; manager d’organisation sur les utilisateurs et équipes de son périmètre ; responsable d’équipe sur les utilisateurs disponibles de son organisation ou de ses descendantes.
 - Conserver l’organisation de l’utilisateur lors de toute affectation ou tout transfert. Un compte sans organisation peut être affecté par un administrateur.
 - Retirer le rôle de responsable dans l’ancienne équipe lorsqu’un responsable est transféré. Effectuer les changements dans la même transaction et annuler l’ensemble si un membre n’est pas autorisé.
@@ -76,6 +77,7 @@ La migration n’a pas été exécutée pendant cette intervention et n’a pas 
 
 ## Validation
 
-- Backend : **47 suites et 416 tests réussis**, dont les contrats HTTP, les permissions, les déplacements, le provisioning, les réponses natives Better Auth, Swagger et la pagination des trois listes.
+- Arbres, listes paginées, service Organization et Swagger : **67 tests ciblés réussis** après suppression des filtres de query des arbres, avec TypeScript et ESLint validés.
+- Dernier passage backend complet : **416 tests réussis, 1 échec** dans `test/user/password-change.spec.ts`. Le hook de mot de passe actuel renvoie `PASSWORD_REQUIREMENTS_NOT_MET` pour un nouveau mot de passe absent, tandis que le test attend `VALIDATION_ERROR`. Cet échec ne concerne pas le découpage de l’arbre.
 - Lint backend et build backend réussis.
 - Le dernier contrôle frontend réalisé pendant la refactorisation validait les 4 tests et le typage TypeScript.

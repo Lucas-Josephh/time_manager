@@ -19,7 +19,50 @@ describe('Team organization changes', () => {
     );
   });
 
-  it.each(['put', 'patch'] as const)('allows an admin to retain members outside the destination via %s', async method => {
+  describe.each(['patch'] as const)('%s permissions', method => {
+    it.each([
+      ['neither organization', false, false, 403],
+      ['only the destination organization', false, true, 403],
+      ['only the source organization', true, false, 403],
+      ['both organizations', true, true, 200],
+    ] as const)(
+      'allows a team move only with rights on both organizations: %s',
+      async (_scope, managesSource, managesDestination, status) => {
+        const actor = 'test-user';
+        prisma.user.findUnique.mockResolvedValue({ id: actor, isAdmin: false });
+        prisma.team.findUnique.mockResolvedValue({ ...team, managerId: actor });
+        prisma.organization.findUnique.mockImplementation(async ({ where }) => ({
+          id: where.id,
+          parentId: null,
+          managerId:
+            (where.id === team.organizationId && managesSource) ||
+            (where.id === 'destination' && managesDestination)
+              ? actor
+              : null,
+        }));
+
+        await request(context.app.getHttpServer())[method](`/api/team/${team.id}`)
+          .send({ name: dto.name, organizationId: 'destination' })
+          .expect(status);
+
+        if (status === 403) {
+          expect(prisma.team.update).not.toHaveBeenCalled();
+          expect(prisma.user.updateMany).not.toHaveBeenCalled();
+        }
+      },
+    );
+
+    it('lets a team manager keep the same organization without organization rights', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'test-user', isAdmin: false });
+      prisma.team.findUnique.mockResolvedValue({ ...team, managerId: 'test-user' });
+
+      await request(context.app.getHttpServer())[method](`/api/team/${team.id}`)
+        .send({ name: dto.name, organizationId: ` ${team.organizationId} ` })
+        .expect(200);
+    });
+  });
+
+  it.each(['patch'] as const)('allows an admin to retain members outside the destination via %s', async method => {
     prisma.user.findMany.mockResolvedValue([member]);
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
     await request(context.app.getHttpServer())[method](`/api/team/${team.id}`)
@@ -64,7 +107,9 @@ describe('Team organization changes', () => {
       .send({ organizationId: 'destination', memberIds: ['replacement'] })
       .expect(200);
     expect(prisma.user.findMany).toHaveBeenCalledWith({
-      where: { id: { in: ['replacement'] } }, select: { id: true, teamId: true },
+      where: { id: { in: ['replacement'] } },
+      select: { id: true, firstname: true, lastname: true, teamId: true,
+        organizationId: true, team: { select: { organizationId: true } } },
     });
     expect(prisma.user.updateMany).toHaveBeenNthCalledWith(2, {
       where: { teamId: team.id, id: { notIn: ['replacement'] } },

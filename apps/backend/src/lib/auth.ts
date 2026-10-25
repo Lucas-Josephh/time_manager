@@ -3,9 +3,9 @@ import { prismaAdapter } from '@better-auth/prisma-adapter';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { getAuthConfig } from '../auth/auth-config';
-import { createAuthHooks } from '../auth/auth-hooks';
 import { betterAuthAdditionalFields } from '../auth/auth-user-fields';
 import { betterAuthTranslations } from '../auth/auth-translations';
+import { betterAuthHooks } from '../auth/auth.hooks';
 
 /**
  * The auth options type is a combination of the BetterAuthOptions and
@@ -73,7 +73,7 @@ export function createAuth(
     },
 
     // The hooks configuration allows for custom logic to be executed at various points in the auth flow.
-    hooks: createAuthHooks(),
+    hooks: betterAuthHooks(),
 
     // The user configuration defines additional fields for the user model, which can be used for storing extra information about users.
     user: {

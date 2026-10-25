@@ -91,7 +91,7 @@ de la supprimer.
 
 ## Modification des membres d\'une équipe
 
-Pour `PUT /api/team/:id` et `PATCH /api/team/:id`, le responsable est
+Pour `PATCH /api/team/:id`, le responsable est
 **toujours membre** de l\'équipe : il est ajouté automatiquement même s\'il est
 absent de `memberIds`. Son affectation respecte les droits de l’auteur de la requête.
 
@@ -101,7 +101,7 @@ absent de `memberIds`. Son affectation respecte les droits de l’auteur de la r
 
 L’affectation conserve toujours `user.organizationId`. Un membre déjà présent peut être conservé même s’il appartient à une autre organisation. Le transfert d’un responsable retire son rôle dans son ancienne équipe, dans la même transaction.
 
-`GET /api/team/:id/available-users` utilise ces mêmes règles : les administrateurs et managers d’organisation voient aussi les membres transférables d’autres équipes. Les membres actuels sont exclus.
+`GET /api/team/available-users` ne requiert aucune équipe cible : le périmètre est calculé depuis l’utilisateur authentifié. Les administrateurs voient tous les utilisateurs ; les managers d’organisation voient les utilisateurs de leurs organisations et descendants, libres ou transférables depuis une équipe du même périmètre ; les responsables d’équipe voient les utilisateurs libres des organisations de leurs équipes et descendants. Les périmètres se cumulent. Aucun membre n’est exclu au titre d’une équipe cible. Sans droit de gestion : `403`. Les droits et l’éligibilité pour l’organisation cible restent vérifiés lors de la création ou modification ; la liste n’accorde aucun droit de création supplémentaire.
 
 Les appartenances utilisateur et équipe ne sont pas un invariant de la hiérarchie : déplacer une organisation conserve les appartenances existantes, sans imposer aux utilisateurs de rejoindre une autre équipe.
 
@@ -121,7 +121,6 @@ Pour vider une équipe avec `PATCH` :
 }
 ```
 
-Avec `PUT`, `name` et `organizationId` restent également requis.
 Une liste `memberIds` non vide remplace les membres, en y incluant toujours
 le responsable conservé ou défini. Toutes les modifications sont atomiques :
 un utilisateur indisponible provoque une erreur `409 team_members_unavailable`,
@@ -383,3 +382,8 @@ Les résultats se trouvent dans `data.items`. `data.meta` contient `total`
 Une page hors limites renvoie une liste vide ; si aucun résultat ne correspond,
 `totalPages` vaut 0. Team et Organization ne renvoient plus de tableau direct dans `data`.
 Les arbres d’organisations et les utilisateurs disponibles pour une équipe ne sont pas concernés.
+
+Les routes `GET /api/organizations/tree` et `GET /api/organizations/:id/tree`
+ne prennent aucun paramètre de query : elles renvoient toutes les branches autorisées
+ou le sous-arbre ciblé par `:id`. Les anciens filtres `name`, `managerId` et `parentId`
+ne s’y appliquent plus. Les filtres de la liste paginée restent disponibles.

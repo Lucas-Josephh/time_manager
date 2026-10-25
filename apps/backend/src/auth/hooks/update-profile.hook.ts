@@ -1,8 +1,8 @@
 import { getSessionFromCtx } from 'better-auth/api';
 import { buildUserName } from '../../user/user-name';
-import type { AuthHookContext } from '../types/auth-hook-context';
+import type { AuthTypes } from '../auth.types';
 
-export async function updateProfileHook(ctx: AuthHookContext) {
+export async function updateProfileHook(ctx: AuthTypes) {
   const body = ctx.body;
   // Leave malformed input and authentication errors to the native endpoint.
   if (!body || typeof body !== 'object' || Array.isArray(body))

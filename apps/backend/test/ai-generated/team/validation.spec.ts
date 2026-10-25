@@ -4,7 +4,7 @@ import { useTeamFixture } from './team.fixture';
 describe('Team HTTP API: validation', () => {
   const context = useTeamFixture();
   const { prisma, dto, envelope } = context;
-  it.each(['put', 'patch'] as const)(
+  it.each(['patch'] as const)(
     'returns 404 before DTO validation for a missing team in %s',
     async (method) => {
       prisma.team.findUnique.mockResolvedValue(null);
@@ -20,7 +20,7 @@ describe('Team HTTP API: validation', () => {
     },
   );
 
-  it.each(['put', 'patch'] as const)(
+  it.each(['patch'] as const)(
     'still validates the DTO when the target exists in %s',
     async (method) => {
       await request(context.app.getHttpServer())

@@ -1,3 +1,4 @@
+import { createTestAuthService } from '../../support/auth-service';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../../../src/app.module';
@@ -13,7 +14,7 @@ export async function createHttpTestApp(
     .overrideProvider(PrismaService)
     .useValue(prisma)
     .overrideProvider(AuthService)
-    .useValue({ auth: { handler: jest.fn() }, getSession })
+    .useValue(Object.assign(createTestAuthService(prisma), { auth: { handler: jest.fn() }, getSession }))
     .overrideProvider(ConfigService)
     .useValue(new ConfigService({ FRONTEND_URL: 'http://localhost:3000' }))
     .compile();

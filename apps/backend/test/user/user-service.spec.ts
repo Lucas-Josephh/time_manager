@@ -1,3 +1,4 @@
+import { createTestAuthService } from '../support/auth-service';
 import { mockFindUniqueOrThrow } from '../support/mock-find-unique-or-throw';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../../src/user/user.service';
@@ -78,7 +79,7 @@ describe('User provisioning', () => {
     const service = new UserService(
       prisma as unknown as PrismaService,
       new ConfigService(),
-      new TeamService(prisma as unknown as PrismaService),
+      new TeamService(prisma as unknown as PrismaService, createTestAuthService(prisma)),
     );
     await expect(
       service.create({

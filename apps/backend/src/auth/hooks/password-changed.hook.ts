@@ -1,5 +1,5 @@
 import { APIError } from 'better-auth/api';
-import type { AuthHookContext } from '../types/auth-hook-context';
+import type { AuthTypes } from '../auth.types';
 
 /**
  * This hook is triggered after a user successfully changes their password. It updates
@@ -7,7 +7,7 @@ import type { AuthHookContext } from '../types/auth-hook-context';
  *
  * @param ctx
  */
-export async function passwordChangedHook(ctx: AuthHookContext) {
+export async function passwordChangedHook(ctx: AuthTypes) {
   if (
     ctx.path !== '/change-password' ||
     !ctx.context.session ||
@@ -15,6 +15,7 @@ export async function passwordChangedHook(ctx: AuthHookContext) {
   )
     return;
 
+  // Update the user's record to indicate that they no longer need to change their password.
   await ctx.context.internalAdapter.updateUser(ctx.context.session.user.id, {
     mustChangePassword: false,
   });

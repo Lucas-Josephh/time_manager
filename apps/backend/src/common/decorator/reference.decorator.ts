@@ -35,6 +35,12 @@ export class ReferenceExistsConstraint implements ValidatorConstraintInterface {
   }
 }
 
+/**
+ * Validates that a string is a reference to an existing resource in the database.
+ *
+ * @param model
+ * @constructor
+ */
 export function Reference(model: ReferenceModel): PropertyDecorator {
   return Validate(ReferenceExistsConstraint, [model]);
 }

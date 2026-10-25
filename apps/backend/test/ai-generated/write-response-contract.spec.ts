@@ -36,8 +36,8 @@ describe('Organization and team write response models', () => {
     prisma.$transaction.mockImplementation(async (callback: (tx: typeof prisma) => unknown) => callback(prisma));
   });
 
-  it('returns the same complete team summary on POST, PUT and PATCH', async () => {
-    for (const method of ['post', 'put', 'patch'] as const) {
+  it('returns the same complete team summary on POST and PATCH', async () => {
+    for (const method of ['post', 'patch'] as const) {
       const path = method === 'post' ? '/api/team' : '/api/team/team';
       const response = await request(app.getHttpServer())[method](path)
         .send({ name: 'Support', organizationId: 'org' }).expect(method === 'post' ? 201 : 200);
@@ -45,8 +45,11 @@ describe('Organization and team write response models', () => {
     }
   });
 
-  it.each(['post', 'put', 'patch'] as const)('reads relations after assigning members in %s', async method => {
+  it.each(['post', 'patch'] as const)('reads relations after assigning members in %s', async method => {
     let assigned = false;
+    prisma.user.findMany.mockResolvedValue([
+      { ...person, teamId: null, organizationId: organization.id, team: null },
+    ]);
     prisma.team.create.mockResolvedValue(team);
     prisma.team.update.mockResolvedValue(team);
     prisma.user.updateMany.mockImplementation(async () => { assigned = true; return { count: 1 }; });
@@ -77,7 +80,6 @@ describe('Organization and team write response models', () => {
     const document = SwaggerModule.createDocument(app, new DocumentBuilder().build());
     for (const [path, method, status, dto] of [
       ['/api/team', 'post', '201', 'TeamWithRelationsDto'],
-      ['/api/team/{id}', 'put', '200', 'TeamWithRelationsDto'],
       ['/api/team/{id}', 'patch', '200', 'TeamWithRelationsDto'],
       ['/api/organizations', 'post', '201', 'OrganizationDetailsDto'],
       ['/api/organizations/{id}', 'patch', '200', 'OrganizationDetailsDto'],

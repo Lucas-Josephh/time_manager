@@ -1,7 +1,7 @@
 import { PaginatedDto, PaginationQueryDto } from '../../common/pagination/pagination.dto';
 import { Trim } from '../../common/decorator/transform/trim.decorator';
 import { Reference } from '../../common/decorator/reference.decorator';
-import { ApiProperty, ApiPropertyOptional, IntersectionType, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Exclude, Expose, Type } from 'class-transformer';
 import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
@@ -43,7 +43,7 @@ export class PartialOrganizationDto extends PartialType(OrganizationDto, {
   skipNullProperties: false,
 }) {}
 
-export class QueryOrganizationDto {
+export class QueryOrganizationListDto extends PaginationQueryDto {
   @ApiPropertyOptional({
     description: 'Recherche partielle sur le nom, sans distinction de casse.',
   })
@@ -56,7 +56,7 @@ export class QueryOrganizationDto {
 
   @ApiPropertyOptional({
     description:
-      'Liste : enfants directs. Arborescence : organisation ciblée et ses descendants.',
+      'Filtrer par organisation parente directe.',
   })
   @Trim()
   @IsOptional()
@@ -106,7 +106,5 @@ export class OrganizationTreeDto extends OrganizationDetailsDto {
   @ApiProperty({ type: () => [OrganizationTreeDto] })
   children!: OrganizationTreeDto[];
 }
-
-export class QueryOrganizationListDto extends IntersectionType(QueryOrganizationDto, PaginationQueryDto) {}
 
 export class OrganizationListDto extends PaginatedDto(OrganizationDetailsDto) {}

@@ -23,7 +23,7 @@ describe('Team management permissions', () => {
     );
   }
 
-  it.each(['put', 'patch', 'delete'] as const)(
+  it.each(['patch', 'delete'] as const)(
     'allows local and ancestor managers and administrators on %s',
     async (method) => {
       for (const [managed, admin] of [
@@ -41,7 +41,7 @@ describe('Team management permissions', () => {
     },
   );
 
-  it.each(['put', 'patch', 'delete'] as const)(
+  it.each(['patch', 'delete'] as const)(
     'denies management outside the current organization on %s',
     async (method) => {
       actor(['destination']);
@@ -55,7 +55,7 @@ describe('Team management permissions', () => {
     },
   );
 
-  it.each(['put', 'patch'] as const)(
+  it.each(['patch'] as const)(
     'requires access to both organizations before moving a team via %s',
     async (method) => {
       for (const managed of [['department-it'], ['destination']]) {
@@ -79,7 +79,7 @@ describe('Team management permissions', () => {
     },
   );
 
-  it.each(['put', 'patch', 'delete'] as const)(
+  it.each(['patch', 'delete'] as const)(
     'allows the existing team manager on %s',
     async (method) => {
       actor([]);
@@ -116,7 +116,7 @@ describe('Team management permissions', () => {
     expect(prisma.team.create).not.toHaveBeenCalled();
   });
 
-  it.each(['put', 'patch'] as const)(
+  it.each(['patch'] as const)(
     'requires destination rights when a team manager moves their team via %s',
     async (method) => {
       actor([]);

@@ -1,7 +1,9 @@
 import { ConfigService } from '@nestjs/config';
 import type { BetterAuthOptions } from 'better-auth';
 
-/** Validate auth environment variables before creating the instance. */
+/**
+ *  Validate auth environment variables before creating the instance.
+ */
 export function getAuthConfig(config: ConfigService) {
   const baseURL = config.getOrThrow<string>('BETTER_AUTH_URL');
   const frontend = config.getOrThrow<string>('FRONTEND_URL');

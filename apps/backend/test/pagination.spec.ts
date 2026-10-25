@@ -78,8 +78,12 @@ describe('Shared list pagination', () => {
     });
   });
 
-  it('keeps organization trees separate from page-based list queries', async () => {
-    await request(app.getHttpServer()).get('/api/organizations/tree?page=1').expect(400);
-    expect(prisma.organization.findMany).not.toHaveBeenCalled();
+  it('keeps organization trees separate from page-based list query', async () => {
+    prisma.$transaction.mockImplementationOnce(callback => callback(prisma));
+    prisma.organization.findMany.mockResolvedValue([]);
+    const response = await request(app.getHttpServer())
+      .get('/api/organizations/tree?page=1').expect(200);
+    expect(response.body.data).toEqual([]);
+    expect(prisma.organization.count).not.toHaveBeenCalled();
   });
 });

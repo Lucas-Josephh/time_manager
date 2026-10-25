@@ -1,68 +1,71 @@
+import { AuthService } from '../auth/auth.service';
 import { paginate } from '../common/pagination/paginate';
 import { fieldValidationException } from '../common/validation/validation-exception.factory';
 import {
-  checkOrganizationParent,
-  getOrganizationAncestors,
+  buildOrganizationTree,
+  OrganizationHierarchy,
 } from './organization-hierarchy';
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '../generated/prisma/client';
 import {
   OrganizationDto,
-  OrganizationTreeDto,
   PartialOrganizationDto,
-  QueryOrganizationDto,
   QueryOrganizationListDto,
 } from './dto/organization.dto';
 
 @Injectable()
 export class OrganizationService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly hierarchy: OrganizationHierarchy;
 
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+  ) {
+    this.hierarchy = new OrganizationHierarchy(prisma);
+  }
+
+  /**
+   * Assert that the user has permission to manage the specified organization.
+   * 1. If the user is an administrator, they can manage all organizations.
+   * 2. If the user is a manager, they can manage organizations they directly manage or any of their children.
+   *
+   * @param organizationId
+   * @param userId
+   */
   async assertCanManageOrganizations(
     organizationId: string | null,
     userId: string,
   ): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { isAdmin: true },
-    });
-
-    // If the user does not exist, throw a ForbiddenException. This ensures that only valid users can manage organizations.
-    if (!user) throw new ForbiddenException();
-
-    // Administrators can manage all organizations, so no further checks are needed.
-    if (user.isAdmin) return;
-
-    // Get ancestors of the organization to check if the user is a manager of any ancestor organization.
-    const ancestors = await getOrganizationAncestors(
-      organizationId,
-      this.prisma,
-    );
-
-    // If the user is a manager of any ancestor organization, they can manage the organization.
-    if (ancestors.some((organization) => organization.managerId === userId))
-      return;
+    if (await this.authService.isAdmin(userId)) return;
+    if (await this.hierarchy.isManagedBy(organizationId, userId)) return;
 
     throw new ForbiddenException();
   }
 
+  /**
+   * Create a new organization with the provided data transfer object (DTO).
+   *
+   * @param dto
+   */
   create(dto: OrganizationDto) {
     return this.prisma.organization.create({ data: dto });
   }
 
+  /**
+   * Return a paginated list of organizations based on the provided filters.
+   * The results are ordered by name and id in ascending order.
+   *
+   * @param filters
+   */
   findAll(filters: QueryOrganizationListDto = {}) {
-    const where: Prisma.OrganizationWhereInput = {
-      ...(filters.name
-        ? { name: { contains: filters.name, mode: 'insensitive' as const } }
-        : {}),
-      ...(filters.parentId ? { parentId: filters.parentId } : {}),
-      ...(filters.managerId ? { managerId: filters.managerId } : {}),
-    };
+    const where: Prisma.OrganizationWhereInput = {};
+    if (filters.name) {
+      where.name = { contains: filters.name, mode: 'insensitive' };
+    }
+    if (filters.parentId) where.parentId = filters.parentId;
+    if (filters.managerId) where.managerId = filters.managerId;
+
     return paginate(filters, (range) =>
       this.prisma.$transaction(
         [
@@ -83,129 +86,65 @@ export class OrganizationService {
    * organization (if provided) or from all root organizations.
    *
    * @param userId
-   * @param filters
+   * @param targetRootId
    */
-  tree(userId: string, filters: QueryOrganizationDto = {}) {
-    const { parentId: targetRootId, name, managerId } = filters;
-
-    // Starting a prisma transaction with RepeatableRead isolation level to ensure consistent reads of the organization hierarchy.
+  tree(userId: string, targetRootId?: string) {
+    // All reads share the same snapshot of the organization hierarchy.
     return this.prisma.$transaction(
       async (tx) => {
-        // Fetch the user to check if they are an admin.
-        const user = await tx.user.findUnique({
-          where: { id: userId },
-          select: { isAdmin: true },
-        });
-
-        const isAdmin = user?.isAdmin ?? false;
-        const orderBy: Prisma.OrganizationOrderByWithRelationInput[] = [
-          { name: 'asc' },
-          { id: 'asc' },
-        ];
-
-        let where: Prisma.OrganizationWhereInput;
-        if (!isAdmin) {
-          // Start from all managed organizations; the requested subtree is
-          // authorized against their descendants after traversal.
-          where = { managerId: userId };
-        } else if (targetRootId) {
-          // Start from the specified root organization if provided.
-          where = { id: targetRootId };
-        } else {
-          // From all root organizations if no target root is specified.
-          where = { parentId: null };
-        }
-
-        // Fetch the starting organizations based on the constructed where clause.
-        const startingOrganizations = await tx.organization.findMany({
-          where,
-          orderBy,
-        });
-
-        // If the user is not an admin and there are no starting organizations, throw a ForbiddenException.
-        if (!isAdmin && !startingOrganizations.length)
-          throw new ForbiddenException();
-
-        // Build the organization tree.
-        const nodes = new Map<string, OrganizationTreeDto>();
-        let level = startingOrganizations;
-        while (level.length) {
-          const ids: string[] = [];
-          for (const organization of level) {
-            // Check if the organization has already been added to the nodes map to avoid duplicates.
-            if (nodes.has(organization.id)) continue;
-
-            // Add the organization to the nodes map with an empty children array.
-            nodes.set(organization.id, {
-              ...organization,
-              children: [],
-            });
-
-            // Collect the ids of the current level organizations to fetch their children in the next iteration.
-            ids.push(organization.id);
-          }
-
-          // If there are no more ids to process, break the loop.
-          if (!ids.length) break;
-
-          // Fetch the next level of organizations whose parentId is in the collected ids.
-          level = await tx.organization.findMany({
-            where: { parentId: { in: ids } },
-            orderBy,
-          });
-        }
-
-        // If a targetRootId is provided, ensure it exists in the nodes map; if not, throw a NotFoundException.
-        if (targetRootId && !nodes.has(targetRootId))
-          throw new NotFoundException();
-
-        // Build the organization tree.
-        const roots: OrganizationTreeDto[] = [];
-
-        // Sort the nodes by name and id to ensure a consistent order in the tree.
-        const sorted = [...nodes.values()].sort(
-          (a, b) =>
-            (a.name < b.name ? -1 : a.name > b.name ? 1 : 0) ||
-            (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+        const organizations = await this.loadAccessibleOrganizations(
+          tx,
+          userId,
+          targetRootId,
         );
-
-        // Build the tree structure by assigning children to their respective parents.
-        for (const node of sorted) {
-          const parent = node.parentId ? nodes.get(node.parentId) : undefined;
-          if (parent) parent.children.push(node);
-          else roots.push(node);
-        }
-
-        // If a targetRootId is provided, return only that node; otherwise, return all root nodes.
-        const result = targetRootId ? [nodes.get(targetRootId)!] : roots;
-        if (!name && !managerId) return result;
-
-        // Filter the tree based on the provided name and managerId filters.
-        const search = name?.toLowerCase();
-
-        // Recursively filter the organization tree to include only nodes that match the search criteria or have matching descendants.
-        const filterBranches = (
-          branches: OrganizationTreeDto[],
-        ): OrganizationTreeDto[] =>
-          branches.flatMap((node) => {
-            const children = filterBranches(node.children);
-            const matches =
-              (!search || node.name.toLowerCase().includes(search)) &&
-              (!managerId || node.managerId === managerId);
-            return matches || children.length > 0
-              ? [{ ...node, children }]
-              : [];
-          });
-        return filterBranches(result);
+        return buildOrganizationTree(organizations, targetRootId);
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
   }
 
+  private async loadAccessibleOrganizations(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    targetRootId?: string,
+  ) {
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: { isAdmin: true },
+    });
+    const isAdmin = user?.isAdmin ?? false;
+
+    // Load all of a manager's branches. Look up the requested root
+    // within those branches when building the tree.
+    let where: Prisma.OrganizationWhereInput = { managerId: userId };
+    if (isAdmin) {
+      where = targetRootId ? { id: targetRootId } : { parentId: null };
+    }
+    const roots = await tx.organization.findMany({
+      where,
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    });
+    if (!isAdmin && roots.length === 0) throw new ForbiddenException();
+
+    const hierarchy = new OrganizationHierarchy(tx);
+    return hierarchy.getOrganizationChildren(roots);
+  }
+
+  /**
+   * Return a single organization by its unique identifier.
+   *
+   * @param id
+   */
   findOne(id: string) {
     return this.prisma.organization.findUniqueOrThrow({ where: { id } });
   }
 
+  /**
+   * Update an existing organization with the provided data transfer object (DTO).
+   *
+   * @param id
+   * @param dto
+   */
   update(id: string, dto: PartialOrganizationDto) {
     // Serializable isolation prevents concurrent re-parenting from creating a cycle.
     return this.prisma.$transaction(
@@ -214,7 +153,11 @@ export class OrganizationService {
           where: { id },
           select: { id: true },
         });
-        const result = await checkOrganizationParent(id, dto.parentId, tx);
+        const hierarchy = new OrganizationHierarchy(tx);
+        const result = await hierarchy.validateOrganizationHierarchy(
+          id,
+          dto.parentId,
+        );
         if (result === 'cycle')
           throw fieldValidationException('parentId', 'organization_cycle');
         if (result === 'missing')
@@ -225,6 +168,11 @@ export class OrganizationService {
     );
   }
 
+  /**
+   * Delete an organization by its unique identifier.
+   *
+   * @param id
+   */
   delete(id: string) {
     return this.prisma.organization.delete({ where: { id } });
   }

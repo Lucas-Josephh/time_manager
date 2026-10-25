@@ -1,16 +1,33 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { IncomingHttpHeaders } from 'node:http';
 import { createAuth } from '../lib/auth';
+import type { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AuthService {
   readonly auth: ReturnType<typeof createAuth>;
 
-  constructor(prisma: PrismaService, config: ConfigService) {
+  constructor(private readonly prisma: PrismaService, config: ConfigService) {
     this.auth = createAuth(prisma, config);
+  }
+
+  /** Use the transaction client when checking permissions inside a transaction. */
+  async isAdmin(
+    userId: string,
+    prisma: Pick<Prisma.TransactionClient, 'user'> = this.prisma,
+  ): Promise<boolean> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { isAdmin: true },
+    });
+
+    if (!user)
+      throw new ForbiddenException();
+
+    return user.isAdmin;
   }
 
   /**

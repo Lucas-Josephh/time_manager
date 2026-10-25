@@ -1,7 +1,13 @@
 import { buildUserName } from '../../user/user-name';
-import type { AuthHookContext } from '../types/auth-hook-context';
+import type { AuthTypes } from '../auth.types';
 
-export function provisionUserHook(ctx: AuthHookContext) {
+/**
+ * Provisions a user by ensuring that the required name field is synchronized
+ * with the source fields (firstname and lastname) during the sign-up process.
+ *
+ * @param ctx
+ */
+export function provisionUserHook(ctx: AuthTypes) {
   // Provisioning keeps Better Auth's required name in sync with the source fields.
   if (
     ctx.path === '/sign-up/email' &&

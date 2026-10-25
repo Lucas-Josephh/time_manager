@@ -1,44 +1,12 @@
+import { AuthService } from '../auth/auth.service';
+import { TeamPermissions, type TeamManagementScope } from './team-permissions';
+import { TeamMembers } from './team-members';
 import { paginate } from '../common/pagination/paginate';
-import {
-  getOrganizationAncestors,
-  getOrganizationDescendantIds,
-} from '../organization/organization-hierarchy';
-import { requireUnique } from '../common/validation/resource-validation';
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PartialSetTeamDto, QuerySetTeamDto, SetTeamDto } from './dto/team.dto';
 import { Prisma } from '../generated/prisma/client';
 import type { AvailableTeamUserDto } from './dto/available-team-user.dto';
-
-export function buildTeamQueryFilter(
-  filters: QuerySetTeamDto,
-): Prisma.TeamWhereInput {
-  const where: Prisma.TeamWhereInput = {};
-
-  if (filters.name) {
-    where.name = { contains: filters.name, mode: 'insensitive' };
-  }
-
-  if (filters.organizationId) {
-    where.organizationId = filters.organizationId;
-  }
-
-  if (filters.managerId) {
-    where.managerId = filters.managerId;
-  }
-
-  if (filters.memberId !== undefined) {
-    where.members = {
-      some: { id: filters.memberId },
-    };
-  }
-
-  return where;
-}
 
 const relations = {
   manager: true,
@@ -46,80 +14,34 @@ const relations = {
   members: true,
 } as const;
 
-type MemberScope = {
-  canTransfer: boolean;
-  // Undefined means unrestricted access for administrators.
-  organizationId?: string;
-};
-
 @Injectable()
 export class TeamService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly permissions: TeamPermissions;
 
-  /**
-   * Checks if a user has permission to manage teams in the specified organization.
-   * Admin users can manage teams in any organization. The manager of an existing
-   * team can manage that team when its persisted context is supplied by the guard.
-   *
-   * @param organizationId
-   * @param userId
-   * @param team Current team scope and manager loaded from the database.
-   */
-  async assertCanManageTeams(
-    organizationId: string,
-    userId: string,
-    team?: { organizationId: string; managerId: string | null },
-  ): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { isAdmin: true },
-    });
-
-    // If the user does not exist, they cannot manage teams.
-    if (!user) throw new ForbiddenException();
-
-    // If the user is an admin, they can manage teams in any organization.
-    if (user.isAdmin) return;
-
-    // Team ownership only grants rights in that existing team's current scope.
-    // This context comes from the guard's database lookup, never from the body.
-    if (team?.organizationId === organizationId && team.managerId === userId)
-      return;
-
-    const ancestors = await getOrganizationAncestors(organizationId, this.prisma);
-    if (ancestors.some((organization) => organization.managerId === userId))
-      return;
-
-    throw new ForbiddenException();
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authService: AuthService,
+  ) {
+    this.permissions = new TeamPermissions(prisma, authService);
   }
 
   /**
-   * Return users the actor can add or transfer, excluding current team members.
+   * Check if the user is an administrator, manages the team's organization,
+   * or manages the team itself.
    *
-   * @param teamId
-   * @param userId
+   * @param team Current team scope and manager loaded from the database.
+   * @param userId The ID of the user to check.
    */
-  async findAvailableUsers(
-    teamId: string,
+  assertCanManageTeams(
+    team: TeamManagementScope,
     userId: string,
-  ): Promise<AvailableTeamUserDto[]> {
-    const team = await this.prisma.team.findUniqueOrThrow({
-      where: { id: teamId },
-      select: { organizationId: true, managerId: true },
-    });
+  ): Promise<void> {
+    return this.permissions.assertCanManageTeams(team, userId);
+  }
 
-    await this.assertCanManageTeams(team.organizationId, userId, team);
-    const scope = await this.getMemberScope(team.organizationId, userId);
-    const organizationIds = scope.organizationId
-      ? await getOrganizationDescendantIds(scope.organizationId, this.prisma)
-      : undefined;
-    const where = this.memberFilter(teamId, organizationIds, scope.canTransfer, false);
-
-    return this.prisma.user.findMany({
-      where,
-      select: { id: true, firstname: true, lastname: true, image: true },
-      orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }, { id: 'asc' }],
-    });
+  /** Return candidates across all scopes the current actor can manage. */
+  findAvailableUsers(userId: string): Promise<AvailableTeamUserDto[]> {
+    return this.permissions.findAvailableUsers(userId);
   }
 
   /**
@@ -142,32 +64,42 @@ export class TeamService {
   }
 
   async create(dto: SetTeamDto, userId?: string) {
-    await this.validateName(dto);
     const data = {
       name: dto.name,
       managerId: dto.managerId,
       organizationId: dto.organizationId,
     };
+
+    // Resolve the list of member IDs to add to the team, ensuring uniqueness and including the manager if specified.
     const memberIds = [
       ...new Set([
         ...(dto.memberIds ?? []),
         ...(dto.managerId ? [dto.managerId] : []),
       ]),
     ];
+
+    // If no members are specified, create the team without adding members in a transaction.
     if (memberIds.length === 0)
       return this.prisma.team.create({ data, include: relations });
 
+    // Create a new team and add members in a transaction,
+    // ensuring that the user has the necessary permissions to manage the team and its members.
     return this.prisma.$transaction(
       async (tx) => {
         const team = await tx.team.create({ data });
-        const scope = await this.getMemberScope(dto.organizationId, userId, tx);
-        await this.setMembers(
-          tx,
-          team.id,
-          memberIds,
-          scope,
-          false,
+
+        const permissions = new TeamPermissions(tx, this.authService);
+        const members = new TeamMembers(tx);
+
+        const scope = await permissions.getMemberScope(
+          dto.organizationId,
+          userId,
         );
+
+        await members.setMembers(team.id, memberIds, scope, {
+          replaceExisting: false,
+        });
+
         return tx.team.findUniqueOrThrow({
           where: { id: team.id },
           include: relations,
@@ -177,37 +109,7 @@ export class TeamService {
     );
   }
 
-  findOne(id: string) {
-    return this.prisma.team.findUniqueOrThrow({
-      where: { id },
-      include: relations,
-    });
-  }
-
-  findAll(filters: QuerySetTeamDto = {}) {
-    const where = buildTeamQueryFilter(filters);
-    return paginate(filters, (range) =>
-      this.prisma.$transaction(
-        [
-          this.prisma.team.findMany({
-            where,
-            ...range,
-            orderBy: [{ name: 'asc' }, { id: 'asc' }],
-            include: relations,
-          }),
-          this.prisma.team.count({ where }),
-        ],
-        { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
-      ),
-    );
-  }
-
-  replace(id: string, dto: SetTeamDto, userId?: string) {
-    return this.update(id, dto, userId);
-  }
-
   async update(id: string, dto: PartialSetTeamDto, userId?: string) {
-    await this.validateName(dto, id);
     const { memberIds, ...data } = dto;
     if (
       dto.organizationId === undefined &&
@@ -236,7 +138,13 @@ export class TeamService {
         }
 
         const team = await tx.team.update({ where: { id }, data });
-        const scope = await this.getMemberScope(team.organizationId, userId, tx);
+        const permissions = new TeamPermissions(tx, this.authService);
+        const members = new TeamMembers(tx);
+        const scope = await permissions.getMemberScope(
+          team.organizationId,
+          userId,
+        );
+        // Moving a team without a member list preserves its current members.
         const retainedMembers =
           organizationChanged && memberIds === undefined
             ? await tx.user.findMany({
@@ -250,174 +158,76 @@ export class TeamService {
             ...(team.managerId ? [team.managerId] : []),
           ]),
         ];
-        await this.setMembers(
-          tx,
-          id,
-          effectiveMemberIds,
-          scope,
-          memberIds !== undefined,
-          true,
-        );
+        await members.setMembers(id, effectiveMemberIds, scope, {
+          replaceExisting: memberIds !== undefined,
+        });
         return tx.team.findUniqueOrThrow({ where: { id }, include: relations });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
   }
 
-  private async validateName(
-    dto: PartialSetTeamDto,
-    id?: string,
-  ): Promise<void> {
-    if (dto.name !== undefined) {
-      await requireUnique(
-        this.prisma.team.findFirst({
-          where: { name: dto.name, ...(id ? { id: { not: id } } : {}) },
-          select: { id: true },
-        }),
-        'name',
-      );
-    }
-  }
+  /**
+   * Return a single team by ID, including its relations.
+   *
+   * @param id
+   */
 
-  /** Determine the actor's membership rights, independently of the candidate's team. */
-  private async getMemberScope(
-    organizationId: string,
-    userId?: string,
-    client: Pick<Prisma.TransactionClient, 'user' | 'organization'> = this.prisma,
-  ): Promise<MemberScope> {
-    // Internal callers without an actor get the most restrictive policy.
-    if (!userId) return { canTransfer: false, organizationId };
-    const user = await client.user.findUnique({
-      where: { id: userId },
-      select: { isAdmin: true },
+  findOne(id: string) {
+    return this.prisma.team.findUniqueOrThrow({
+      where: { id },
+      include: relations,
     });
-    if (!user) throw new ForbiddenException();
-    if (user.isAdmin) return { canTransfer: true };
-
-    const ancestors = await getOrganizationAncestors(organizationId, client);
-    // The highest managed ancestor covers sibling teams inside the actor's organization.
-    const managed = ancestors.filter(organization => organization.managerId === userId);
-    const root = managed.at(-1);
-    return root
-      ? { canTransfer: true, organizationId: root.id }
-      : { canTransfer: false, organizationId };
   }
 
-  private memberFilter(
-    teamId: string,
-    organizationIds: string[] | undefined,
-    canTransfer: boolean,
-    allowExisting: boolean,
-  ): Prisma.UserWhereInput {
-    if (!canTransfer) {
-      const available = { teamId: null, organizationId: { in: organizationIds } };
-      return allowExisting ? { OR: [{ teamId }, available] } : available;
+  /**
+   * Build a Prisma where clause for filtering teams based on the provided filters.
+   *
+   * @param filters
+   */
+  buildWhereClause(filters: QuerySetTeamDto): Prisma.TeamWhereInput {
+    const where: Prisma.TeamWhereInput = {};
+
+    // Search by name (case-insensitive) if provided
+    if (filters.name)
+      where.name = { contains: filters.name, mode: 'insensitive' };
+
+    // Filter by organization ID if provided
+    if (filters.organizationId) where.organizationId = filters.organizationId;
+
+    // Filter by manager ID if provided
+    if (filters.managerId) where.managerId = filters.managerId;
+
+    // Search for teams that have a specific member ID if provided
+    if (filters.memberId !== undefined) {
+      where.members = { some: { id: filters.memberId } };
     }
-    const transferable: Prisma.UserWhereInput = {
-      ...(organizationIds ? {
-        organizationId: { in: organizationIds },
-        // An org manager cannot take a member away from a team outside their scope.
-        OR: [
-          { teamId: null },
-          { team: { is: { organizationId: { in: organizationIds } } } },
+
+    return where;
+  }
+
+  /**
+   * Return a paginated list of teams, optionally filtered by name, organization ID, manager ID, or member ID.
+   *
+   * @param filters
+   */
+  findAll(filters: QuerySetTeamDto = {}) {
+    const where: Prisma.TeamWhereInput = this.buildWhereClause(filters);
+
+    return paginate(filters, (range) =>
+      this.prisma.$transaction(
+        [
+          this.prisma.team.findMany({
+            where,
+            ...range,
+            orderBy: [{ name: 'asc' }, { id: 'asc' }],
+            include: relations,
+          }),
+          this.prisma.team.count({ where }),
         ],
-      } : {}),
-    };
-    if (allowExisting) {
-      return organizationIds ? { OR: [{ teamId }, transferable] } : {};
-    }
-    return { AND: [transferable, { OR: [{ teamId: null }, { teamId: { not: teamId } }] }] };
-  }
-
-  private async setMembers(
-    tx: Prisma.TransactionClient,
-    teamId: string,
-    memberIds: string[],
-    scope: MemberScope,
-    replace: boolean,
-    allowExisting = replace,
-  ): Promise<void> {
-    if (memberIds.length > 0) {
-      const organizationIds = scope.organizationId
-        ? await getOrganizationDescendantIds(scope.organizationId, tx)
-        : undefined;
-      const filter = this.memberFilter(
-        teamId,
-        organizationIds,
-        scope.canTransfer,
-        allowExisting,
-      );
-      // Remember source teams so a transferred manager does not keep managing their former team.
-      const previousMembers = scope.canTransfer
-        ? await tx.user.findMany({
-            where: { id: { in: memberIds } },
-            select: { id: true, teamId: true },
-          })
-        : [];
-      const assigned = await tx.user.updateMany({
-        where: { id: { in: memberIds }, ...filter },
-        // Team membership never changes the user's organization.
-        data: { teamId },
-      });
-      if (assigned.count !== memberIds.length) {
-        const users = await tx.user.findMany({
-          where: { id: { in: memberIds } },
-          select: {
-            id: true,
-            firstname: true,
-            lastname: true,
-            teamId: true,
-            organizationId: true,
-            team: { select: { organizationId: true } },
-          },
-        });
-        const usersById = new Map(users.map((user) => [user.id, user]));
-        const unavailableMembers = memberIds.flatMap((id) => {
-          const user = usersById.get(id);
-          if (!user) return [{ id, reason: 'not_found' }];
-          if (allowExisting && user.teamId === teamId) return [];
-
-          let reason: string | undefined;
-          if (!scope.canTransfer && user.teamId !== null && user.teamId !== teamId) {
-            reason = 'already_in_team';
-          } else if (organizationIds) {
-            const userOutsideScope = user.organizationId === null ||
-              !organizationIds.includes(user.organizationId);
-            const sourceTeamOutsideScope = scope.canTransfer && user.team &&
-              !organizationIds.includes(user.team.organizationId);
-            if (userOutsideScope || sourceTeamOutsideScope) {
-              reason = 'outside_organization';
-            }
-          }
-          if (!reason) return [];
-          return [{ id, firstname: user.firstname, lastname: user.lastname, reason }];
-        });
-        throw new ConflictException({
-          message: 'team_members_unavailable',
-          data: { unavailableMembers },
-        });
-      }
-      const transferred = previousMembers.flatMap(user =>
-        user.teamId && user.teamId !== teamId
-          ? [{ userId: user.id, teamId: user.teamId }]
-          : [],
-      );
-      if (transferred.length > 0) {
-        await tx.team.updateMany({
-          where: {
-            id: { in: transferred.map(user => user.teamId) },
-            managerId: { in: transferred.map(user => user.userId) },
-          },
-          data: { managerId: null },
-        });
-      }
-    }
-    if (replace) {
-      await tx.user.updateMany({
-        where: { teamId, id: { notIn: memberIds } },
-        data: { teamId: null },
-      });
-    }
+        { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+      ),
+    );
   }
 
   delete(id: string) {

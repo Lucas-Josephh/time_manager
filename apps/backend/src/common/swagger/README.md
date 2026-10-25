@@ -11,8 +11,8 @@ Exemple dans un contrôleur :
 ```ts
 @Get('tree')
 @ApiOrganizationTree()
-tree(@Query() query: QueryOrganizationDto, @Req() request: AuthRequest) {
-  return this.organizationService.tree(request.session!.user.id, query);
+tree(@Req() request: AuthRequest) {
+  return this.organizationService.tree(request.session!.user.id);
 }
 ```
 

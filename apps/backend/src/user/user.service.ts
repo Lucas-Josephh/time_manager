@@ -9,7 +9,6 @@ import { CreateUserDto, QueryUserDto, UpdateUserDto } from './dto/user.dto';
 import { createAuth } from '../lib/auth';
 import { Prisma } from '../generated/prisma/client';
 import { fieldValidationException } from '../common/validation/validation-exception.factory';
-import { requireResource } from '../common/require-resource';
 import { requireUnique } from '../common/validation/resource-validation';
 
 @Injectable()
@@ -90,7 +89,7 @@ export class UserService {
   }
 
   findOne(id: string) {
-    return requireResource(this.prisma.user.findUnique({ where: { id } }));
+    return this.prisma.user.findUniqueOrThrow({ where: { id } });
   }
 
   async findAll(query: QueryUserDto = {}) {
@@ -129,12 +128,10 @@ export class UserService {
     }
     return this.prisma.$transaction(
       async (tx) => {
-        const user = await requireResource(
-          tx.user.findUnique({
-            where: { id },
-            select: { firstname: true, lastname: true },
-          }),
-        );
+        const user = await tx.user.findUniqueOrThrow({
+          where: { id },
+          select: { firstname: true, lastname: true },
+        });
         return tx.user.update({
           where: { id },
           data: {

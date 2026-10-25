@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import { Test } from '@nestjs/testing';
 import { OrganizationService } from '../../../src/organization/organization.service';
 import { PrismaService } from '../../../src/prisma/prisma.service';
@@ -10,7 +10,7 @@ describe('OrganizationService', () => {
     organization: {
       findMany: jest.fn(),
       count: jest.fn(),
-      findUnique: jest.fn(),
+      findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(),
     },
   };
   const organization = {
@@ -76,14 +76,13 @@ describe('OrganizationService', () => {
       expect(prisma.organization.findUnique).toHaveBeenCalledTimes(1);
     });
 
-    it('throws a 404 when the organization is missing', async () => {
+    it('propagates P2025 when the organization is missing', async () => {
       prisma.organization.findUnique.mockResolvedValue(null);
 
       const result = service.findOne('missing-organization');
 
-      await expect(result).rejects.toBeInstanceOf(NotFoundException);
       await expect(result).rejects.toMatchObject({
-        status: 404,
+        code: 'P2025',
       });
       expect(prisma.organization.findUnique).toHaveBeenCalledWith({
         where: { id: 'missing-organization' },

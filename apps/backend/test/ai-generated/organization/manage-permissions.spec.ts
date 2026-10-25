@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import type { INestApplication } from '@nestjs/common';
 import { UnauthorizedException } from '@nestjs/common';
 import request from 'supertest';
@@ -14,9 +15,9 @@ describe('Organization management permissions', () => {
     other: null,
   };
   const prisma = {
-    user: { findUnique: jest.fn(), findMany: jest.fn() },
+    user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), findMany: jest.fn() },
     organization: {
-      findUnique: jest.fn(),
+      findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),

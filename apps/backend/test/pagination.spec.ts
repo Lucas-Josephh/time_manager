@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from './support/mock-find-unique-or-throw';
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import request from 'supertest';
@@ -5,7 +6,7 @@ import { createHttpTestApp } from './ai-generated/support/http-test-app';
 
 describe('Shared list pagination', () => {
   let app: INestApplication;
-  const delegate = () => ({ findMany: jest.fn(), count: jest.fn(), findUnique: jest.fn() });
+  const delegate = () => ({ findMany: jest.fn(), count: jest.fn(), findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() });
   const prisma = {
     user: delegate(), team: delegate(), organization: delegate(),
     $transaction: jest.fn(),

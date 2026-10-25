@@ -1,10 +1,11 @@
+import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { createHttpTestApp } from '../support/http-test-app';
 
 describe('Organization HTTP API', () => {
   let app: INestApplication;
-  const prisma = { user: { findUnique: jest.fn() }, $transaction: async (callback: (tx: object) => unknown) => typeof callback === 'function' ? callback({ organization: prisma.organization }) : Promise.all(callback), organization: { count: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() } };
+  const prisma = { user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() }, $transaction: async (callback: (tx: object) => unknown) => typeof callback === 'function' ? callback({ organization: prisma.organization }) : Promise.all(callback), organization: { count: jest.fn(), findMany: jest.fn(), findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() } };
   const organization = { id: 'department-it', name: 'IT' };
 
   beforeAll(async () => {

@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from '../support/mock-find-unique-or-throw';
 import { UnauthorizedException, type INestApplication } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import request from 'supertest';
@@ -25,9 +26,9 @@ describe('Organization tree HTTP API', () => {
     secret: 'private',
   });
   const prisma = {
-    user: { findUnique: jest.fn(async () => ({ isAdmin: admin })) },
+    user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(async () => ({ isAdmin: admin })) },
     organization: {
-      findUnique: jest.fn(
+      findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(
         async ({ where }: { where: { id: string } }) =>
           rows.find((row) => row.id === where.id) ?? null,
       ),

@@ -9,7 +9,6 @@ import {
 import { Reflector } from '@nestjs/core';
 import { AuthGuard, type AuthRequest } from '../../auth/guards/auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
-import { requireResource } from '../../common/require-resource';
 import { OrganizationService } from '../organization.service';
 
 const ORGANIZATION_MANAGEMENT = 'organization_management';
@@ -53,18 +52,17 @@ export class CanManageOrganizationsGuard implements CanActivate {
     let currentParentId: string | null | undefined;
     if (options.organizationId) {
       const id = request.params[options.organizationId];
-      const organization = await requireResource(
-        this.prisma.organization.findUnique({
-          where: { id },
-          select: { parentId: true },
-        }),
-      );
+      const organization = await this.prisma.organization.findUniqueOrThrow({
+        where: { id },
+        select: { parentId: true },
+      });
       currentParentId = organization.parentId;
       await this.organizationService.assertCanManageOrganizations(id, userId);
     }
 
     // Deletion only requires rights over the current organization.
-    if (request.method === 'DELETE') return true;
+    if (request.method === 'DELETE')
+      return true;
 
     // On PATCH, omitting parentId preserves the current parent. On POST,
     // omitting it creates a root organization.

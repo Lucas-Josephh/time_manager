@@ -1,9 +1,10 @@
+import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import { BadRequestException } from '@nestjs/common';
 import { OrganizationService } from '../../../src/organization/organization.service';
 import { PrismaService } from '../../../src/prisma/prisma.service';
 
 describe('Organization hierarchy updates', () => {
-  const delegate = { findUnique: jest.fn(), update: jest.fn() };
+  const delegate = { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), update: jest.fn() };
   const prisma = { $transaction: jest.fn(async (callback) => callback({ organization: delegate })) };
   const service = new OrganizationService(prisma as unknown as PrismaService);
   beforeEach(() => { delegate.findUnique.mockReset(); delegate.update.mockReset(); });

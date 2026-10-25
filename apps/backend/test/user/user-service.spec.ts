@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from '../support/mock-find-unique-or-throw';
 import { ConfigService } from '@nestjs/config';
 import { UserService } from '../../src/user/user.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
@@ -17,7 +18,7 @@ describe('User provisioning', () => {
       >);
     const tx = {
       user: {
-        findUnique: jest.fn().mockResolvedValue({
+        findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn().mockResolvedValue({
           id: 'new-user',
           phone: '+33612345678',
           mustChangePassword: true,
@@ -69,7 +70,7 @@ describe('User provisioning', () => {
     });
   });
   it('rejects a missing team before creating authentication credentials', async () => {
-    const tx = { team: { findUnique: jest.fn().mockResolvedValue(null) } };
+    const tx = { team: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn().mockResolvedValue(null) } };
     const prisma = {
       $transaction: jest.fn().mockImplementation((callback) => callback(tx)),
     };
@@ -87,7 +88,7 @@ describe('User provisioning', () => {
         password: 'Temporary123!',
         teamId: 'missing',
       }),
-    ).rejects.toMatchObject({ status: 404 });
+    ).rejects.toMatchObject({ code: 'P2025' });
     expect(signup).not.toHaveBeenCalled();
   });
 });

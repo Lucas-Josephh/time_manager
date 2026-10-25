@@ -9,7 +9,6 @@ import {
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { ReferenceModel } from '../decorator/reference.decorator';
-import { requireResource } from '../require-resource';
 
 const RESOURCE = 'required_resource';
 
@@ -20,10 +19,10 @@ type ResourceOptions = {
 };
 
 type ResourceDelegate = {
-  findUnique(args: {
+  findUniqueOrThrow(args: {
     where: { id: string };
     select: { id: true };
-  }): PromiseLike<{ id: string } | null>;
+  }): PromiseLike<{ id: string }>;
 };
 
 @Injectable()
@@ -40,18 +39,20 @@ export class ResourceExistsGuard implements CanActivate {
    */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const options = this.reflector.get<ResourceOptions>(RESOURCE, context.getHandler());
-    if (!options) return true;
+    if (!options)
+      return true;
 
     const request = context.switchToHttp().getRequest<{
       params: Record<string, string | undefined>;
     }>();
+
     const rawId = request.params[options.param];
     // Missing or blank IDs are left to the parameter DTO's format validators.
     if (!rawId?.trim()) return true;
 
     const id = options.trimId ? rawId.trim() : rawId;
     const delegate = this.prisma[options.model] as unknown as ResourceDelegate;
-    await requireResource(delegate.findUnique({ where: { id }, select: { id: true } }));
+    await delegate.findUniqueOrThrow({ where: { id }, select: { id: true } });
     return true;
   }
 }

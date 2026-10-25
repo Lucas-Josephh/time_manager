@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import { INestApplication, UnauthorizedException } from '@nestjs/common';
 import request from 'supertest';
 import { AuthService } from '../../../src/auth/auth.service';
@@ -12,12 +13,12 @@ describe('Organization CRUD contracts', () => {
     createdAt: '2026-10-16T10:00:00.000Z', updatedAt: '2026-10-16T10:00:00.000Z',
   };
   const delegate = {
-    count: jest.fn(), create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
+    count: jest.fn(), create: jest.fn(), findMany: jest.fn(), findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(),
     update: jest.fn(), delete: jest.fn(),
   };
   const prisma = {
     organization: delegate,
-    user: { findUnique: jest.fn() },
+    user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
     $transaction: jest.fn(),
   };
   const dbError = (code: string) => new Prisma.PrismaClientKnownRequestError('Private SQL details', {
@@ -46,7 +47,7 @@ describe('Organization CRUD contracts', () => {
   ] as const)('requires authentication for %s %s', async (method, url) => {
     jest.spyOn(app.get(AuthService), 'getSession').mockRejectedValue(new UnauthorizedException());
     await request(app.getHttpServer())[method](url).send({ name: 'Engineering' }).expect(401);
-    for (const mock of Object.values(delegate)) expect(mock).not.toHaveBeenCalled();
+    for (const mock of Object.values(delegate).filter(jest.isMockFunction)) expect(mock).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 

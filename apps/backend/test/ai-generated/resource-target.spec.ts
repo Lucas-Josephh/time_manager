@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from '../support/mock-find-unique-or-throw';
 import { INestApplication, UnauthorizedException } from '@nestjs/common';
 import request from 'supertest';
 import { createHttpTestApp } from './support/http-test-app';
@@ -6,8 +7,8 @@ describe('Resource lookup and validation order', () => {
   let app: INestApplication;
   const session = jest.fn();
   const prisma = {
-    team: { findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn(), delete: jest.fn() },
-    organization: { findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
+    team: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn(), delete: jest.fn() },
+    organization: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
     $transaction: jest.fn(),
   };
   beforeAll(async () => { app = await createHttpTestApp(prisma, session); });

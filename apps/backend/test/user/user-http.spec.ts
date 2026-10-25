@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from '../support/mock-find-unique-or-throw';
 import { APIError } from 'better-auth/api';
 import request from 'supertest';
 import { UnauthorizedException, type INestApplication } from '@nestjs/common';
@@ -23,10 +24,10 @@ describe('User administration HTTP contract', () => {
   };
   const prisma = {
     $transaction: jest.fn(),
-    team: { findUnique: jest.fn() },
+    team: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
     organization: { findMany: jest.fn() },
     user: {
-      findUnique: jest.fn(),
+      findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(),
       findMany: jest.fn(),
       findFirst: jest.fn(),
       count: jest.fn(),

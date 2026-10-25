@@ -9,7 +9,6 @@ import {
 import { Reflector } from '@nestjs/core';
 import { AuthGuard, type AuthRequest } from '../../auth/guards/auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
-import { requireResource } from '../../common/require-resource';
 import { TeamService } from '../team.service';
 
 const TEAM_MANAGEMENT = 'team_management';
@@ -52,12 +51,10 @@ export class CanManageTeamsGuard implements CanActivate {
     let currentTeam:
       { organizationId: string; managerId: string | null } | undefined;
     if (options?.teamId) {
-      currentTeam = await requireResource(
-        this.prisma.team.findUnique({
-          where: { id: request.params[options.teamId] },
-          select: { organizationId: true, managerId: true },
-        }),
-      );
+      currentTeam = await this.prisma.team.findUniqueOrThrow({
+        where: { id: request.params[options.teamId] },
+        select: { organizationId: true, managerId: true },
+      });
       organizationIds.add(currentTeam.organizationId);
     }
 

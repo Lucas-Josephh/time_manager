@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import type { INestApplication } from '@nestjs/common';
 import { createHttpTestApp } from '../support/http-test-app';
 
@@ -10,12 +11,12 @@ export function useTeamFixture() {
       update: jest.fn(),
       delete: jest.fn(),
       findFirst: jest.fn(),
-      findUnique: jest.fn(),
+      findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
     },
-    organization: { findUnique: jest.fn(), findMany: jest.fn() },
-    user: { findUnique: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
+    organization: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), findMany: jest.fn() },
+    user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
   };
   const dto = { name: 'Support', organizationId: 'department-it' };
   const team = { id: 'team-support', ...dto, managerId: null };

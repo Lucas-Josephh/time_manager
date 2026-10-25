@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from '../support/mock-find-unique-or-throw';
 import type { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import request from 'supertest';
@@ -12,9 +13,9 @@ describe('Organization and team write response models', () => {
   const enrichedTeam = { ...team, organization, manager: person, members: [person] };
   const extra = { organization, manager: { ...person, email: 'private@example.com' }, members: [{ ...person, password: 'private' }], users: [], children: [], internal: true };
   const prisma = {
-    team: { findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
-    user: { findUnique: jest.fn(), updateMany: jest.fn() },
-    organization: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+    team: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
+    user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
+    organization: { findMany: jest.fn(), findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
     $transaction: jest.fn(),
   };
   beforeAll(async () => { app = await createHttpTestApp(prisma); });
@@ -25,6 +26,7 @@ describe('Organization and team write response models', () => {
     prisma.team.findFirst.mockResolvedValue(null);
     prisma.user.findUnique.mockResolvedValue({ ...person, isAdmin: true });
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
+    prisma.user.findMany.mockResolvedValue([]);
     prisma.organization.findMany.mockResolvedValue([]);
     prisma.team.create.mockResolvedValue({ ...team, ...extra });
     prisma.team.update.mockResolvedValue({ ...team, ...extra });

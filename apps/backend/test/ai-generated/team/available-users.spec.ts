@@ -1,3 +1,4 @@
+import { mockFindUniqueOrThrow } from '../../support/mock-find-unique-or-throw';
 import { type INestApplication, UnauthorizedException } from '@nestjs/common';
 import request from 'supertest';
 import { createHttpTestApp } from '../support/http-test-app';
@@ -6,9 +7,9 @@ describe('Team HTTP API: available users', () => {
   let app: INestApplication;
   const getSession = jest.fn();
   const prisma = {
-    team: { findUnique: jest.fn() },
-    organization: { findMany: jest.fn() },
-    user: { findUnique: jest.fn(), findMany: jest.fn() },
+    team: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn() },
+    organization: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), findMany: jest.fn() },
+    user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), findMany: jest.fn() },
   };
   const profile = {
     id: 'candidate',
@@ -31,6 +32,7 @@ describe('Team HTTP API: available users', () => {
     });
     prisma.user.findUnique.mockResolvedValue({ isAdmin: false });
     prisma.organization.findMany.mockResolvedValue([]);
+    prisma.organization.findUnique.mockResolvedValue(null);
     prisma.user.findMany.mockResolvedValue([profile]);
   });
 

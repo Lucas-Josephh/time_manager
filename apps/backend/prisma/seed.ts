@@ -1,4 +1,4 @@
-import { buildUserName } from '../src/user/user-name';
+import { buildUserName } from '../src/user/utils/build-user-name';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { hashPassword } from 'better-auth/crypto';
@@ -54,7 +54,7 @@ async function seedDefaultUsers() {
       update: {},
       create: {
         id: 'default-admin',
-        teamId: team.id,
+        teamId: null,
         organizationId: team.organizationId,
         name: buildUserName('Admin', 'Time Manager'),
         firstname: 'Admin',
@@ -65,6 +65,9 @@ async function seedDefaultUsers() {
       },
     });
 
+    if ((!team.managerId || team.managerId === user.id) && user.teamId === team.id) {
+      await tx.user.update({ where: { id: user.id }, data: { teamId: null } });
+    }
     if (!team.managerId) {
       await tx.team.update({
         where: { id: team.id },

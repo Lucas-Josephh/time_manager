@@ -27,8 +27,8 @@ export function configureApp(app: INestApplication): void {
 
   // Documentation of controllers using Swagger
   const config = new DocumentBuilder()
-    .setTitle('Time Manager API')
-    .setDescription("Documentation des endpoints de l'API Time Manager.")
+    .setTitle('Tempo API')
+    .setDescription("Documentation des endpoints de l'API de Tempo.")
     .setVersion('0.0.0')
     .build();
 
@@ -39,7 +39,7 @@ export function configureApp(app: INestApplication): void {
     {
       jsonDocumentUrl: 'api/docs-json',
       yamlDocumentUrl: 'api/docs-yaml',
-      customSiteTitle: 'Time Manager — API',
+      customSiteTitle: 'Tempo — API',
     },
   );
 }

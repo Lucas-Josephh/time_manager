@@ -93,8 +93,17 @@ de la supprimer.
 
 Pour `PUT /api/team/:id` et `PATCH /api/team/:id`, le responsable est
 **toujours membre** de l\'équipe : il est ajouté automatiquement même s\'il est
-absent de `memberIds`. Il doit être sans équipe ou déjà membre de cette équipe,
-et appartenir à son organisation ou à une organisation descendante.
+absent de `memberIds`. Son affectation respecte les droits de l’auteur de la requête.
+
+- **Administrateur** : ajout ou transfert de tout utilisateur, quelle que soit son organisation, y compris si elle est nulle.
+- **Manager d’organisation** : ajout ou transfert des utilisateurs de son organisation et de ses descendantes, entre les équipes de ce périmètre. Un utilisateur rattaché à une équipe extérieure ne peut pas être transféré.
+- **Responsable d’équipe** : ajout uniquement des utilisateurs sans équipe, rattachés à l’organisation de son équipe ou à ses descendantes.
+
+L’affectation conserve toujours `user.organizationId`. Un membre déjà présent peut être conservé même s’il appartient à une autre organisation. Le transfert d’un responsable retire son rôle dans son ancienne équipe, dans la même transaction.
+
+`GET /api/team/:id/available-users` utilise ces mêmes règles : les administrateurs et managers d’organisation voient aussi les membres transférables d’autres équipes. Les membres actuels sont exclus.
+
+Les appartenances utilisateur et équipe ne sont pas un invariant de la hiérarchie : déplacer une organisation conserve les appartenances existantes, sans imposer aux utilisateurs de rejoindre une autre équipe.
 
 | Champs envoyés                                  | Résultat                                                                            |
 | ----------------------------------------------- | ----------------------------------------------------------------------------------- |

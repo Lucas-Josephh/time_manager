@@ -24,8 +24,11 @@ Un administrateur peut créer un utilisateur avec son équipe initiale dans une 
 - Autoriser la gestion selon le rôle administrateur, le management de l’organisation ou de ses ancêtres et, pour une équipe existante, son responsable actuel.
 - Contrôler également les droits sur la destination lors d’un déplacement. La création d’une organisation racine et le détachement en racine restent réservés aux administrateurs.
 - Mutualiser les parcours d’ancêtres et de descendants, et éviter les doublons dans les arbres autorisés.
-- Refuser le déplacement d’une organisation lorsqu’il rendrait les appartenances aux équipes invalides.
-- Revalider les membres et le responsable conservés lorsqu’une équipe change d’organisation. Effectuer les modifications et les affectations de manière atomique.
+- Déterminer les affectations selon le rôle : administrateur sans restriction ; manager d’organisation sur les utilisateurs et équipes de son périmètre ; responsable d’équipe sur les utilisateurs disponibles de son organisation ou de ses descendantes.
+- Conserver l’organisation de l’utilisateur lors de toute affectation ou tout transfert. Un compte sans organisation peut être affecté par un administrateur.
+- Retirer le rôle de responsable dans l’ancienne équipe lorsqu’un responsable est transféré. Effectuer les changements dans la même transaction et annuler l’ensemble si un membre n’est pas autorisé.
+- Aligner `available-users` sur les utilisateurs ajoutables ou transférables selon l’auteur. Conserver les membres actuels même lorsque leur organisation diffère de celle de l’équipe.
+- Ne plus bloquer un déplacement d’organisation sur la base des appartenances aux équipes : ces appartenances sont indépendantes de la hiérarchie.
 
 ### Validation, réponses et documentation
 
@@ -73,6 +76,6 @@ La migration n’a pas été exécutée pendant cette intervention et n’a pas 
 
 ## Validation
 
-- Backend : **46 suites et 404 tests réussis**, dont les contrats HTTP, les permissions, les déplacements, le provisioning, les réponses natives Better Auth, Swagger et la pagination des trois listes.
+- Backend : **47 suites et 416 tests réussis**, dont les contrats HTTP, les permissions, les déplacements, le provisioning, les réponses natives Better Auth, Swagger et la pagination des trois listes.
 - Lint backend et build backend réussis.
 - Le dernier contrôle frontend réalisé pendant la refactorisation validait les 4 tests et le typage TypeScript.

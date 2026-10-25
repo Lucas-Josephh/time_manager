@@ -12,7 +12,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "user:create": "ts-node src/commands/create-user.ts"
+    "user:create": "ts-node src/commands/create-user.ts",
+    "team:separate-managers": "ts-node src/commands/separate-team-managers.ts"
   },
   "dependencies": {
     "@better-auth/i18n": "1.7.7",

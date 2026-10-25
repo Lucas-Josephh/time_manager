@@ -1,4 +1,4 @@
-import { fieldValidationException } from './validation-exception.factory';
+import { ValidationException } from './validation.exception';
 
 type UniqueFieldDelegate = {
   findFirst(args: {
@@ -26,6 +26,6 @@ export async function assertUniqueField(
     select: { id: true },
   });
   if (existing !== null) {
-    throw fieldValidationException(field, 'already_exists');
+    throw ValidationException.forField(field, 'already_exists');
   }
 }

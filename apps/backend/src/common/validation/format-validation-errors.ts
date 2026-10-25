@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
 
 const VALIDATION_CODES: Readonly<Record<string, string>> = {
@@ -38,7 +37,7 @@ function getErrorCode(error: ValidationError): string | undefined {
   return VALIDATION_CODES[rule] ?? 'validation_invalid';
 }
 
-type FieldError = { field: string; messages: string[] };
+export type FieldError = { field: string; messages: string[] };
 
 /**
  * Recursively formats validation errors into a flat array of field errors.
@@ -64,25 +63,4 @@ export function formatValidationErrors(
   }
 
   return result;
-}
-
-function validationException(errors: FieldError[]): BadRequestException {
-  return new BadRequestException({
-    message: 'validation_failed',
-    data: { errors },
-  });
-}
-
-/** Same error envelope for explicit service checks and DTO validation. */
-export function fieldValidationException(
-  field: string,
-  code: string,
-): BadRequestException {
-  return validationException([{ field, messages: [code] }]);
-}
-
-export function validationExceptionFactory(
-  errors: ValidationError[],
-): BadRequestException {
-  return validationException(formatValidationErrors(errors));
 }

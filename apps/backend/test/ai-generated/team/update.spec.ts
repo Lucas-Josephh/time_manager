@@ -17,12 +17,12 @@ describe('Team HTTP API: update', () => {
         include: relations,
       });
       await request(context.app.getHttpServer())
-        [method](`/api/team/${team.id}`)
-        .send({ ...dto, managerId: null })
+        [method](`/api/team/${team.id}/manager`)
+        .send({ managerId: null })
         .expect(200);
       expect(prisma.team.update).toHaveBeenLastCalledWith({
         where: { id: team.id },
-        data: { ...dto, managerId: null },
+        data: { managerId: null },
         include: relations,
       });
     },

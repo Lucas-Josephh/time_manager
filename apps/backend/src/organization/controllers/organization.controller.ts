@@ -1,5 +1,3 @@
-import { CanManageOrganizations } from './guards/can-manage-organizations.guard';
-import { ResourceExists } from '../common/guards/resource-exists.guard';
 import {
   ApiOrganizationController,
   ApiOrganizationCreate,
@@ -9,7 +7,7 @@ import {
   ApiOrganizationFindOne,
   ApiOrganizationUpdate,
   ApiOrganizationDelete,
-} from './organization.swagger';
+} from '../organization.swagger';
 import {
   Body,
   Controller,
@@ -22,7 +20,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { OrganizationService } from './organization.service';
+import { OrganizationService } from '../services/organization.service';
 import {
   OrganizationDetailsDto,
   OrganizationListDto,
@@ -30,27 +28,26 @@ import {
   OrganizationTreeDto,
   PartialOrganizationDto,
   QueryOrganizationListDto,
-} from './dto/organization.dto';
-import { SerializeResponse } from '../common/serialization/serialize-response.decorator';
-import { ResponseMessage } from '../common/decorator/response-message.decorator';
-import { AuthGuard } from '../auth/guards/auth.guard';
-import { AuthRequest } from '../auth/auth.types';
+} from '../dto/organization.dto';
+import { SerializeResponse } from '../../common/serialization/serialize-response.decorator';
+import { ResponseMessage } from '../../common/decorator/response-message.decorator';
+import { AuthGuard } from '../../auth/guards/auth.guard';
+import { AuthRequest } from '../../auth/auth.types';
 
 @ApiOrganizationController()
 @Controller('organizations')
+@UseGuards(AuthGuard)
 @SerializeResponse(OrganizationDetailsDto)
 export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
 
-  @CanManageOrganizations()
   @Post()
   @ApiOrganizationCreate()
   @ResponseMessage('organization_created')
-  create(@Body() dto: OrganizationDto) {
-    return this.organizationService.create(dto);
+  create(@Body() dto: OrganizationDto, @Req() request: AuthRequest) {
+    return this.organizationService.create(dto, request.session!.user.id);
   }
 
-  @UseGuards(AuthGuard)
   @Get()
   @ApiOrganizationFindAll()
   @SerializeResponse(OrganizationListDto)
@@ -58,7 +55,6 @@ export class OrganizationController {
     return this.organizationService.findAll(query);
   }
 
-  @UseGuards(AuthGuard)
   @Get('tree')
   @ResponseMessage('organization_tree_retrieved')
   @SerializeResponse(OrganizationTreeDto)
@@ -67,8 +63,6 @@ export class OrganizationController {
     return this.organizationService.tree(request.session!.user.id);
   }
 
-  @ResourceExists('organization')
-  @UseGuards(AuthGuard)
   @Get(':id/tree')
   @ResponseMessage('specific_organization_tree_retrieved')
   @SerializeResponse(OrganizationTreeDto)
@@ -80,26 +74,23 @@ export class OrganizationController {
     return this.organizationService.tree(request.session!.user.id, id);
   }
 
-  @UseGuards(AuthGuard)
   @Get(':id')
   @ApiOrganizationFindOne()
   findOne(@Param('id') id: string) {
     return this.organizationService.findOne(id);
   }
 
-  @CanManageOrganizations({ organizationId: 'id' })
   @Patch(':id')
   @ApiOrganizationUpdate()
   @ResponseMessage('organization_updated')
-  update(@Param('id') id: string, @Body() dto: PartialOrganizationDto) {
-    return this.organizationService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: PartialOrganizationDto, @Req() request: AuthRequest) {
+    return this.organizationService.update(id, dto, request.session!.user.id);
   }
 
-  @CanManageOrganizations({ organizationId: 'id' })
   @Delete(':id')
   @ApiOrganizationDelete()
   @ResponseMessage('organization_deleted')
-  delete(@Param('id') id: string) {
-    return this.organizationService.delete(id);
+  delete(@Param('id') id: string, @Req() request: AuthRequest) {
+    return this.organizationService.delete(id, request.session!.user.id);
   }
 }

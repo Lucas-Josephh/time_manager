@@ -16,7 +16,7 @@ export function useTeamFixture() {
       count: jest.fn(),
     },
     organization: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), findMany: jest.fn() },
-    user: { findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
+    user: { count: jest.fn(), findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
   };
   const dto = { name: 'Support', organizationId: 'department-it' };
   const team = { id: 'team-support', ...dto, managerId: null };
@@ -36,6 +36,7 @@ export function useTeamFixture() {
     jest.resetAllMocks();
     prisma.$transaction.mockImplementation((callback: (tx: typeof prisma) => unknown) => typeof callback === 'function' ? callback(prisma) : Promise.all(callback));
     prisma.organization.findMany.mockResolvedValue([]);
+    prisma.user.count.mockResolvedValue(0);
     prisma.user.findMany.mockImplementation(async ({ where }) =>
       (where.id?.in ?? []).map((id: string) => ({
         id, firstname: 'Test', lastname: 'User', teamId: null,

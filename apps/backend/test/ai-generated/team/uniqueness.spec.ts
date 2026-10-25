@@ -104,7 +104,7 @@ describe('Team HTTP API: uniqueness', () => {
   it('does not check name uniqueness when a patch omits the name', async () => {
     await request(context.app.getHttpServer())
       .patch(`/api/team/${team.id}`)
-      .send({ managerId: null })
+      .send({ organizationId: team.organizationId })
       .expect(200);
     expect(prisma.team.findFirst).not.toHaveBeenCalled();
   });

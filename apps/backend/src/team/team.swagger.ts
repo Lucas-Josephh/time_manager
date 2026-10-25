@@ -10,7 +10,7 @@ import {
   ApiWriteErrors,
   ApiValidationError,
 } from '../common/swagger/api-response.decorator';
-import { AvailableTeamUserDto } from './dto/available-team-user.dto';
+import { UserSummaryDto } from '../user/dto/user.dto';
 import {
   PartialSetTeamDto,
   SetTeamDto,
@@ -19,13 +19,11 @@ import {
   TeamListDto,
 } from './dto/team.dto';
 
-const memberRules = `- **Administrateur** : peut ajouter ou transférer tout utilisateur, y compris sans organisation ou déjà dans une autre équipe.
-- **Manager d’organisation** : peut ajouter ou transférer les utilisateurs de son organisation et de ses childes entre les équipes de ce même périmètre. Il ne peut pas retirer un utilisateur à une équipe hors de son périmètre.
-- **Responsable d’équipe** : peut ajouter à sa propre équipe uniquement des utilisateurs sans équipe, rattachés à l’organisation de l’équipe ou à ses childes.
-- Les utilisateurs déjà membres peuvent être conservés, même si leur organisation diffère de celle de l’équipe.
-- Une affectation ne modifie **jamais** l’organisation de l’utilisateur. Si un responsable est transféré, son ancien rôle de responsable est retiré.
-- Le responsable choisi est automatiquement membre. Les affectations et transferts sont atomiques.
-- Un membre inexistant ou non autorisé provoque **409** \`team_members_unavailable\`, avec \`data.unavailableMembers\` et le motif \`not_found\`, \`already_in_team\` ou \`outside_organization\`.`;
+const memberRules = `- Un utilisateur appartient à une seule équipe au maximum et ne peut pas être membre de l’équipe qu’il manage.
+- Les ajouts concernent les utilisateurs sans équipe dans les organisations gérées ou celles des équipes managées, descendants inclus. L’admin n’a pas cette restriction.
+- Un transfert exige les droits de gestion des membres des deux équipes et un teamId source explicite.
+- Les appartenances et les responsabilités sont indépendantes. Aucun changement de membre ne modifie son organisation ou ses responsabilités.
+- Les écritures sont atomiques. Les candidats indisponibles provoquent 409 team_members_unavailable.`;
 
 export function ApiTeamController() {
   return applyDecorators(
@@ -83,16 +81,8 @@ export function ApiTeamUpdate() {
 Session requise. Réservé aux administrateurs, au responsable actuel de cette équipe et aux managers de son organisation ou d’un de ses ancêtres. Un changement d’organisation exige aussi ces droits sur la destination. Les utilisateurs déjà membres conservent leur organisation et leur appartenance lors du déplacement de l’équipe.
 
 ### Champs
-- Seuls les champs fournis sont modifiés : omettre les champs inchangés.
-- Le nom actuel de cette équipe est autorisé.
-- \`null\` peut retirer le responsable.
-
-### Membres
-${memberRules}
-- \`memberIds\` fourni : remplace les membres.
-- \`memberIds: []\` avec un responsable conservé ou défini : seul ce responsable reste membre.
-- \`memberIds: []\` et \`managerId: null\` dans la même requête : retire le responsable et tous les membres ; l\'équipe devient vide.
-- \`memberIds\` omis : conserve les membres actuels et ajoute automatiquement le nouveau responsable si défini.`,
+Seuls name et organizationId sont acceptés. Un déplacement exige les droits de gestion des organisations source et destination et conserve membres et manager.
+Utiliser PATCH /team/:id/manager pour le responsable, POST /team/:id/members pour les ajouts, DELETE /team/:id/members/:userId pour les retraits, POST /team/:id/transfers pour les transferts.`,
     }),
     ApiResourceId('team-administration'),
     ApiBody({ type: PartialSetTeamDto }),
@@ -112,18 +102,18 @@ export function ApiTeamDelete() {
     ApiOperation({
       summary: 'Supprimer une équipe',
       description: `### Accès
-Session requise. Réservé aux administrateurs, au responsable actuel de cette équipe et aux managers de son organisation ou d’un de ses ancêtres.
+Session requise. Réservé aux administrateurs et aux managers de son organisation ou d’un de ses ancêtres.
 
 ### Conditions
 Réaffecter les membres avant la suppression.
 
 ### Résultat
-La suppression est exécutée **avant** l\'envoi de la réponse **202**.`,
+La suppression est exécutée **avant** l\'envoi de la réponse **200**.`,
     }),
     ApiResourceId('team-administration'),
     ApiSuccessResponse({
       type: TeamDetailsDto,
-      status: 202,
+      status: 200,
       message: 'team_deleted',
     }),
     ApiNotFoundError('not_found'),
@@ -136,7 +126,7 @@ export function ApiTeamFindAll() {
     ApiOperation({
       summary: 'Lister les équipes',
       description: `### Accès
-Session requise. Le contrôle du périmètre de management n\'est pas encore implémenté.
+Session requise. Admin : toutes les équipes. Manager d’organisation : ses organisations et descendants. Responsable : ses équipes. Simple membre : accès refusé.
 
 ### Résultat
 - Tri par **nom**, puis par **identifiant**, croissants.
@@ -158,23 +148,10 @@ export function ApiTeamFindAvailableUsers() {
   return applyDecorators(
     ApiOperation({
       summary: 'Lister les utilisateurs accessibles pour constituer une équipe',
-      description: `### Accès
-Session requise. Administrateur, manager d’organisation ou responsable d’équipe.
-Aucun identifiant d’équipe n’est requis.
-
-### Périmètre
-- **Administrateur** : tous les utilisateurs, y compris sans organisation ou déjà affectés.
-- **Manager d’organisation** : utilisateurs de ses organisations et de leurs descendants, sans équipe ou dans une équipe de ce même périmètre.
-- **Responsable d’équipe** : utilisateurs sans équipe dans les organisations de ses équipes et leurs descendants.
-- Les périmètres se cumulent. Aucun membre n’est exclu au titre d’une équipe cible.
-
-### Résultat
-Tri par **nom**, puis **prénom**, puis **identifiant**. Sans pagination.
-Les droits et l’éligibilité dans l’organisation cible sont revérifiés lors de l’affectation.
-Être responsable d’équipe ne donne pas le droit d’en créer une.`,
+      description: `usage=member|transfer|manager et teamId sont obligatoires. member : utilisateurs sans équipe dans le périmètre autorisé. transfer : membres des autres équipes accessibles. manager : tout utilisateur existant sauf les membres de la cible. Les droits sur la cible sont vérifiés.`,
     }),
     ApiSuccessResponse({
-      type: AvailableTeamUserDto,
+      type: UserSummaryDto,
       isArray: true,
       message: 'team_available_users_listed',
     }),
@@ -188,7 +165,7 @@ export function ApiTeamFindOne() {
     ApiOperation({
       summary: 'Consulter une équipe',
       description: `### Accès
-Session requise. Le contrôle du périmètre de management n\'est pas encore implémenté.
+Session requise. Admin : toutes les équipes. Manager d’organisation : ses organisations et descendants. Responsable : ses équipes. Simple membre : accès refusé.
 
 ### Résultat
 - Organisation, responsable et membres inclus.

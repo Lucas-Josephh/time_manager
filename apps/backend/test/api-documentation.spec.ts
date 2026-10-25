@@ -1,14 +1,14 @@
-import { UserController } from '../src/user/user.controller';
-import { UserService } from '../src/user/user.service';
+import { UserController } from '../src/user/controllers/user.controller';
+import { UserService } from '../src/user/services/user.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/auth/auth.service';
 import { AppController } from '../src/app.controller';
 import { Test } from '@nestjs/testing';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { TeamController } from '../src/team/team.controller';
-import { TeamService } from '../src/team/team.service';
-import { OrganizationController } from '../src/organization/organization.controller';
-import { OrganizationService } from '../src/organization/organization.service';
+import { TeamController } from '../src/team/controllers/team.controller';
+import { TeamService } from '../src/team/services/team.service';
+import { OrganizationController } from '../src/organization/controllers/organization.controller';
+import { OrganizationService } from '../src/organization/services/organization.service';
 
 describe('Shared API documentation', () => {
   it('documents real envelopes, relations, filters and reusable errors', async () => {
@@ -61,7 +61,7 @@ describe('Shared API documentation', () => {
             schema: {
               properties: {
                 message: { enum: ['team_available_users_listed'] },
-                data: { type: 'array', items: { $ref: '#/components/schemas/AvailableTeamUserDto' } },
+                data: { type: 'array', items: { $ref: '#/components/schemas/UserSummaryDto' } },
               },
             },
           },
@@ -70,9 +70,9 @@ describe('Shared API documentation', () => {
       for (const status of ['401', '403', '500']) {
         expect(availableUsers?.responses).toHaveProperty(status);
       }
-      expect(availableUsers?.parameters ?? []).toEqual([]);
+      expect(availableUsers?.parameters).toEqual(expect.arrayContaining([expect.objectContaining({ name: 'usage', required: true }), expect.objectContaining({ name: 'teamId', required: true })]));
       expect(document.paths).not.toHaveProperty('/api/team/{id}/available-users');
-      expect(document.components?.schemas?.AvailableTeamUserDto).toMatchObject({
+      expect(document.components?.schemas?.UserSummaryDto).toMatchObject({
         properties: { id: {}, firstname: {}, lastname: {} },
       });
       const organizations = document.paths['/api/organizations'];
@@ -114,7 +114,7 @@ describe('Shared API documentation', () => {
       for (const status of ['401', '403']) {
         expect(teams.post?.responses).toHaveProperty(status);
       }
-      expect(document.components?.schemas?.AvailableTeamUserDto).not.toHaveProperty('properties.image');
+      expect(document.components?.schemas?.UserSummaryDto).not.toHaveProperty('properties.image');
       expect(teams.get?.parameters).toEqual(
         expect.arrayContaining(
           ['name', 'organizationId', 'managerId', 'memberId'].map((name) =>

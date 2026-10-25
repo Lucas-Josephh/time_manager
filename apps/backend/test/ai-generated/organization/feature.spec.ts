@@ -110,12 +110,11 @@ describe('Organization CRUD contracts', () => {
     expect(delegate.update).not.toHaveBeenCalled();
   });
 
-  it('checks the update target before validating the DTO', async () => {
+  it('validates the DTO before loading the update target', async () => {
     delegate.findUnique.mockResolvedValue(null);
     await request(app.getHttpServer()).patch('/api/organizations/missing')
-      .send({ name: 42, unexpected: true }).expect(404)
-      .expect({ success: false, message: 'not_found', data: {} });
-    expect(delegate.findUnique).toHaveBeenCalledTimes(1);
+      .send({ name: 42, unexpected: true }).expect(400);
+    expect(delegate.findUnique).not.toHaveBeenCalled();
     expect(delegate.update).not.toHaveBeenCalled();
   });
 

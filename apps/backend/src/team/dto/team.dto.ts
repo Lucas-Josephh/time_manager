@@ -4,6 +4,7 @@ import { Unique } from '../../common/decorator/unique.decorator';
 import { Reference } from '../../common/decorator/reference.decorator';
 import { OrganizationDetailsDto } from '../../organization/dto/organization.dto';
 import { UserSummaryDto } from '../../user/dto/user.dto';
+import { TransferMemberDto } from './team-actions.dto';
 import { Exclude, Expose, Type } from 'class-transformer';
 import {
   ArrayUnique,
@@ -13,8 +14,9 @@ import {
   IsString,
   MaxLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, PartialType, OmitType } from '@nestjs/swagger';
 
 export class SetTeamDto {
   @ApiProperty({
@@ -41,7 +43,7 @@ export class SetTeamDto {
     nullable: true,
     minLength: 1,
     description:
-      'Utilisateur éligible selon les droits de l’auteur : transfert autorisé pour un administrateur ou un manager d’organisation dans son périmètre ; utilisateur disponible du périmètre pour un responsable d’équipe. Ajouté automatiquement aux membres. null retire uniquement le rôle de responsable ; omis le conserve.',
+      'Tout utilisateur existant, sauf un membre de cette équipe. Ne modifie aucune appartenance',
     example: 'default-admin',
   })
   @Trim()
@@ -66,7 +68,7 @@ export class SetTeamDto {
     type: [String],
     example: ['user-1', 'user-2'],
     description:
-      'Identifiants uniques des membres. Administrateur : affectation libre ; manager d’organisation : transferts dans son périmètre ; responsable d’équipe : utilisateurs sans équipe de son organisation ou de ses childes. L’organisation des utilisateurs est conservée. Remplace la liste fournie ; [] conserve uniquement le responsable si managerId est conservé ou défini ; [] avec managerId: null dans la même requête vide complètement l\'équipe. Omis conserve les membres existants et ajoute le nouveau responsable si défini. Le responsable est toujours inclus.',
+      'Utilisateurs sans équipe, dans le périmètre autorisé. Le manager est exclu. Les transferts utilisent transfers',
   })
   @Trim({ each: true })
   @ValidateIf((_object, value) => value !== undefined)
@@ -75,11 +77,16 @@ export class SetTeamDto {
   @IsString({ each: true })
   @IsNotEmpty({ each: true })
   memberIds?: string[];
+
+  @ApiPropertyOptional({ type: [TransferMemberDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TransferMemberDto)
+  transfers?: TransferMemberDto[];
 }
 
-export class PartialSetTeamDto extends PartialType(SetTeamDto, {
-  skipNullProperties: false,
-}) {}
+export class PartialSetTeamDto extends PartialType(OmitType(SetTeamDto, ['managerId', 'memberIds', 'transfers'] as const), { skipNullProperties: false }) {}
 
 export class QuerySetTeamDto extends PaginationQueryDto {
   @IsOptional()

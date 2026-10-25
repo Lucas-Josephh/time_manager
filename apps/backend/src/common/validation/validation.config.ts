@@ -1,6 +1,7 @@
 import type { ValidationPipeOptions } from '@nestjs/common';
-import type { ValidatorOptions } from 'class-validator';
-import { validationExceptionFactory } from './validation-exception.factory';
+import type { ValidationError, ValidatorOptions } from 'class-validator';
+import { formatValidationErrors } from './format-validation-errors';
+import { ValidationException } from './validation.exception';
 
 // Shared by Nest's ValidationPipe and direct class-validator calls.
 export const validatorOptions: ValidatorOptions = {
@@ -11,5 +12,6 @@ export const validatorOptions: ValidatorOptions = {
 export const validationOptions: ValidationPipeOptions = {
   ...validatorOptions,
   transform: true,
-  exceptionFactory: validationExceptionFactory,
+  exceptionFactory: (errors: ValidationError[]) =>
+    new ValidationException(formatValidationErrors(errors)),
 };

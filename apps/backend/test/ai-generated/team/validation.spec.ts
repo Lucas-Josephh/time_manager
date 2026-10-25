@@ -5,15 +5,14 @@ describe('Team HTTP API: validation', () => {
   const context = useTeamFixture();
   const { prisma, dto, envelope } = context;
   it.each(['patch'] as const)(
-    'returns 404 before DTO validation for a missing team in %s',
+    'validates DTO before loading records for a missing team in %s',
     async (method) => {
       prisma.team.findUnique.mockResolvedValue(null);
       prisma.team.findFirst.mockResolvedValue({ id: 'other-team' });
       await request(context.app.getHttpServer())
         [method]('/api/team/missing')
         .send({ name: 42, organizationId: 42, unexpected: true })
-        .expect(404)
-        .expect(envelope('not_found', {}, false));
+        .expect(400);
       expect(prisma.team.findFirst).not.toHaveBeenCalled();
       expect(prisma.organization.findUnique).not.toHaveBeenCalled();
       expect(prisma.team.update).not.toHaveBeenCalled();

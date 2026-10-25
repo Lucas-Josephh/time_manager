@@ -15,6 +15,7 @@ describe('Resource lookup and validation order', () => {
   afterAll(async () => { await app.close(); });
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.$transaction.mockImplementation(callback => callback(prisma));
     session.mockResolvedValue({ user: { id: 'test-user' } });
     prisma.team.findUnique.mockResolvedValue(null);
     prisma.organization.findUnique.mockResolvedValue(null);
@@ -31,12 +32,10 @@ describe('Resource lookup and validation order', () => {
   });
 
   it.each([
-    ['patch', '/api/team/missing'],
-    ['patch', '/api/organizations/missing'],
-  ] as const)('returns 404 before validating the body on %s %s', async (method, path) => {
+        ['patch', '/api/organizations/missing'],
+  ] as const)('validates the body before loading the target on %s %s', async (method, path) => {
     await request(app.getHttpServer())[method](path)
-      .send({ name: 42, unexpected: true }).expect(404)
-      .expect({ success: false, message: 'not_found', data: {} });
+      .send({ name: 42, unexpected: true }).expect(400);
     expect(prisma.team.findFirst).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });

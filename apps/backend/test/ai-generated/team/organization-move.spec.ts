@@ -67,53 +67,16 @@ describe('Team organization changes', () => {
     prisma.user.updateMany.mockResolvedValue({ count: 1 });
     await request(context.app.getHttpServer())[method](`/api/team/${team.id}`)
       .send({ name: dto.name, organizationId: 'destination' }).expect(200);
-    expect(prisma.user.updateMany).toHaveBeenCalledWith({
-      where: { id: { in: [member.id] } }, data: { teamId: team.id },
-    });
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
     expect(member.organizationId).toBe(team.organizationId);
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: 'Serializable',
     });
   });
 
-  it('keeps the manager when moving the team, even with an explicit empty member list', async () => {
-    const manager = { ...member, id: 'manager' };
-    prisma.team.update.mockResolvedValue({ ...moved, managerId: manager.id });
-    prisma.user.findMany.mockResolvedValue([manager]);
-    prisma.user.updateMany.mockResolvedValue({ count: 1 });
+  it('rejects assignment fields during a move', async () => {
     await request(context.app.getHttpServer()).patch(`/api/team/${team.id}`)
-      .send({ organizationId: 'destination', memberIds: [] }).expect(200);
-    expect(prisma.user.updateMany).toHaveBeenNthCalledWith(1, {
-      where: { id: { in: ['manager'] } }, data: { teamId: team.id },
-    });
-  });
-
-  it('allows removing the manager and members while moving the team', async () => {
-    prisma.user.updateMany.mockResolvedValue({ count: 1 });
-    await request(context.app.getHttpServer())
-      .patch(`/api/team/${team.id}`)
-      .send({ organizationId: 'destination', managerId: null, memberIds: [] })
-      .expect(200);
-    expect(prisma.user.updateMany).toHaveBeenCalledWith({
-      where: { teamId: team.id, id: { notIn: [] } },
-      data: { teamId: null },
-    });
-  });
-
-  it('does not check members removed by an explicit replacement list', async () => {
-    prisma.user.updateMany.mockResolvedValue({ count: 1 });
-    await request(context.app.getHttpServer())
-      .patch(`/api/team/${team.id}`)
-      .send({ organizationId: 'destination', memberIds: ['replacement'] })
-      .expect(200);
-    expect(prisma.user.findMany).toHaveBeenCalledWith({
-      where: { id: { in: ['replacement'] } },
-      select: { id: true, firstname: true, lastname: true, teamId: true,
-        organizationId: true, team: { select: { organizationId: true } } },
-    });
-    expect(prisma.user.updateMany).toHaveBeenNthCalledWith(2, {
-      where: { teamId: team.id, id: { notIn: ['replacement'] } },
-      data: { teamId: null },
-    });
+      .send({ organizationId: 'destination', memberIds: [] }).expect(400);
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
   });
 });

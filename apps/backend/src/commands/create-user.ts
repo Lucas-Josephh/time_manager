@@ -1,4 +1,4 @@
-import { buildUserName } from '../user/user-name';
+import { buildUserName } from '../user/utils/build-user-name';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { resolve } from 'node:path';

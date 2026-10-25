@@ -1,5 +1,5 @@
 import { getSessionFromCtx } from 'better-auth/api';
-import { buildUserName } from '../../user/user-name';
+import { buildUserName } from '../../user/utils/build-user-name';
 import type { AuthTypes } from '../auth.types';
 
 export async function updateProfileHook(ctx: AuthTypes) {

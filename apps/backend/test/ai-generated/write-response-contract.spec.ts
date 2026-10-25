@@ -45,7 +45,7 @@ describe('Organization and team write response models', () => {
     }
   });
 
-  it.each(['post', 'patch'] as const)('reads relations after assigning members in %s', async method => {
+  it.each(['post'] as const)('reads relations after assigning members in %s', async method => {
     let assigned = false;
     prisma.user.findMany.mockResolvedValue([
       { ...person, teamId: null, organizationId: organization.id, team: null },

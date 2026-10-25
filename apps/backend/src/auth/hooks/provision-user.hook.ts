@@ -1,4 +1,4 @@
-import { buildUserName } from '../../user/user-name';
+import { buildUserName } from '../../user/utils/build-user-name';
 import type { AuthTypes } from '../auth.types';
 
 /**

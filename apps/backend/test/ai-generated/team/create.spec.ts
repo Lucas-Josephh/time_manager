@@ -3,7 +3,7 @@ import { useTeamFixture } from './team.fixture';
 
 describe('Team HTTP API: create', () => {
   const context = useTeamFixture();
-  const { prisma, dto, team, envelope, relations } = context;
+  const { prisma, dto, team, envelope } = context;
   it.each([undefined, null, 'user-manager'])(
     'creates a team with manager %s and trims inputs',
     async (managerId) => {
@@ -22,7 +22,6 @@ describe('Team HTTP API: create', () => {
         .expect(envelope('team_created', result));
       expect(prisma.team.create).toHaveBeenCalledWith({
         data: { ...dto, managerId },
-        ...(managerId ? {} : { include: relations }),
       });
     },
   );

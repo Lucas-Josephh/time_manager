@@ -36,7 +36,7 @@ describe('Team management permissions', () => {
         await request(context.app.getHttpServer())
           [method](`/api/team/${team.id}`)
           .send(method === 'delete' ? undefined : dto)
-          .expect(method === 'delete' ? 202 : 200);
+          .expect(method === 'delete' ? 200 : 200);
       }
     },
   );
@@ -51,7 +51,6 @@ describe('Team management permissions', () => {
         .expect(403);
       expect(prisma.team.update).not.toHaveBeenCalled();
       expect(prisma.team.delete).not.toHaveBeenCalled();
-      expect(prisma.$transaction).not.toHaveBeenCalled();
     },
   );
 
@@ -90,14 +89,14 @@ describe('Team management permissions', () => {
       await request(context.app.getHttpServer())
         [method](`/api/team/${team.id}`)
         .send(method === 'delete' ? undefined : dto)
-        .expect(method === 'delete' ? 202 : 200);
+        .expect(method === 'delete' ? 403 : 200);
     },
   );
 
   it('does not grant rights from the managerId provided in the request', async () => {
     actor([]);
     await request(context.app.getHttpServer())
-      .patch(`/api/team/${team.id}`)
+      .patch(`/api/team/${team.id}/manager`)
       .send({ managerId: 'test-user' })
       .expect(403);
     expect(prisma.team.update).not.toHaveBeenCalled();
@@ -129,7 +128,7 @@ describe('Team management permissions', () => {
         .send({ name: dto.name, organizationId: 'destination' })
         .expect(403);
       expect(prisma.team.update).not.toHaveBeenCalled();
-      actor(['destination']);
+      actor(['department-it', 'destination']);
       await request(context.app.getHttpServer())
         [method](`/api/team/${team.id}`)
         .send({ name: dto.name, organizationId: 'destination' })

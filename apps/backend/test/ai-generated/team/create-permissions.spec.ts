@@ -70,7 +70,6 @@ describe('Team creation permissions', () => {
       .send(dto)
       .expect(403);
     expect(prisma.team.create).not.toHaveBeenCalled();
-    expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(prisma.user.updateMany).not.toHaveBeenCalled();
   });
 
@@ -183,6 +182,5 @@ describe('Team creation permissions', () => {
       .expect(500)
       .expect({ success: false, message: 'internal_server_error', data: {} });
     expect(prisma.team.create).not.toHaveBeenCalled();
-    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });

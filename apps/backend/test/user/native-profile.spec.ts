@@ -51,6 +51,7 @@ describe('Native Better Auth profile contract', () => {
       firstname: 'Alice',
       lastname: 'Martin',
       phone: '+33612345678',
+      job: 'Développeur',
     }).expect(200);
     const { body } = await session().expect(200);
     expect(body.user).toMatchObject({
@@ -58,6 +59,7 @@ describe('Native Better Auth profile contract', () => {
       firstname: 'Alice',
       lastname: 'Martin',
       phone: '+33612345678',
+      job: 'Développeur',
       email: 'member@example.com',
       isAdmin: false,
     });
@@ -78,13 +80,15 @@ describe('Native Better Auth profile contract', () => {
       firstname: 'Bob',
       lastname: 'Martin',
       phone: '+33612345678',
+      job: 'Développeur',
     });
   });
 
   it('preserves explicit null to clear the optional phone number', async () => {
-    await update({ phone: null }).expect(200);
+    await update({ phone: null, job: null }).expect(200);
     expect((await session().expect(200)).body.user).toMatchObject({
       phone: null,
+      job: null,
       name: 'Bob Martin',
       firstname: 'Bob',
       lastname: 'Martin',

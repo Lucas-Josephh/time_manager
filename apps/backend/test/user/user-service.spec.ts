@@ -36,6 +36,7 @@ describe('User provisioning', () => {
         findUniqueOrThrow: mockFindUniqueOrThrow, findUnique: jest.fn().mockResolvedValue({
           id: 'new-user',
           phone: '+33612345678',
+          job: 'Développeur',
           mustChangePassword: true,
         }),
       },
@@ -56,6 +57,7 @@ describe('User provisioning', () => {
       email: 'alice@example.com',
       password: 'Temporary123!',
       phone: '+33612345678',
+      job: 'Développeur',
       isAdmin: true,
     };
     await expect(service.create(dto, 'admin')).resolves.toMatchObject({
@@ -73,6 +75,7 @@ describe('User provisioning', () => {
         firstname: dto.firstname,
         lastname: dto.lastname,
         phone: dto.phone,
+        job: dto.job,
         isAdmin: true,
         mustChangePassword: true,
       },

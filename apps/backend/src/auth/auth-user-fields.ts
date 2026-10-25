@@ -10,6 +10,7 @@ export function betterAuthAdditionalFields(provisionUsers: boolean) {
       type: 'string',
       required: true,
     },
+    job: { type: 'string', required: false },
     phone: {
       type: 'string',
       required: false,

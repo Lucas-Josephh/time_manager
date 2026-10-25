@@ -110,6 +110,7 @@ export class UserService {
     const data: Prisma.UserUpdateInput = {};
     if (dto.firstname !== undefined) data.firstname = dto.firstname;
     if (dto.lastname !== undefined) data.lastname = dto.lastname;
+    if (dto.job !== undefined) data.job = dto.job;
     if (dto.phone !== undefined) data.phone = dto.phone;
     if (dto.isAdmin !== undefined) data.isAdmin = dto.isAdmin;
     // A supplied email must be verified again, even when other profile fields are unchanged.

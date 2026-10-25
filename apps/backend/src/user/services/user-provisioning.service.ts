@@ -40,6 +40,7 @@ export class UserProvisioningService {
         name: buildUserName(dto.firstname, dto.lastname),
         firstname: dto.firstname,
         lastname: dto.lastname,
+        ...(dto.job == null ? {} : { job: dto.job }),
         ...(dto.phone == null ? {} : { phone: dto.phone }),
         isAdmin: dto.isAdmin ?? false,
         mustChangePassword: true,

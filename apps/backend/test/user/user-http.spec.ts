@@ -281,12 +281,29 @@ describe('User administration HTTP contract', () => {
       })
       .expect(400);
   });
+  it('validates, trims and exposes the job in administrative updates', async () => {
+    prisma.user.update.mockResolvedValue({ ...user, job: 'Développeur' });
+    const response = await request(app.getHttpServer())
+      .patch('/api/users/u1')
+      .send({ job: ' Développeur ' })
+      .expect(200);
+    expect(response.body.data.job).toBe('Développeur');
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { job: 'Développeur' },
+    });
+    await request(app.getHttpServer())
+      .patch('/api/users/u1')
+      .send({ job: 123 })
+      .expect(400);
+  });
   it('persists every supported patch field and checks email uniqueness excluding the current user', async () => {
     await request(app.getHttpServer())
       .patch('/api/users/u1')
       .send({
         email: ' NEW@example.com ',
         phone: null,
+        job: null,
         firstname: ' Alice ',
         isAdmin: true,
       })
@@ -303,6 +320,7 @@ describe('User administration HTTP contract', () => {
         lastname: undefined,
         email: 'new@example.com',
         phone: null,
+        job: null,
         isAdmin: true,
         emailVerified: false,
       },

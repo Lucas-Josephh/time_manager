@@ -61,6 +61,15 @@ export class UserDetailsDto extends UserSummaryDto {
 
   @Expose()
   @ApiProperty({
+    description: 'Poste de l’utilisateur, ou null si absent.',
+    type: String,
+    nullable: true,
+    example: 'Développeur',
+  })
+  job!: string | null;
+
+  @Expose()
+  @ApiProperty({
     description: 'Téléphone, ou null si aucun numéro n’est renseigné.',
     type: String,
     nullable: true,
@@ -161,6 +170,19 @@ export class UserProfileDto {
   @IsEmail()
   @IsNotEmpty()
   email!: string;
+
+  @ApiPropertyOptional({
+    description: 'Poste de l’utilisateur. Null permet de ne pas le renseigner ou de l’effacer.',
+    type: String,
+    nullable: true,
+    maxLength: 255,
+    example: 'Développeur',
+  })
+  @Trim()
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  job?: string | null;
 
   @ApiPropertyOptional({
     description: 'Numéro international valide. Null permet de ne pas renseigner ou d’effacer le téléphone.',

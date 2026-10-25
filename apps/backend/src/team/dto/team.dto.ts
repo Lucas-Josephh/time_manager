@@ -4,7 +4,6 @@ import { Unique } from '../../common/decorator/unique.decorator';
 import { Reference } from '../../common/decorator/reference.decorator';
 import { OrganizationDetailsDto } from '../../organization/dto/organization.dto';
 import { UserSummaryDto } from '../../user/dto/user.dto';
-import { TransferMemberDto } from './team-actions.dto';
 import { Exclude, Expose, Type } from 'class-transformer';
 import {
   ArrayUnique,
@@ -14,7 +13,6 @@ import {
   IsString,
   MaxLength,
   ValidateIf,
-  ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType, OmitType } from '@nestjs/swagger';
 
@@ -68,7 +66,7 @@ export class SetTeamDto {
     type: [String],
     example: ['user-1', 'user-2'],
     description:
-      'Utilisateurs sans équipe, dans le périmètre autorisé. Le manager est exclu. Les transferts utilisent transfers',
+      'Utilisateurs à affecter à la nouvelle équipe. Ceux déjà dans une autre équipe sont transférés automatiquement, sous réserve des droits sur leur équipe source. Le manager est exclu.',
   })
   @Trim({ each: true })
   @ValidateIf((_object, value) => value !== undefined)
@@ -77,16 +75,9 @@ export class SetTeamDto {
   @IsString({ each: true })
   @IsNotEmpty({ each: true })
   memberIds?: string[];
-
-  @ApiPropertyOptional({ type: [TransferMemberDto] })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => TransferMemberDto)
-  transfers?: TransferMemberDto[];
 }
 
-export class PartialSetTeamDto extends PartialType(OmitType(SetTeamDto, ['managerId', 'memberIds', 'transfers'] as const), { skipNullProperties: false }) {}
+export class PartialSetTeamDto extends PartialType(OmitType(SetTeamDto, ['managerId', 'memberIds'] as const), { skipNullProperties: false }) {}
 
 export class QuerySetTeamDto extends PaginationQueryDto {
   @IsOptional()

@@ -57,11 +57,7 @@ export class TeamService {
       if (dto.managerId)
         await tx.user.findUniqueOrThrow({ where: { id: dto.managerId } });
 
-      const transfers = dto.transfers ?? [];
-      const requestedIds = [
-        ...(dto.memberIds ?? []),
-        ...transfers.map((t) => t.userId),
-      ];
+      const requestedIds = dto.memberIds ?? [];
 
       if (new Set(requestedIds).size !== requestedIds.length)
         throw new ConflictException('duplicate_member');
@@ -71,19 +67,25 @@ export class TeamService {
         organizationId: dto.organizationId,
         managerId: dto.managerId ?? null,
       };
-      await this.members.validateAssignment(
-        tx,
-        target,
-        dto.memberIds ?? [],
-        actor,
-      );
-      for (const transfer of transfers)
+      // Resolve source teams from stored memberships inside the same transaction.
+      const users = await tx.user.findMany({
+        where: { id: { in: requestedIds } },
+        select: { id: true, teamId: true },
+      });
+      const groups = new Map<string | null, string[]>();
+      for (const id of requestedIds) {
+        const sourceTeamId = users.find((user) => user.id === id)?.teamId ?? null;
+        const ids = groups.get(sourceTeamId) ?? [];
+        ids.push(id);
+        groups.set(sourceTeamId, ids);
+      }
+      for (const [sourceTeamId, ids] of groups)
         await this.members.validateAssignment(
           tx,
           target,
-          [transfer.userId],
+          ids,
           actor,
-          transfer.teamId,
+          sourceTeamId ?? undefined,
         );
       const team = await tx.team.create({
         data: {

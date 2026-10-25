@@ -185,7 +185,7 @@ describe('Team membership permissions by actor', () => {
     await request(app.getHttpServer()).get('/api/team/available-users').expect(400);
   });
   it('rolls back creation and earlier assignments if a transfer fails', async () => {
-    await request(app.getHttpServer()).post('/api/team').send({ name: 'New', organizationId: 'child', memberIds: ['available'], transfers: [{ userId: 'missing', teamId: 'source' }] }).expect(409);
+    await request(app.getHttpServer()).post('/api/team').send({ name: 'New', organizationId: 'child', memberIds: ['available', 'missing'] }).expect(409);
     expect(user('available').teamId).toBeNull();
     expect(teams.some(t => t.id === 'created')).toBe(false);
   });
@@ -209,9 +209,24 @@ describe('Team membership permissions by actor', () => {
     await request(app.getHttpServer()).delete('/api/team/target').expect(409);
     expect(teams.some(t => t.id === 'target')).toBe(true);
   });
+  it('rejects automatic transfers from a source outside the actor’s scope', async () => {
+    actor = 'org-manager';
+    await request(app.getHttpServer()).post('/api/team')
+      .send({ name: 'New', organizationId: 'child', memberIds: ['available', 'external-user'] })
+      .expect(403);
+    expect(user('available').teamId).toBeNull();
+    expect(user('external-user').teamId).toBe('outside');
+    expect(teams.some(t => t.id === 'created')).toBe(false);
+  });
+  it('rejects the removed transfers field', async () => {
+    await request(app.getHttpServer()).post('/api/team')
+      .send({ name: 'New', organizationId: 'child', transfers: [] })
+      .expect(400);
+  });
   it('creates with initial transfers while preserving source responsibilities', async () => {
-    await request(app.getHttpServer()).post('/api/team').send({ name: 'New', organizationId: 'child', managerId: 'external-user', transfers: [{ userId: 'busy', teamId: 'source' }] }).expect(201);
+    await request(app.getHttpServer()).post('/api/team').send({ name: 'New', organizationId: 'child', managerId: 'external-user', memberIds: ['busy', 'available'] }).expect(201);
     expect(user('busy').teamId).toBe('created');
+    expect(user('available').teamId).toBe('created');
     expect(user('external-user').teamId).toBe('outside');
     expect(teams.find(t => t.id === 'source')?.managerId).toBe('busy');
   });

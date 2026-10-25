@@ -21,7 +21,7 @@ import {
 
 const memberRules = `- Un utilisateur appartient à une seule équipe au maximum et ne peut pas être membre de l’équipe qu’il manage.
 - Les ajouts concernent les utilisateurs sans équipe dans les organisations gérées ou celles des équipes managées, descendants inclus. L’admin n’a pas cette restriction.
-- Un transfert exige les droits de gestion des membres des deux équipes et un teamId source explicite.
+- Un transfert exige les droits de gestion des membres des deux équipes. À la création, l’équipe source est déduite automatiquement de chaque utilisateur de memberIds ; la route dédiée de transfert exige un teamId source explicite.
 - Les appartenances et les responsabilités sont indépendantes. Aucun changement de membre ne modifie son organisation ou ses responsabilités.
 - Les écritures sont atomiques. Les candidats indisponibles provoquent 409 team_members_unavailable.`;
 
@@ -54,6 +54,7 @@ Session requise. Réservé aux **administrateurs** et aux **managers de l’orga
 ${memberRules}
 
 ### Résultat
+Les utilisateurs de \`memberIds\` déjà affectés à une équipe sont transférés automatiquement après vérification des droits sur leur équipe source.
 La création et les affectations sont **atomiques**.`,
     }),
     ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),

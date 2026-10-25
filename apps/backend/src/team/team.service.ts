@@ -1,3 +1,8 @@
+import { paginate } from '../common/pagination/paginate';
+import {
+  getOrganizationAncestors,
+  getOrganizationDescendantIds,
+} from '../organization/organization-hierarchy';
 import { requireUnique } from '../common/validation/resource-validation';
 import {
   ConflictException,
@@ -46,35 +51,51 @@ const relations = {
 export class TeamService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async assertCanCreate(organizationId: string, userId: string): Promise<void> {
+  /**
+   * Checks if a user has permission to manage teams in the specified organization.
+   * Admin users can manage teams in any organization. The manager of an existing
+   * team can manage that team when its persisted context is supplied by the guard.
+   *
+   * @param organizationId
+   * @param userId
+   * @param team Current team scope and manager loaded from the database.
+   */
+  async assertCanManageTeams(
+    organizationId: string,
+    userId: string,
+    team?: { organizationId: string; managerId: string | null },
+  ): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { isAdmin: true },
     });
-    // If the user does not exist, they cannot create a team.
+
+    // If the user does not exist, they cannot manage teams.
     if (!user) throw new ForbiddenException();
 
-    // If the user is an admin, they can create a team in any organization.
+    // If the user is an admin, they can manage teams in any organization.
     if (user.isAdmin) return;
 
-    const visited = new Set<string>();
-    let currentId: string | null = organizationId;
-    while (currentId && !visited.has(currentId)) {
-      visited.add(currentId);
-      const organization: {
-        managerId: string | null;
-        parentId: string | null;
-      } | null = await this.prisma.organization.findUnique({
-        where: { id: currentId },
-        select: { managerId: true, parentId: true },
-      });
-      if (!organization) break;
-      if (organization.managerId === userId) return;
-      currentId = organization.parentId;
-    }
+    // Team ownership only grants rights in that existing team's current scope.
+    // This context comes from the guard's database lookup, never from the body.
+    if (team?.organizationId === organizationId && team.managerId === userId)
+      return;
+
+    const ancestors = await getOrganizationAncestors(organizationId, this.prisma);
+    if (ancestors.some((organization) => organization.managerId === userId))
+      return;
+
     throw new ForbiddenException();
   }
 
+  /**
+   * Return users that are available to be added to a team, i.e., users that are
+   * not already assigned to a team and belong to the same organization or
+   * its descendants.
+   *
+   * @param id
+   * @param userId
+   */
   async findAvailableUsers(
     id: string,
     userId: string,
@@ -94,27 +115,37 @@ export class TeamService {
       throw new ForbiddenException();
     }
 
-    const organizationIds = new Set([team.organizationId]);
-    let frontier = [team.organizationId];
-    while (frontier.length > 0) {
-      const children = await this.prisma.organization.findMany({
-        where: { parentId: { in: frontier } },
-        select: { id: true },
-      });
-      frontier = [];
-      for (const child of children) {
-        if (!organizationIds.has(child.id)) {
-          organizationIds.add(child.id);
-          frontier.push(child.id);
-        }
-      }
-    }
+    const organizationIds = await getOrganizationDescendantIds(
+      team.organizationId,
+      this.prisma,
+    );
 
     return this.prisma.user.findMany({
-      where: { organizationId: { in: [...organizationIds] }, teamId: null },
+      where: { organizationId: { in: organizationIds }, teamId: null },
       select: { id: true, firstname: true, lastname: true, image: true },
       orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }, { id: 'asc' }],
     });
+  }
+
+  /**
+   * Resolve membership before inserting a new user; its organization follows the team.
+   *
+   * @param tx - Prisma transaction client
+   * @param teamId - Team ID
+   *
+   * @returns Object containing teamId and organizationId
+   */
+  async getProvisioningMembership(
+    tx: Prisma.TransactionClient,
+    teamId: string,
+  ) {
+    const team = await requireResource(
+      tx.team.findUnique({
+        where: { id: teamId },
+        select: { organizationId: true },
+      }),
+    );
+    return { teamId, organizationId: team.organizationId };
   }
 
   async create(dto: SetTeamDto) {
@@ -133,16 +164,25 @@ export class TeamService {
     if (memberIds.length === 0)
       return this.prisma.team.create({ data, include: relations });
 
-    return this.prisma.$transaction(async (tx) => {
-      const team = await tx.team.create({ data });
-      await this.setMembers(tx, team.id, dto.organizationId, memberIds, false);
-      return requireResource(
-        tx.team.findUnique({
-          where: { id: team.id },
-          include: relations,
-        }),
-      );
-    });
+    return this.prisma.$transaction(
+      async (tx) => {
+        const team = await tx.team.create({ data });
+        await this.setMembers(
+          tx,
+          team.id,
+          dto.organizationId,
+          memberIds,
+          false,
+        );
+        return requireResource(
+          tx.team.findUnique({
+            where: { id: team.id },
+            include: relations,
+          }),
+        );
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   findOne(id: string) {
@@ -155,11 +195,21 @@ export class TeamService {
   }
 
   findAll(filters: QuerySetTeamDto = {}) {
-    return this.prisma.team.findMany({
-      where: buildTeamQueryFilter(filters),
-      orderBy: { name: 'asc' },
-      include: relations,
-    });
+    const where = buildTeamQueryFilter(filters);
+    return paginate(filters, (range) =>
+      this.prisma.$transaction(
+        [
+          this.prisma.team.findMany({
+            where,
+            ...range,
+            orderBy: [{ name: 'asc' }, { id: 'asc' }],
+            include: relations,
+          }),
+          this.prisma.team.count({ where }),
+        ],
+        { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+      ),
+    );
   }
 
   replace(id: string, dto: SetTeamDto) {
@@ -169,36 +219,62 @@ export class TeamService {
   async update(id: string, dto: PartialSetTeamDto) {
     await this.validateName(dto, id);
     const { memberIds, ...data } = dto;
-    if (memberIds === undefined && !dto.managerId)
+    if (
+      dto.organizationId === undefined &&
+      memberIds === undefined &&
+      !dto.managerId
+    )
       return this.prisma.team.update({
         where: { id },
         data,
         include: relations,
       });
 
-    return this.prisma.$transaction(async (tx) => {
-      const team = await tx.team.update({ where: { id }, data });
-      const effectiveMemberIds = [
-        ...new Set([
-          ...(memberIds ?? []),
-          ...(team.managerId ? [team.managerId] : []),
-        ]),
-      ];
-      await this.setMembers(
-        tx,
-        id,
-        team.organizationId,
-        effectiveMemberIds,
-        memberIds !== undefined,
-        true,
-      );
-      return requireResource(
-        tx.team.findUnique({
-          where: { id: team.id },
-          include: relations,
-        }),
-      );
-    });
+    return this.prisma.$transaction(
+      async (tx) => {
+        let organizationChanged = false;
+        if (dto.organizationId !== undefined) {
+          const currentTeam = await requireResource(
+            tx.team.findUnique({
+              where: { id },
+              select: { organizationId: true },
+            }),
+          );
+          organizationChanged =
+            currentTeam.organizationId !== dto.organizationId;
+        }
+        if (!organizationChanged && memberIds === undefined && !dto.managerId) {
+          return tx.team.update({ where: { id }, data, include: relations });
+        }
+
+        const team = await tx.team.update({ where: { id }, data });
+        const retainedMembers =
+          organizationChanged && memberIds === undefined
+            ? await tx.user.findMany({
+                where: { teamId: id },
+                select: { id: true },
+              })
+            : [];
+        const effectiveMemberIds = [
+          ...new Set([
+            ...(memberIds ?? retainedMembers.map((member) => member.id)),
+            ...(team.managerId ? [team.managerId] : []),
+          ]),
+        ];
+        await this.setMembers(
+          tx,
+          id,
+          dto.organizationId ?? team.organizationId,
+          effectiveMemberIds,
+          memberIds !== undefined,
+          true,
+        );
+        return requireResource(
+          tx.team.findUnique({ where: { id }, include: relations }),
+        );
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   private async validateName(
@@ -225,28 +301,17 @@ export class TeamService {
     allowExisting = replace,
   ): Promise<void> {
     if (memberIds.length > 0) {
-      const organizationIds = new Set([organizationId]);
-      let frontier = [organizationId];
-      while (frontier.length > 0) {
-        const children = await tx.organization.findMany({
-          where: { parentId: { in: frontier } },
-          select: { id: true },
-        });
-        frontier = [];
-        for (const child of children) {
-          if (!organizationIds.has(child.id)) {
-            organizationIds.add(child.id);
-            frontier.push(child.id);
-          }
-        }
-      }
+      const organizationIds = await getOrganizationDescendantIds(
+        organizationId,
+        tx,
+      );
       const assigned = await tx.user.updateMany({
         where: {
           id: { in: memberIds },
           ...(allowExisting
             ? { OR: [{ teamId: null }, { teamId }] }
             : { teamId: null }),
-          organizationId: { in: [...organizationIds] },
+          organizationId: { in: organizationIds },
         },
         data: { teamId },
       });
@@ -269,7 +334,7 @@ export class TeamService {
             user.teamId !== null && user.teamId !== teamId
               ? 'already_in_team'
               : user.organizationId === null ||
-                  !organizationIds.has(user.organizationId)
+                  !organizationIds.includes(user.organizationId)
                 ? 'outside_organization'
                 : null;
           return reason

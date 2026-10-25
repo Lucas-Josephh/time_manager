@@ -1,3 +1,5 @@
+import { UserController } from '../src/user/user.controller';
+import { UserService } from '../src/user/user.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/auth/auth.service';
 import { AppController } from '../src/app.controller';
@@ -11,11 +13,12 @@ import { OrganizationService } from '../src/organization/organization.service';
 describe('Shared API documentation', () => {
   it('documents real envelopes, relations, filters and reusable errors', async () => {
     const module = await Test.createTestingModule({
-      controllers: [TeamController, OrganizationController, AppController],
+      controllers: [TeamController, OrganizationController, UserController, AppController],
       providers: [
         { provide: PrismaService, useValue: {} },
         { provide: AuthService, useValue: {} },
         { provide: TeamService, useValue: {} },
+        { provide: UserService, useValue: {} },
         { provide: OrganizationService, useValue: {} },
       ],
     }).compile();
@@ -27,6 +30,28 @@ describe('Shared API documentation', () => {
         app,
         new DocumentBuilder().build(),
       );
+      const users = document.paths['/api/users'];
+      expect(users.post?.requestBody).toMatchObject({
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateUserDto' } } },
+      });
+      expect(users.get?.parameters).toEqual(expect.arrayContaining(
+        ['page', 'limit', 'email', 'firstname', 'lastname'].map(name =>
+          expect.objectContaining({ name, in: 'query', required: false }),
+        ),
+      ));
+      expect(document.components?.schemas?.CreateUserDto).toMatchObject({
+        required: expect.arrayContaining(['firstname', 'lastname', 'email', 'password']),
+        properties: {
+          firstname: { maxLength: 255 },
+          password: { writeOnly: true, minLength: 12, maxLength: 128 },
+          teamId: { example: 'team-administration' },
+        },
+      });
+      expect(document.components?.schemas?.CreateUserDto).not.toHaveProperty('properties.name');
+      expect(document.components?.schemas?.UpdateUserDto).not.toHaveProperty('properties.teamId');
+      expect(document.components?.schemas?.UserDetailsDto).toMatchObject({
+        properties: { name: { readOnly: true }, phone: { nullable: true } },
+      });
       const teams = document.paths['/api/team'];
       const team = document.paths['/api/team/{id}'];
       const availableUsers = document.paths['/api/team/{id}/available-users'].get;
@@ -132,10 +157,7 @@ describe('Shared API documentation', () => {
           'application/json': {
             schema: {
               properties: {
-                data: {
-                  type: 'array',
-                  items: { $ref: '#/components/schemas/OrganizationDetailsDto' },
-                },
+                data: { $ref: '#/components/schemas/OrganizationListDto' },
               },
             },
           },

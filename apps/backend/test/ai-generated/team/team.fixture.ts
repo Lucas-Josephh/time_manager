@@ -12,6 +12,7 @@ export function useTeamFixture() {
       findFirst: jest.fn(),
       findUnique: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
     },
     organization: { findUnique: jest.fn(), findMany: jest.fn() },
     user: { findUnique: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
@@ -32,8 +33,9 @@ export function useTeamFixture() {
   });
   beforeEach(() => {
     jest.resetAllMocks();
-    prisma.$transaction.mockImplementation((callback: (tx: typeof prisma) => unknown) => callback(prisma));
+    prisma.$transaction.mockImplementation((callback: (tx: typeof prisma) => unknown) => typeof callback === 'function' ? callback(prisma) : Promise.all(callback));
     prisma.organization.findMany.mockResolvedValue([]);
+    prisma.user.findMany.mockResolvedValue([]);
     prisma.user.updateMany.mockImplementation(({ where }: { where: { id: { in: string[] } } }) => Promise.resolve({ count: where.id.in.length }));
     prisma.team.findFirst.mockResolvedValue(null);
     prisma.organization.findUnique.mockResolvedValue({ id: dto.organizationId });
@@ -43,6 +45,7 @@ export function useTeamFixture() {
     prisma.team.delete.mockResolvedValue(team);
     prisma.team.findUnique.mockResolvedValue(team);
     prisma.team.findMany.mockResolvedValue([team]);
+    prisma.team.count.mockResolvedValue(1);
   });
   return {
     get app() {

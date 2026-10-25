@@ -4,7 +4,7 @@ import { createHttpTestApp } from '../support/http-test-app';
 
 describe('Organization HTTP API', () => {
   let app: INestApplication;
-  const prisma = { $transaction: async (callback: (tx: object) => unknown) => callback({ organization: prisma.organization }), organization: { findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() } };
+  const prisma = { user: { findUnique: jest.fn() }, $transaction: async (callback: (tx: object) => unknown) => typeof callback === 'function' ? callback({ organization: prisma.organization }) : Promise.all(callback), organization: { count: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() } };
   const organization = { id: 'department-it', name: 'IT' };
 
   beforeAll(async () => {
@@ -15,9 +15,13 @@ describe('Organization HTTP API', () => {
   });
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.organization.count.mockResolvedValue(0);
+    prisma.user.findUnique.mockResolvedValue({ isAdmin: true });
+    prisma.organization.findUnique.mockResolvedValue(organization);
   });
 
   it('lists organizations and removes undeclared fields', async () => {
+    prisma.organization.count.mockResolvedValue(1);
     prisma.organization.findMany.mockResolvedValue([
       { ...organization, internal: 'private' },
     ]);
@@ -27,18 +31,19 @@ describe('Organization HTTP API', () => {
       .expect({
         success: true,
         message: 'request_successful',
-        data: [organization],
+        data: { items: [organization], meta: { total: 1, page: 1, limit: 10, totalPages: 1 } },
       });
     expect(prisma.organization.findMany).toHaveBeenCalledWith({
       where: {},
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      skip: 0, take: 10,
     });
   });
 
   it('trims the name search and combines it with the other filters', async () => {
     prisma.organization.findMany.mockResolvedValue([]);
     await request(app.getHttpServer())
-      .get('/api/organizations?name=%20TeCh%20&parentId=root&managerId=manager')
+      .get('/api/organizations?name=%20TeCh%20&parentId=root&managerId=%20manager%20')
       .expect(200);
     expect(prisma.organization.findMany).toHaveBeenCalledWith({
       where: {
@@ -47,6 +52,7 @@ describe('Organization HTTP API', () => {
         managerId: 'manager',
       },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      skip: 0, take: 10,
     });
   });
 
@@ -55,7 +61,7 @@ describe('Organization HTTP API', () => {
     await request(app.getHttpServer())
       .get('/api/organizations')
       .expect(200)
-      .expect({ success: true, message: 'request_successful', data: [] });
+      .expect({ success: true, message: 'request_successful', data: { items: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } } });
   });
 
   it('looks up and serializes a organization', async () => {

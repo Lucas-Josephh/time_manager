@@ -12,7 +12,7 @@ describe('Organization CRUD contracts', () => {
     createdAt: '2026-10-16T10:00:00.000Z', updatedAt: '2026-10-16T10:00:00.000Z',
   };
   const delegate = {
-    create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
+    count: jest.fn(), create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(),
     update: jest.fn(), delete: jest.fn(),
   };
   const prisma = {
@@ -33,8 +33,9 @@ describe('Organization CRUD contracts', () => {
     delegate.update.mockResolvedValue(organization);
     delegate.delete.mockResolvedValue(organization);
     delegate.findMany.mockResolvedValue([organization]);
-    prisma.user.findUnique.mockResolvedValue({ id: 'manager' });
-    prisma.$transaction.mockImplementation(async (callback) => callback({ organization: delegate, user: prisma.user }));
+    delegate.count.mockResolvedValue(1);
+    prisma.user.findUnique.mockResolvedValue({ id: 'manager', isAdmin: true });
+    prisma.$transaction.mockImplementation(async (callback) => typeof callback === 'function' ? callback({ organization: delegate, user: prisma.user }) : Promise.all(callback));
   });
   afterEach(() => { jest.restoreAllMocks(); });
 
@@ -53,10 +54,11 @@ describe('Organization CRUD contracts', () => {
     delegate.findMany.mockResolvedValue([{ ...organization, users: [{ email: 'private@example.com' }], secret: true, description: 'Unsupported' }]);
     const response = await request(app.getHttpServer()).get('/api/organizations')
       .query({ name: 'eng', parentId: 'root', managerId: 'manager' }).expect(200);
-    expect(response.body.data).toEqual([organization]);
+    expect(response.body.data).toEqual({ items: [organization], meta: { total: 1, page: 1, limit: 10, totalPages: 1 } });
     expect(delegate.findMany).toHaveBeenCalledWith({
       where: { name: { contains: 'eng', mode: 'insensitive' }, parentId: 'root', managerId: 'manager' },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
+      skip: 0, take: 10,
     });
   });
 
@@ -73,7 +75,7 @@ describe('Organization CRUD contracts', () => {
 
   it.each(['parentId', 'managerId'])('rejects a missing %s reference', async (field) => {
     delegate.findUnique.mockResolvedValue(null);
-    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.findUnique.mockImplementation(async ({ where }) => where.id === 'missing' ? null : { id: where.id, isAdmin: true });
     const response = await request(app.getHttpServer()).post('/api/organizations')
       .send({ name: 'Engineering', [field]: 'missing' }).expect(400);
     expect(response.body.data.errors).toEqual(expect.arrayContaining([

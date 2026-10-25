@@ -1,6 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import {
   ApiOperation,
+  ApiResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -14,7 +15,11 @@ import {
   ApiValidationError,
   ApiWriteErrors,
 } from '../common/swagger/api-response.decorator';
-import { OrganizationDetailsDto, OrganizationTreeDto } from './dto/organization.dto';
+import {
+  OrganizationDetailsDto,
+  OrganizationListDto,
+  OrganizationTreeDto,
+} from './dto/organization.dto';
 
 export const organizationDescriptions = {
   tree: `### Accès
@@ -54,6 +59,11 @@ export function ApiOrganizationController() {
     ApiTags('Organization'),
     ApiServerError(),
     ApiUnauthorizedResponse({ description: 'Session absente ou expirée.' }),
+    ApiErrorResponse(
+      403,
+      ['forbidden', 'password_change_required'],
+      'Droits de gestion insuffisants ou mot de passe temporaire à changer.',
+    ),
   );
 }
 
@@ -62,7 +72,7 @@ export function ApiOrganizationCreate() {
     ApiOperation({
       summary: 'Créer une organisation',
       description: `### Accès
-Session requise. Le contrôle du périmètre de management n\'est pas encore implémenté.
+Session requise. Administrateur ou manager du parent choisi ou de l’un de ses ancêtres. La création d’une racine est réservée aux administrateurs.
 
 ### Champs
 - **\`name\`** : obligatoire.
@@ -94,17 +104,19 @@ Session requise. Le contrôle du périmètre de management n\'est pas encore imp
 
 ### Résultat
 - Tri par **nom**, puis par **identifiant**.
-- Sans pagination ni filtrage par périmètre.`,
+- Pagination : \`page\` (défaut 1), \`limit\` (défaut 10, maximum 100).
+- Résultats dans \`data.items\` ; \`data.meta\` contient total, page, limit et totalPages.
+- Les filtres se cumulent et s’appliquent aussi au total. Sans filtrage par périmètre.`,
     }),
     ApiValidationError(),
-    ApiSuccessResponse({ type: OrganizationDetailsDto, isArray: true }),
+    ApiSuccessResponse({ type: OrganizationListDto }),
   );
 }
 
 export function ApiOrganizationTree() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Consulter l\'arborescence des organisations',
+      summary: "Consulter l'arborescence des organisations",
       description: organizationDescriptions.tree,
     }),
     ApiValidationError(),
@@ -112,7 +124,7 @@ export function ApiOrganizationTree() {
     ApiErrorResponse(
       403,
       'forbidden',
-      'Utilisateur ni administrateur ni responsable d\'organisation.',
+      "Utilisateur ni administrateur ni responsable d'organisation.",
     ),
     ApiNotFoundError('not_found', 'Organisation inexistante ou inaccessible.'),
     ApiSuccessResponse({ type: OrganizationTreeDto, isArray: true }),
@@ -122,7 +134,7 @@ export function ApiOrganizationTree() {
 export function ApiOrganizationSubtree() {
   return applyDecorators(
     ApiOperation({
-      summary: 'Consulter le sous-arbre d\'une organisation',
+      summary: "Consulter le sous-arbre d'une organisation",
       description: organizationDescriptions.subtree,
     }),
     ApiResourceId('department-it'),
@@ -131,7 +143,7 @@ export function ApiOrganizationSubtree() {
     ApiErrorResponse(
       403,
       'forbidden',
-      'Utilisateur ni administrateur ni responsable d\'organisation.',
+      "Utilisateur ni administrateur ni responsable d'organisation.",
     ),
     ApiNotFoundError('not_found', 'Organisation inexistante ou inaccessible.'),
     ApiSuccessResponse({ type: OrganizationTreeDto, isArray: true }),
@@ -159,7 +171,7 @@ export function ApiOrganizationUpdate() {
     ApiOperation({
       summary: 'Modifier une organisation',
       description: `### Accès
-Session requise. Le contrôle du périmètre de management n\'est pas encore implémenté.
+Session requise. Administrateur ou manager de cette organisation ou de l’un de ses ancêtres. Un changement de parent exige aussi les droits sur la destination ; transformer une organisation en racine est réservé aux administrateurs.
 
 ### Champs
 - Les champs omis sont conservés.
@@ -167,12 +179,53 @@ Session requise. Le contrôle du périmètre de management n\'est pas encore imp
 - \`null\` est interdit pour le nom.
 
 ### Conflits
+- **Appartenances aux équipes** : un changement de parent est refusé avec **409** et \`organization_move_invalidates_team_memberships\` si des utilisateurs de la branche déplacée sortent du périmètre de leur équipe. Les utilisateurs concernés sont listés dans \`data.affectedMembers\`. Aucune modification n’est enregistrée.
 - **Cycle** : contrôlé dans la transaction et refusé avec le code de champ \`organization_cycle\` (**400**). Un conflit concurrent de transaction renvoie **409**.
 - **Modification concurrente** : peut produire \`concurrent_modification\` (**409**). Réessayer la requête.`,
     }),
     ApiResourceId('department-it'),
     ApiNotFoundError('not_found'),
     ApiWriteErrors(),
+    ApiResponse({
+      status: 409,
+      description:
+        'Conflit de référence, modification concurrente ou déplacement invalidant des appartenances aux équipes.',
+      schema: {
+        type: 'object',
+        required: ['success', 'message', 'data'],
+        properties: {
+          success: { type: 'boolean', enum: [false] },
+          message: {
+            type: 'string',
+            enum: [
+              'already_exists',
+              'reference_conflict',
+              'concurrent_modification',
+              'organization_move_invalidates_team_memberships',
+            ],
+          },
+          data: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              affectedMembers: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['id', 'firstname', 'lastname', 'teamId'],
+                  properties: {
+                    id: { type: 'string' },
+                    firstname: { type: 'string' },
+                    lastname: { type: 'string' },
+                    teamId: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
     ApiSuccessResponse({
       type: OrganizationDetailsDto,
       message: 'organization_updated',
@@ -185,7 +238,7 @@ export function ApiOrganizationDelete() {
     ApiOperation({
       summary: 'Supprimer une organisation',
       description: `### Accès
-Session requise. Le contrôle du périmètre de management n\'est pas encore implémenté.
+Session requise. Administrateur ou manager de cette organisation ou de l’un de ses ancêtres.
 
 ### Conditions
 La suppression est refusée si des équipes ou des organisations enfants existent.

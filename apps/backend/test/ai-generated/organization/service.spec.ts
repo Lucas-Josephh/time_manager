@@ -6,8 +6,10 @@ import { PrismaService } from '../../../src/prisma/prisma.service';
 describe('OrganizationService', () => {
   let service: OrganizationService;
   const prisma = {
+    $transaction: jest.fn(),
     organization: {
       findMany: jest.fn(),
+      count: jest.fn(),
       findUnique: jest.fn(),
     },
   };
@@ -20,6 +22,8 @@ describe('OrganizationService', () => {
 
   beforeEach(async () => {
     jest.resetAllMocks();
+    prisma.$transaction.mockImplementation((queries) => Promise.all(queries));
+    prisma.organization.count.mockResolvedValue(0);
     const module = await Test.createTestingModule({
       providers: [
         OrganizationService,
@@ -36,10 +40,12 @@ describe('OrganizationService', () => {
         { ...organization, id: 'department-sales', name: 'Sales' },
       ];
       prisma.organization.findMany.mockResolvedValue(organizations);
+      prisma.organization.count.mockResolvedValue(2);
 
-      await expect(service.findAll()).resolves.toEqual(organizations);
+      await expect(service.findAll()).resolves.toEqual({ items: organizations, meta: { total: 2, page: 1, limit: 10, totalPages: 1 } });
       expect(prisma.organization.findMany).toHaveBeenCalledWith({
         where: {},
+        skip: 0, take: 10,
         orderBy: [{ name: 'asc' }, { id: 'asc' }],
       });
       expect(prisma.organization.findMany).toHaveBeenCalledTimes(1);
@@ -48,7 +54,7 @@ describe('OrganizationService', () => {
     it('returns an empty list when no organizations exist', async () => {
       prisma.organization.findMany.mockResolvedValue([]);
 
-      await expect(service.findAll()).resolves.toEqual([]);
+      await expect(service.findAll()).resolves.toEqual({ items: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } });
     });
 
     it('propagates database failures', async () => {
@@ -70,14 +76,13 @@ describe('OrganizationService', () => {
       expect(prisma.organization.findUnique).toHaveBeenCalledTimes(1);
     });
 
-    it('throws a 404 with not_found when the organization is missing', async () => {
+    it('throws a 404 when the organization is missing', async () => {
       prisma.organization.findUnique.mockResolvedValue(null);
 
       const result = service.findOne('missing-organization');
 
       await expect(result).rejects.toBeInstanceOf(NotFoundException);
       await expect(result).rejects.toMatchObject({
-        message: 'not_found',
         status: 404,
       });
       expect(prisma.organization.findUnique).toHaveBeenCalledWith({

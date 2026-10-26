@@ -1,23 +1,26 @@
+import { buildUserName } from '../user/utils/build-user-name';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { resolve } from 'node:path';
 import { PrismaModule } from '../prisma/prisma.module';
 import { parseArgs } from 'util';
 import { NestFactory } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
-import { randomUUID } from 'crypto';
+import { createAuth } from '../lib/auth';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [resolve(__dirname, '../../.env'), resolve(__dirname, '../../../../.env')],
+      envFilePath: [
+        resolve(__dirname, '../../.env'),
+        resolve(__dirname, '../../../../.env'),
+      ],
     }),
     PrismaModule,
   ],
 })
 export class CreateUserCommand {}
-
 
 async function main() {
   const { values } = parseArgs({
@@ -25,14 +28,16 @@ async function main() {
       email: { type: 'string' },
       firstname: { type: 'string' },
       lastname: { type: 'string' },
-      'team-id': { type: 'string' },
+      password: { type: 'string' },
+      admin: { type: 'boolean' },
     },
   });
 
   const email = values.email?.trim().toLowerCase();
   const firstname = values.firstname?.trim();
   const lastname = values.lastname?.trim();
-  const teamId = values['team-id']?.trim();
+  const admin = values.admin ?? false;
+  const password = values.password;
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new Error('--email doit être une adresse valide');
@@ -40,6 +45,10 @@ async function main() {
 
   if (!firstname || !lastname) {
     throw new Error('--firstname et --lastname sont requis');
+  }
+
+  if (!password) {
+    throw new Error('--password est requis');
   }
 
   const app = await NestFactory.createApplicationContext(CreateUserCommand, {
@@ -57,22 +66,19 @@ async function main() {
       throw new Error('Un utilisateur possède déjà cet email');
     }
 
-    if (teamId) {
-      const team = await prisma.team.findUnique({ where: { id: teamId } });
-      if (!team) {
-        throw new Error('L’équipe indiquée par --team-id est introuvable');
-      }
-    }
-
-    const user = await prisma.user.create({
-      data: {
-        id: randomUUID(),
-        email,
-        firstname,
-        lastname,
-        teamId: teamId || null,
-      },
+    const auth = createAuth(prisma, app.get(ConfigService), {
+      provisionUsers: true,
     });
+
+    const body = {
+      email,
+      name: buildUserName(firstname, lastname),
+      firstname,
+      lastname,
+      password,
+      isAdmin: admin,
+    };
+    const { user } = await auth.api.signUpEmail({ body });
 
     console.log(`Utilisateur créé : ${user.email}`);
   } finally {

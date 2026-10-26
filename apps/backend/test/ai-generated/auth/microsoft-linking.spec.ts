@@ -33,7 +33,8 @@ describe('Microsoft account linking', () => {
     const ctx = await auth.$context;
     const user = await ctx.internalAdapter.createUser(
       {
-        name: 'Authorized',
+        name: 'Authorized User',
+        firstname: 'Authorized',
         lastname: 'User',
         email: 'authorized@example.com',
         emailVerified: false,
@@ -131,7 +132,8 @@ describe('Microsoft account linking', () => {
     );
     expect((await sessionResponse.json()).user).toMatchObject({
       id: user.id,
-      name: 'Authorized',
+      name: 'Authorized User',
+      firstname: 'Authorized',
       lastname: 'User',
       isAdmin: false,
     });

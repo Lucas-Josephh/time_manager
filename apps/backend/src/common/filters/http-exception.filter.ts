@@ -23,6 +23,7 @@ const DEFAULT_MESSAGES: Record<number, string> = {
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
   constructor(private readonly adapterHost: HttpAdapterHost) {}
@@ -50,7 +51,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
             ? exceptionResponse.message
             : undefined;
 
-      // Accepte uniquement un code comme "user_not_found".
+      // Accepte uniquement un code comme "not_found".
       if (
         typeof customMessage === 'string' &&
         /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(customMessage)

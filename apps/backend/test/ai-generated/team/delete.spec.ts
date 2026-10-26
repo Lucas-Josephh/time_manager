@@ -7,7 +7,7 @@ describe('Team HTTP API: delete', () => {
   it('deletes a team', async () => {
     await request(context.app.getHttpServer())
       .delete(`/api/team/${team.id}`)
-      .expect(202)
+      .expect(200)
       .expect(envelope('team_deleted', team));
     expect(prisma.team.delete).toHaveBeenCalledWith({ where: { id: team.id } });
   });

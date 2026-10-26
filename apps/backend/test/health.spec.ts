@@ -58,7 +58,7 @@ describe('Health API', () => {
     const response = await request(app.getHttpServer())
       .get('/api/docs-json')
       .expect(200);
-    expect(response.body.info.title).toBe('Time Manager API');
+    expect(response.body.info.title).toBe('Tempo API');
     expect(response.body.paths).toHaveProperty('/api/health');
     expect(response.body.paths).not.toHaveProperty('/health');
     expect(

@@ -4,15 +4,41 @@ import { useTeamFixture } from './team.fixture';
 describe('Team HTTP API: validation', () => {
   const context = useTeamFixture();
   const { prisma, dto, envelope } = context;
+  it.each(['patch'] as const)(
+    'validates DTO before loading records for a missing team in %s',
+    async (method) => {
+      prisma.team.findUnique.mockResolvedValue(null);
+      prisma.team.findFirst.mockResolvedValue({ id: 'other-team' });
+      await request(context.app.getHttpServer())
+        [method]('/api/team/missing')
+        .send({ name: 42, organizationId: 42, unexpected: true })
+        .expect(400);
+      expect(prisma.team.findFirst).not.toHaveBeenCalled();
+      expect(prisma.organization.findUnique).not.toHaveBeenCalled();
+      expect(prisma.team.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['patch'] as const)(
+    'still validates the DTO when the target exists in %s',
+    async (method) => {
+      await request(context.app.getHttpServer())
+        [method]('/api/team/team-support')
+        .send({ name: 42 })
+        .expect(400);
+      expect(prisma.team.update).not.toHaveBeenCalled();
+    },
+  );
+
   it.each([
-    [{ departmentId: dto.departmentId }, 'name', 'is_required'],
-    [{ name: 'Support' }, 'departmentId', 'is_required'],
+    [{ organizationId: dto.organizationId }, 'name', 'is_required'],
+    [{ name: 'Support' }, 'organizationId', 'is_required'],
     [{ ...dto, name: '   ' }, 'name', 'is_required'],
     [{ ...dto, name: 42 }, 'name', 'need_string'],
     [{ ...dto, name: 'a'.repeat(256) }, 'name', 'max_length_exceeded'],
     [{ ...dto, managerId: 42 }, 'managerId', 'need_string'],
     [{ ...dto, managerId: '' }, 'managerId', 'is_required'],
-    [{ ...dto, departmentId: 42 }, 'departmentId', 'need_string'],
+    [{ ...dto, organizationId: 42 }, 'organizationId', 'need_string'],
     [{ ...dto, id: 'injected-id' }, 'id', 'validation_unknown_field'],
   ])('rejects invalid creation %#', async (body, field, code) => {
     const response = await request(context.app.getHttpServer())
@@ -29,13 +55,16 @@ describe('Team HTTP API: validation', () => {
     expect(prisma.team.create).not.toHaveBeenCalled();
   });
 
-  it.each(['departmentId', 'managerId'])(
+  it.each(['organizationId', 'managerId'])(
     'rejects an unknown %s',
     async (field) => {
-      (field === 'departmentId'
-        ? prisma.department
-        : prisma.user
-      ).findUnique.mockResolvedValue(null);
+      if (field === 'organizationId') {
+        prisma.organization.findUnique.mockResolvedValue(null);
+      } else {
+        prisma.user.findUnique.mockImplementation(async ({ where }) =>
+          where.id === 'missing' ? null : { id: where.id, isAdmin: true },
+        );
+      }
       await request(context.app.getHttpServer())
         .post('/api/team')
         .send({ ...dto, [field]: 'missing' })

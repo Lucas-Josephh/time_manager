@@ -1,0 +1,83 @@
+# refactor: harmoniser User, les permissions et la pagination du backend
+
+## Description
+
+Après le merge du module User, plusieurs parcours utilisaient des conventions différentes pour les permissions, les DTO, les erreurs et les réponses. Cette PR aligne User, Organization et Team, sécurise les opérations de gestion et fournit une pagination commune.
+
+Un administrateur peut créer un utilisateur avec son équipe initiale dans une seule requête. Le compte, ses identifiants de connexion et son affectation sont enregistrés dans la même transaction ; l’organisation est déduite de l’équipe choisie.
+
+## Modifications
+
+### Utilisateurs et Better Auth
+
+- Réserver les routes `/api/users` aux administrateurs et relire le rôle en base pour autoriser les requêtes.
+- Refuser l’accès aux routes protégées tant que le mot de passe temporaire doit être changé ; lever cette obligation après un changement ou une réinitialisation réussis.
+- Conserver `firstname` et `lastname` comme propriétés distinctes, avec `name` calculé pour l’affichage. Les DTO User n’autorisent pas l’écriture directe de `name`.
+- Accepter `teamId` à la création uniquement. Les changements ultérieurs d’appartenance passent par Team.
+- Réserver les champs administratifs Better Auth au provisioning serveur et conserver les inscriptions publiques désactivées.
+- Découper la configuration Better Auth et ses hooks en fichiers dédiés. Les routes natives `update-user` et `change-password` conservent leur validation et leur format de réponse natifs, compatibles avec le client Better Auth.
+- Sérialiser explicitement les profils retournés, sans exposer les comptes, mots de passe ni sessions ; typer les prénom et nom personnalisés dans le client frontend.
+
+### Permissions et cohérence Organization / Team
+
+- Team et Organization conservent `AuthGuard` et vérifient les droits métier dans leurs services via `TeamAuthorizationService` et `OrganizationAuthorizationService`, dans la transaction pour les écritures.
+- Autoriser la gestion selon le rôle administrateur, le management de l’organisation ou de ses ancêtres et, pour une équipe existante, son responsable actuel.
+- Contrôler également les droits sur la destination lors d’un déplacement. La création d’une organisation racine et le détachement en racine restent réservés aux administrateurs.
+- Mutualiser les parcours d’ancêtres et de descendants, et éviter les doublons dans les arbres autorisés.
+- Découper la lecture des arbres : `OrganizationService` charge les branches selon le périmètre fourni par `OrganizationAuthorizationService` dans la transaction ; `buildOrganizationTree` dans `organization/utils/` assemble et trie les nœuds. La méthode `tree()` orchestre ces deux étapes. Les routes d’arbre ne prennent plus de query ; seul `:id/tree` permet de cibler un sous-arbre. Le filtre récursif et le DTO de query partagé avec les arbres ont été supprimés.
+- Déterminer les affectations selon le rôle : administrateur sans restriction ; manager d’organisation sur les utilisateurs et équipes de son périmètre ; responsable d’équipe sur les utilisateurs disponibles de son organisation ou de ses descendantes.
+- Conserver l’organisation de l’utilisateur lors de toute affectation ou tout transfert. Un compte sans organisation peut être affecté par un administrateur.
+- Retirer le rôle de responsable dans l’ancienne équipe lorsqu’un responsable est transféré. Effectuer les changements dans la même transaction et annuler l’ensemble si un membre n’est pas autorisé.
+- Aligner `available-users` sur les utilisateurs ajoutables ou transférables selon l’auteur. Conserver les membres actuels même lorsque leur organisation diffère de celle de l’équipe.
+- Ne plus bloquer un déplacement d’organisation sur la base des appartenances aux équipes : ces appartenances sont indépendantes de la hiérarchie.
+
+### Validation, réponses et documentation
+
+- Mutualiser les options de validation, le format des erreurs et le traitement des références ; enregistrer la contrainte d’unicité dans NestJS.
+- Nettoyer les champs texte et les filtres d’identifiants avec les décorateurs communs, sans modifier les mots de passe.
+- Centraliser la configuration de l’application et supprimer les initialisations redondantes de validation et de Swagger.
+- Détailler Swagger pour les routes User : accès, champs, effets, exemples, pagination et erreurs. Aligner les schémas sur la sérialisation effective.
+
+### Pagination commune
+
+- Ajouter `PaginationQueryDto`, `PaginationMetaDto`, la fabrique de DTO paginés et le helper `paginate`, sans dépendance supplémentaire.
+- Appliquer la pagination aux `findAll` de User, Team et Organization : `page` vaut 1 par défaut ; `limit` vaut 10 par défaut et ne peut pas dépasser 100.
+- Retourner les résultats dans `data.items` et les métadonnées dans `data.meta` : `total`, `page`, `limit`, `totalPages`.
+- Appliquer les mêmes filtres aux résultats et au total, lus dans une transaction `RepeatableRead`.
+- Garantir un tri stable : date de création décroissante puis identifiant pour User ; nom puis identifiant pour Team et Organization.
+- Conserver les arbres d’organisations et la liste des utilisateurs disponibles pour une équipe sans pagination.
+
+## Adaptations des consommateurs
+
+Les listes Team et Organization renvoyaient un tableau directement dans `data`. Elles renvoient désormais un objet paginé : les consommateurs doivent lire `data.items` et demander les pages suivantes avec `page` et `limit`.
+
+```json
+{
+  "success": true,
+  "message": "team_listed",
+  "data": {
+    "items": [],
+    "meta": {
+      "total": 0,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 0
+    }
+  }
+}
+```
+
+Les filtres User portent sur `email`, `firstname` et `lastname`. Les propriétés d’appartenance, le mot de passe et `mustChangePassword` ne sont pas modifiables via le PATCH User.
+
+## Migration
+
+Appliquer la migration `20261024160000_add_user_display_name` avant de démarrer le backend sur une base existante. Elle ajoute et renseigne `name`, puis installe un trigger PostgreSQL pour maintenir sa valeur à partir de `firstname` et `lastname`, y compris lors d’écritures concurrentes.
+
+La migration n’a pas été exécutée pendant cette intervention et n’a pas été vérifiée sur une instance PostgreSQL temporaire : le socket Docker était inaccessible.
+
+## Validation
+
+- Arbres, listes paginées, service Organization et Swagger : **67 tests ciblés réussis** après suppression des filtres de query des arbres, avec TypeScript et ESLint validés.
+- Dernier passage backend complet : **416 tests réussis, 1 échec** dans `test/user/password-change.spec.ts`. Le hook de mot de passe actuel renvoie `PASSWORD_REQUIREMENTS_NOT_MET` pour un nouveau mot de passe absent, tandis que le test attend `VALIDATION_ERROR`. Cet échec ne concerne pas le découpage de l’arbre.
+- Lint backend et build backend réussis.
+- Le dernier contrôle frontend réalisé pendant la refactorisation validait les 4 tests et le typage TypeScript.

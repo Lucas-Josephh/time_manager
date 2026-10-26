@@ -22,7 +22,8 @@ describe('Native Better Auth: session', () => {
       .send({ email: 'admin@example.com', password: 'seed-password-123' })
       .expect(200);
     expect(response.body.user).toMatchObject({
-      name: 'Admin',
+      name: 'Admin Time Manager',
+      firstname: 'Admin',
       lastname: 'Time Manager',
       isAdmin: true,
     });

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { tabs } from '../../config/navigation';
 import Button from './Button';
+import { tabs } from '@/config/navigation';
 
 describe('Button', () => {
   it('renders the primary variant and defaults to a non-submit button', () => {
@@ -29,7 +29,7 @@ describe('Button', () => {
       <Button variant="timesheet">View timesheet</Button>,
     );
 
-    expect(markup).toContain(`href="${tabs.timesheet}"`);
+    expect(markup).toContain(`href="${tabs.timesheet.href}"`);
     expect(markup).toContain('class="button-timesheet"');
     expect(markup).toContain('>View timesheet</a>');
   });

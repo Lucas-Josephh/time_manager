@@ -9,11 +9,12 @@ describe('Team HTTP API: create', () => {
     async (managerId) => {
       const result = { ...team, managerId: managerId ?? null };
       prisma.team.create.mockResolvedValue(result);
+      prisma.team.findUnique.mockResolvedValue(result);
       await request(context.app.getHttpServer())
         .post('/api/team')
         .send({
           name: ' Support ',
-          departmentId: ' department-it ',
+          organizationId: ' department-it ',
           managerId:
             typeof managerId === 'string' ? ` ${managerId} ` : managerId,
         })

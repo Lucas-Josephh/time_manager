@@ -1,3 +1,4 @@
+import { buildUserName } from '../src/user/utils/build-user-name';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { hashPassword } from 'better-auth/crypto';
@@ -8,8 +9,9 @@ const prisma = new PrismaClient({
   }),
 });
 
-async function seedDepartments() {
-  const departments = [
+async function seedOrganizations() {
+  // Keep the existing IDs so migrated departments are updated, not duplicated.
+  const organizations = [
     { id: 'department-hr', name: 'HR' },
     { id: 'department-finance', name: 'Finance' },
     { id: 'department-it', name: 'IT' },
@@ -17,11 +19,11 @@ async function seedDepartments() {
     { id: 'department-customer-service', name: 'Customer Service' },
   ];
 
-  for (const department of departments) {
-    await prisma.department.upsert({
-      where: { id: department.id },
-      update: { name: department.name },
-      create: department,
+  for (const organization of organizations) {
+    await prisma.organization.upsert({
+      where: { id: organization.id },
+      update: { name: organization.name },
+      create: organization,
     });
   }
 }
@@ -43,7 +45,7 @@ async function seedDefaultUsers() {
       create: {
         id: 'team-administration',
         name: 'Administration',
-        departmentId: 'department-operations',
+        organizationId: 'department-operations',
       },
     });
 
@@ -52,7 +54,9 @@ async function seedDefaultUsers() {
       update: {},
       create: {
         id: 'default-admin',
-        teamId: team.id,
+        teamId: null,
+        organizationId: team.organizationId,
+        name: buildUserName('Admin', 'Time Manager'),
         firstname: 'Admin',
         lastname: 'Time Manager',
         email,
@@ -61,6 +65,9 @@ async function seedDefaultUsers() {
       },
     });
 
+    if ((!team.managerId || team.managerId === user.id) && user.teamId === team.id) {
+      await tx.user.update({ where: { id: user.id }, data: { teamId: null } });
+    }
     if (!team.managerId) {
       await tx.team.update({
         where: { id: team.id },
@@ -90,7 +97,7 @@ async function seedDefaultUsers() {
 }
 
 async function main() {
-  await seedDepartments();
+  await seedOrganizations();
   await seedDefaultUsers();
 }
 

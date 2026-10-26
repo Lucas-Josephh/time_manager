@@ -83,11 +83,62 @@ Appliquer les migrations existantes avec
 pendant le développement, utiliser `pnpm prisma:migrate`.
 `pnpm prisma:studio` ouvre l'interface de consultation et modification des données.
 
-Un utilisateur doit appartenir à une équipe (`user.teamId` obligatoire).
+Un utilisateur peut être sans équipe (`user.teamId` nullable).
 Le responsable d'une équipe est optionnel (`team.managerId` nullable), ce qui
 permet de créer l'équipe avant son premier utilisateur. La suppression d'une
 équipe ayant encore des membres est restreinte : réaffecter les utilisateurs avant
 de la supprimer.
+
+## Architecture et autorisations Organization
+
+Les providers `OrganizationService`, `OrganizationAuthorizationService` et `OrganizationHierarchyService` sont déclarés dans `OrganizationModule` et placés dans `organization/services/`. Le contrôleur se trouve dans `organization/controllers/` et utilise `AuthGuard` pour authentifier les requêtes.
+
+`OrganizationHierarchyService` regroupe les parcours d’ancêtres et descendants, la validation des cycles. Il est exporté par `OrganizationModule` et injecté dans les services Organization et Team. Les méthodes de lecture reçoivent le client transactionnel en argument ; celui-ci n’est jamais stocké dans le provider partagé. La construction triée de l’arbre est assurée par la fonction pure `buildOrganizationTree` dans `organization/utils/build-organization-tree.ts`, sans accès à Prisma. `OrganizationService.tree()` orchestre le chargement puis cette construction.
+
+Le service métier reçoit l’auteur pour chaque création, modification et suppression. Il charge la cible et vérifie les droits via `OrganizationAuthorizationService` dans la même transaction Serializable que l’écriture. Un appel interne bénéficie ainsi des mêmes contrôles que les routes HTTP.
+
+Les admins peuvent tout gérer. Un manager d’organisation peut gérer son organisation et ses descendants. Un déplacement exige les droits sur la cible actuelle et le nouveau parent. Créer une racine ou détacher une organisation en racine exige un admin ; conserver un parent déjà nul reste autorisé au manager de cette racine. Le manager proposé dans la requête ne donne aucun droit à l’auteur.
+
+Les règles de lecture existantes sont conservées : liste paginée et détail accessibles aux utilisateurs authentifiés ; arbres limités aux branches gérées, ou à toutes les branches pour l’admin. Le périmètre et les données de l’arbre sont chargés dans une transaction RepeatableRead. Les appartenances ne changent pas lors d’un déplacement.
+
+Après authentification, les DTO sont validés avant l’appel aux services. Une requête PATCH avec un body invalide renvoie donc 400 même si la cible est absente ; avec un body valide, une cible absente renvoie 404.
+
+## Équipes et appartenance
+
+Le module utilise des providers injectables dans `team/services/` et deux contrôleurs dans `team/controllers/`. `TeamAuthorizationService` centralise les autorisations et les périmètres. Les services vérifient les droits dans les transactions Serializable pour les écritures.
+
+Un utilisateur appartient au maximum à une équipe, peut manager plusieurs équipes et ne peut pas être membre de celle qu’il manage. L’ajout, le retrait et le transfert ne changent ni son organisation ni ses responsabilités.
+
+| Route | Entrée |
+| --- | --- |
+| `POST /api/team` | `name`, `organizationId`, `managerId?`, `memberIds?`, `transfers?: [{userId, teamId}]` |
+| `PATCH /api/team/:id` | `name?`, `organizationId?` uniquement |
+| `PATCH /api/team/:id/manager` | `managerId` (chaîne ou null) |
+| `POST /api/team/:id/members` | `memberIds` (utilisateurs sans équipe) |
+| `DELETE /api/team/:id/members/:userId` | Retrait explicite |
+| `POST /api/team/:id/transfers` | `userId`, `teamId` |
+
+Les POST membres et transferts répondent 201 ; les DELETE répondent 200. Dans un transfert, teamId désigne l’équipe source et le paramètre :id désigne la destination. Création, suppression, changement de manager et déplacement sont réservés aux admins et managers d’organisation ; le déplacement exige les droits source et destination. Le responsable d’équipe peut lire, renommer et gérer les membres de ses équipes. Un simple membre n’a aucun accès Team. Les listes restent paginées et filtrées par les droits.
+
+Pour ajouter un utilisateur sans équipe, son organisation doit être dans le périmètre cumulé des organisations gérées et des organisations des équipes managées, descendants inclus. L’admin n’a pas cette restriction. Un transfert exige les droits sur les deux équipes, même si l’auteur en est uniquement le responsable.
+
+La nomination peut viser tout utilisateur existant, y compris un membre d’une autre équipe. Un membre de la cible doit d’abord en être retiré explicitement. Un déplacement conserve membres et manager ; une suppression avec membres est refusée.
+
+`GET /api/team/available-users?usage=member|transfer|manager&teamId=...` exige un usage et une cible. Les candidats membres sont sans équipe, les candidats transférables appartiennent à une autre équipe accessible, les candidats managers peuvent appartenir à une autre équipe. Le manager de la cible est exclu des candidats membres. Les contrôles sont répétés lors de l’écriture.
+
+Tous les candidats de création sont vérifiés avant écriture. Une erreur annule toute la transaction. Les candidats membres indisponibles renvoient `409 team_members_unavailable` avec `data.unavailableMembers`.
+
+La commande `pnpm --filter backend team:separate-managers` prévisualise les anciennes appartenances incompatibles. Ajouter `--apply` pour retirer uniquement ces appartenances en préservant les responsabilités. Aucun changement de schéma n’est nécessaire.
+
+## Architecture et autorisations User
+
+Le contrôleur se trouve dans `user/controllers/`. `UserService`, `UserAuthorizationService` et `UserProvisioningService` sont des providers injectables dans `user/services/`. `buildUserName` reste une fonction pure dans `user/utils/`.
+
+Les routes conservent `AuthGuard` et `AdminGuard`. Les services reçoivent aussi l’auteur et contrôlent les droits admin via `UserAuthorizationService`, ce qui protège les appels internes pour les lectures comme pour les écritures. Les créations, modifications et suppressions vérifient les droits dans leur transaction Serializable. Les contrôles de lecture précèdent les requêtes de consultation ; les listes conservent leur pagination et leur transaction RepeatableRead.
+
+`UserService` orchestre la création : vérification des droits, résolution de l’équipe initiale, puis appel à `UserProvisioningService` avec le même client transactionnel. Ce dernier intègre Better Auth, crée les identifiants et récupère le profil complet. Aucun client transactionnel n’est conservé dans un provider partagé. Les erreurs de doublon Better Auth sont interprétées après annulation de la transaction pour préserver la réponse `validation_failed` sur le champ email.
+
+Les changements d’appartenance restent dans Team. Les mises à jour du profil conservent la reconstruction du nom complet et la remise à zéro de `emailVerified` si l’email est modifié. Le guard `ResourceExists` reste présent sur le PATCH User : une cible absente est détectée avant la validation du DTO.
 
 ## Création des utilisateurs
 
@@ -127,172 +178,37 @@ Pour un utilisateur existant,
 le profil et le rôle sont conservés un mot de passe existant n'est pas remplacé.
 Utiliser un email en minuscules, le seeder ne le normalisant pas.
 
-## Routes disponibles
+## Documentation de l\'API
 
-### Santé et Swagger
+Swagger est la référence pour les routes NestJS, les paramètres, les DTO,
+les statuts HTTP et les exemples de réponses :
 
-| Route                | Réponse ou contenu                                                                                                               |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/health`    | `{ "success": true, "message": "health_check_successful", "data": { "status": "ok" } }` public, ne vérifie pas la connexion à la base |
-| `GET /api/docs`      | Interface Swagger des contrôleurs NestJS                                                                                         |
-| `GET /api/docs-json` | Document OpenAPI JSON                                                                                                            |
-| `GET /api/docs-yaml` | Document OpenAPI YAML                                                                                                            |
+- En local : <http://localhost:3001/api/docs>.
+- Via Docker/Nginx : <http://localhost:8080/api/docs>.
+- Spécifications exportables : `/api/docs-json` et `/api/docs-yaml`.
 
-Pour les décorateurs réutilisables, les DTO de sortie et les conventions OpenAPI,
-consulter [Documenter l’API](API_DOCUMENTATION.md).
+## Développer un contrôleur NestJS
 
-Swagger documente les contrôleurs NestJS uniquement. Le handler Better Auth,
-monté sous `/api/auth`, n'est pas inclus dans ce document.
+Retourner les données directement ; `ResponseInterceptor` construit l\'enveloppe.
+Choisir le message avec `@ResponseMessage(...)` et le DTO de sortie avec
+`@SerializeResponse(...)`. Ne pas construire une seconde enveloppe dans le
+contrôleur. Voir les [conventions de sérialisation](../apps/backend/src/common/serialization/README.md).
 
-### Répondre depuis un contrôleur NestJS
+Lever une exception NestJS pour signaler un échec ; `HttpExceptionFilter` la
+formate. Pour une recherche obligatoire, utiliser `requireResource`. Les services
+laissent remonter les erreurs Prisma connues, traduites par le mapper commun.
+Voir [Validation et erreurs](VALIDATION_AND_ERRORS.md) pour leur fonctionnement.
 
-Les réponses JSON des contrôleurs NestJS utilisent cette enveloppe :
+Documenter chaque route avec `@ApiTags`, `@ApiOperation` et les décorateurs de
+`common/swagger/api-response.decorator.ts`, notamment `ApiSuccessResponse`
+et les réponses d\'erreur adaptées. Décrire les propriétés des DTO avec
+`@ApiProperty` ou `@ApiPropertyOptional` et les paramètres de route et de recherche
+avec les décorateurs Swagger correspondants. Les décorateurs Swagger décrivent
+le contrat ; ils ne remplacent ni la validation ni la sérialisation.
 
-```json
-{
-  "success": true,
-  "message": "users_retrieved",
-  "data": []
-}
-```
+## Authentification
 
-- `success` indique si la requête a réussi.
-- `message` est un code en `snake_case`, par exemple `users_retrieved` ou
-  `user_not_found`. Ce code permet au frontend de choisir le texte à afficher.
-- `data` contient les données retournées par le contrôleur : objet, liste ou
-  autre valeur JSON. Un retour `null` ou `undefined` devient `{}`.
-
-`ResponseInterceptor` et `HttpExceptionFilter` sont enregistrés globalement
-dans `AppModule` via `APP_INTERCEPTOR` et `APP_FILTER`.
-`RequestValidationPipe` est enregistré via `APP_PIPE`. Le filtre traduit les
-erreurs Prisma connues avant de produire l'enveloppe : les services laissent
-remonter ces erreurs sans répéter leur traduction HTTP.
-Voir [Validation et erreurs](VALIDATION_AND_ERRORS.md) pour les codes et exemples.
-
-#### Retourner un succès
-
-Retourner uniquement les données depuis le contrôleur et choisir le message
-avec `@ResponseMessage(...)`. Exemple pour un futur contrôleur utilisateurs :
-
-```ts
-import { Controller, Get } from '@nestjs/common';
-import { ResponseMessage } from './common/decorator/response-message.decorator';
-
-@Controller('users')
-export class UsersController {
-  @Get()
-  @ResponseMessage('users_retrieved')
-  findAll() {
-    return [{ id: '123', firstname: 'Alice' }];
-  }
-}
-```
-
-Cet exemple suppose un contrôleur placé directement dans `src` ; adapter le
-chemin de l'import à son emplacement et enregistrer le contrôleur dans un module.
-L'interceptor transforme son résultat en :
-
-```json
-{
-  "success": true,
-  "message": "users_retrieved",
-  "data": [{ "id": "123", "firstname": "Alice" }]
-}
-```
-
-Le décorateur stocke le message dans les métadonnées de la méthode ;
-l'interceptor le lit avec `Reflector`. Sans décorateur, le message est
-`request_successful`. Il peut aussi être défini sur la classe du contrôleur ;
-le message de la méthode est prioritaire.
-
-**Ne pas retourner soi-même `{ success, message, data }` dans le contrôleur** :
-l'interceptor ajouterait une seconde enveloppe. Utiliser le retour normal de
-la méthode ; une réponse envoyée directement avec `@Res()` contourne cette
-transformation.
-
-#### Retourner une erreur
-
-Lever une exception NestJS depuis le contrôleur ou le service :
-
-```ts
-import { NotFoundException } from '@nestjs/common';
-
-throw new NotFoundException('user_not_found');
-```
-
-Le filtre renvoie le statut HTTP **404** avec :
-
-```json
-{
-  "success": false,
-  "message": "user_not_found",
-  "data": {}
-}
-```
-
-Le message personnalisé est accepté pour les erreurs HTTP inférieures à 500
-s'il respecte `^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$`. Une phrase ou une liste de
-messages utilise le code par défaut du statut :
-
-| Statut HTTP                  | Message par défaut      |
-| ---------------------------- | ----------------------- |
-| 400                          | `bad_request`           |
-| 401                          | `unauthorized`          |
-| 403                          | `forbidden`             |
-| 404                          | `not_found`             |
-| 405                          | `method_not_allowed`    |
-| 409                          | `conflict`              |
-| 422                          | `validation_failed`     |
-| 429                          | `too_many_requests`     |
-| Autre statut inférieur à 500 | `request_failed`        |
-| 500 et plus                  | `internal_server_error` |
-
-Une exception inattendue produit un statut 500. Les détails des erreurs serveur
-sont journalisés côté backend ; la réponse contient uniquement
-`internal_server_error` et `data: {}`. Le filtre traite les exceptions non gérées :
-retourner un objet d'erreur au lieu de lever une exception serait considéré
-comme un succès par l'interceptor.
-
-Conserver les statuts HTTP appropriés : 200 pour une lecture, 201 pour une
-création, 404 pour une ressource absente, etc. Pour retourner cette enveloppe
-JSON, ne pas utiliser 204, car ce statut ne contient pas de corps.
-Documenter l'enveloppe réelle avec `ApiSuccessResponse` et les décorateurs
-d'erreur communs ; voir [Documenter l’API](API_DOCUMENTATION.md).
-
-#### Transmettre des valeurs de remplacement pour une erreur
-
-Conserver `message` comme code de traduction et transmettre les valeurs à
-remplacer dans `data`. Exemple depuis un contrôleur ou un service :
-
-```ts
-throw new NotFoundException({
-  message: 'user_not_found',
-  data: { userId: '123' },
-});
-```
-
-La réponse HTTP 404 devient :
-
-```json
-{
-  "success": false,
-  "message": "user_not_found",
-  "data": { "userId": "123" }
-}
-```
-
-Côté frontend, la traduction `user_not_found` peut être
-« L’utilisateur {userId} est introuvable. ». Le frontend remplace `{userId}`
-par `data.userId`, pour afficher « L’utilisateur 123 est introuvable. ».
-L'API transmet le code et les valeurs ; elle n'effectue pas la traduction.
-
-Le filtre transmet `data` uniquement pour une erreur HTTP inférieure à 500
-avec un code de message valide et un objet `data` non nul, qui n'est pas un
-tableau. Sinon, `data` reste `{}`. Les erreurs serveur conservent toujours
-`internal_server_error` et `data: {}`. Ces valeurs étant visibles par le client,
-inclure uniquement les informations nécessaires à l'affichage.
-
-#### Better Auth : circuit de réponse distinct
+### Better Auth : circuit de réponse distinct
 
 **Les routes `/api/auth/*` gérées par Better Auth ne passent pas par
 `ResponseInterceptor` ni par `HttpExceptionFilter` NestJS. Elles ne reçoivent
@@ -377,63 +293,23 @@ Les contrôles d'origine et CSRF sont activés, ainsi que la limitation des requ
 CORS autorise `FRONTEND_URL` avec credentials. Better Auth utilise cette origine
 comme origine de confiance, en plus de son URL de base.
 
-Better Auth expose `user.name`, stocké dans `firstname`, ainsi que `lastname`,
-`phone`, `teamId` et `isAdmin`. `teamId` et `isAdmin` ne sont pas modifiables via
-les entrées utilisateur Better Auth.
+Better Auth expose trois champs distincts : `user.firstname` (prénom),
+`user.lastname` (nom de famille) et `user.name` (nom d’affichage calculé comme
+prénom + espace + nom). Le mapping de `name` vers `firstname` est supprimé.
+Les DTO User acceptent `firstname` et `lastname`, sans exposer `name` en écriture.
+Les routes Better Auth conservent leur validation et leurs réponses natives,
+sans passer par les DTO NestJS. Le hook de profil synchronise seulement le nom
+d’affichage lorsque le prénom ou le nom change. Le trigger en base maintient
+également ce nom calculé lors des écritures.
+Les champs `phone`, `teamId` et `isAdmin` restent également exposés.
+`teamId` et `isAdmin` ne sont pas modifiables via les entrées utilisateur Better Auth.
+La migration `20261024160000_add_user_display_name` peuple le nom d’affichage
+pour les comptes existants et installe sa synchronisation en base.
 
 `AuthModule` exporte `AuthGuard` pour protéger les contrôleurs avec
 `@UseGuards(AuthGuard)`. Le guard vérifie la session depuis les en-têtes de la
 requête, renvoie une erreur 401 si elle est invalide et ajoute les données à
 `request.session`. Il ne vérifie pas le rôle administrateur.
-
-### Équipes et départements
-
-Les contrôleurs actuels utilisent `/team` au singulier et `/departments` au pluriel.
-Ils n'ont pas encore de guard d'authentification.
-
-| Route                      | Statut de succès actuel | Message                  | Comportement                                                |
-| -------------------------- | ----------------------- | ------------------------ | ----------------------------------------------------------- |
-| `POST /api/team`           | 201                     | `team_created`           | Créer une équipe                                            |
-| `PUT /api/team/:id`        | 200                     | `team_updated`           | Renseigner le nom et le département ; responsable optionnel |
-| `PATCH /api/team/:id`      | 200                     | `team_partially_updated` | Modifier uniquement les champs fournis                      |
-| `DELETE /api/team/:id`     | 202                     | `team_deleted`           | Supprimer l'équipe ; 404 si elle est absente                |
-| `GET /api/team`            | 302                     | `team_listed`            | Lister les équipes triées par nom                           |
-| `GET /api/team/:id`        | 302                     | `request_successful`     | Consulter une équipe                                        |
-| `GET /api/departments`     | 200                     | `request_successful`     | Lister les départements triés par nom                       |
-| `GET /api/departments/:id` | 200                     | `request_successful`     | Consulter un département ; 404 s'il est absent              |
-
-Les statuts 302 des lectures d'équipes sont ceux du code actuel ; ce ne sont
-pas les statuts 200 généralement attendus pour ces opérations.
-Les lectures d'équipes incluent `manager`, `department` et `members`.
-Les utilisateurs inclus exposent uniquement `id`, `firstname`, `lastname` et
-`image` ; les départements exposent uniquement `id` et `name`, y compris
-dans leurs propres routes. Les règles sont portées par les DTO de sortie.
-La liste des équipes accepte `name`, `departmentId`, `managerId` et `memberId`
-comme filtres combinés avec un ET.
-Actuellement, une lecture d'équipe absente retourne `null`, transformé en
-`data: {}` par l'interceptor, sans erreur 404.
-
-Exemple de création :
-
-```bash
-curl -X POST http://localhost:3001/api/team \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Support","departmentId":"department-it"}'
-```
-
-Exemple de modification partielle :
-
-```bash
-curl -X PATCH http://localhost:3001/api/team/IDENTIFIANT_EQUIPE \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Support"}'
-```
-
-Conserver le nom de l'équipe courante est autorisé ; choisir le nom d'une autre
-équipe renvoie `already_exists` sur le champ `name`. Voir les règles complètes
-dans [Validation et erreurs](VALIDATION_AND_ERRORS.md).
-
-Les routes `/api/users` et `/api/users/:id` ne sont pas encore disponibles.
 
 ## Exemples avec cookies
 
@@ -506,3 +382,21 @@ en mémoire. Les réponses externes de Microsoft sont simulées une connexion
 avec un vrai tenant reste nécessaire pour valider la configuration Entra.
 Les tests `api-documentation.spec.ts` et `response-serialization.spec.ts` vérifient
 les schémas OpenAPI et le filtrage des réponses, sans base réelle.
+
+
+## Pagination des listes
+
+`GET /api/users`, `GET /api/team` et `GET /api/organizations` acceptent
+`page` (entier >= 1, défaut 1) et `limit` (entier entre 1 et 100, défaut 10).
+Les filtres existants sont cumulables avec ces paramètres.
+
+Les résultats se trouvent dans `data.items`. `data.meta` contient `total`
+(nombre de résultats filtrés), `page`, `limit` et `totalPages`.
+Une page hors limites renvoie une liste vide ; si aucun résultat ne correspond,
+`totalPages` vaut 0. Team et Organization ne renvoient plus de tableau direct dans `data`.
+Les arbres d’organisations et les utilisateurs disponibles pour une équipe ne sont pas concernés.
+
+Les routes `GET /api/organizations/tree` et `GET /api/organizations/:id/tree`
+ne prennent aucun paramètre de query : elles renvoient toutes les branches autorisées
+ou le sous-arbre ciblé par `:id`. Les anciens filtres `name`, `managerId` et `parentId`
+ne s’y appliquent plus. Les filtres de la liste paginée restent disponibles.

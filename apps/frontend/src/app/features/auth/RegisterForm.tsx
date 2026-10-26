@@ -40,11 +40,6 @@ export default function RegisterForm() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // const [isPasswordWarningOpen, setIsPasswordWarningOpen] = useState(false);
-  // const [hasCopiedPassword, setHasCopiedPassword] = useState(false);
-  // const [pendingAction, setPendingAction] = useState<
-  //   'close' | 'createAnother' | null
-  // >(null);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -273,8 +268,6 @@ export default function RegisterForm() {
         onToggleVisibility={() => setIsPasswordVisible((previous) => !previous)}
         onCopy={handleCopyPassword}
         message={formData.password ? t('temporaryPasswordHelp') : undefined}
-        aria-invalid={Boolean(errors.password)}
-        aria-describedby={errors.password ? 'password-error' : undefined}
       />
       <Button type="submit" className="full-width">
         {t('createAccount')}

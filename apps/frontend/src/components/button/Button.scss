@@ -28,6 +28,45 @@
     }
   }
 
+  &-clock_in,
+  &-clock_out {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 14.5px;
+    padding-left: 1.75rem;
+    padding-right: 1.75rem;
+    height: 3rem;
+    border-radius: 10px;
+    color: white;
+    border: none;
+    cursor: pointer;
+    background-color: var(--color-success);
+  }
+
+  &-clock_out {
+    color: var(--color-accent-background);
+    background-color: white;
+  }
+
+  &-timesheet {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 14px;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    height: 3rem;
+    border-radius: 10px;
+    color: white;
+    border: none;
+    cursor: pointer;
+    background-color: #ffffff0d;
+    border: 1px solid #ffffff33;
+  }
+
   &:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 3px;

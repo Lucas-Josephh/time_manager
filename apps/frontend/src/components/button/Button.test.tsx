@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { tabs } from '../../config/navigation';
 import Button from './Button';
 
 describe('Button', () => {
@@ -21,5 +22,15 @@ describe('Button', () => {
     expect(markup).toContain('class="button secondary wide"');
     expect(markup).toContain('disabled=""');
     expect(markup).toContain('>Cancel</button>');
+  });
+
+  it('renders the timesheet variant as a link', () => {
+    const markup = renderToStaticMarkup(
+      <Button variant="timesheet">View timesheet</Button>,
+    );
+
+    expect(markup).toContain(`href="${tabs.timesheet}"`);
+    expect(markup).toContain('class="button-timesheet"');
+    expect(markup).toContain('>View timesheet</a>');
   });
 });

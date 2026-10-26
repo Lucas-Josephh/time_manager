@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import AppProvider from '@/components/providers/AppProvider';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
+import AuthGuard from '@/components/providers/AuthGuard';
 import './globals.scss';
 
 const inter = Inter({
@@ -12,6 +13,7 @@ const inter = Inter({
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('Common');
+
   return {
     title: t('appName'),
     description: t('appDescription'),
@@ -27,7 +29,9 @@ export default async function RootLayout({
     <html lang={locale}>
       <body className={inter.className}>
         <NextIntlClientProvider>
-          <AppProvider>{children}</AppProvider>
+          <AuthGuard>
+            <AppProvider>{children}</AppProvider>
+          </AuthGuard>
         </NextIntlClientProvider>
       </body>
     </html>

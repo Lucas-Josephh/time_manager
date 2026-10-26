@@ -25,33 +25,35 @@ export class UserService {
    */
   async create(dto: CreateUserDto, actor: string) {
     // Credentials and profile must either both be persisted or both rolled back.
-    return this.prisma
-      .$transaction(
-        async (tx) => {
-          // Recheck administrative rights inside the transaction before provisioning anything.
-          await this.authorization.assertCanCreate(actor, tx);
+    return (
+      this.prisma
+        .$transaction(
+          async (tx) => {
+            // Recheck administrative rights inside the transaction before provisioning anything.
+            await this.authorization.assertCanCreate(actor, tx);
 
-          // When a team is provided, derive the initial organization from that team.
-          const membership: {
-            teamId?: string;
-            organizationId?: string;
-          } =
-            dto.teamId === undefined
-              ? {}
-              : await this.teamService.getProvisioningMembership(
-                  tx,
-                  dto.teamId,
-                );
+            // When a team is provided, derive the initial organization from that team.
+            const membership: {
+              teamId?: string;
+              organizationId?: string;
+            } =
+              dto.teamId === undefined
+                ? {}
+                : await this.teamService.getProvisioningMembership(
+                    tx,
+                    dto.teamId,
+                  );
 
-          // Share this transaction with Better Auth so credentials and profile commit together.
-          return this.provisioning.create(tx, dto, membership);
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-      )
-      // Interpret duplicate-account errors only after the transaction has rolled back.
-      .catch((error: unknown) =>
-        this.provisioning.rethrowCreationError(error, dto.email),
-      );
+            // Share this transaction with Better Auth so credentials and profile commit together.
+            return this.provisioning.create(tx, dto, membership);
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        )
+        // Interpret duplicate-account errors only after the transaction has rolled back.
+        .catch((error: unknown) =>
+          this.provisioning.rethrowCreationError(error, dto.email),
+        )
+    );
   }
 
   /**
@@ -75,12 +77,14 @@ export class UserService {
   async findAll(query: QueryUserDto, actor: string) {
     // Protect direct service calls as well as requests passing through AdminGuard.
     await this.authorization.assertCanRead(actor);
+
     // Combine the supplied search fields using case-insensitive matching.
     const where: Prisma.UserWhereInput = {};
     for (const field of ['email', 'firstname', 'lastname'] as const) {
       if (query[field])
         where[field] = { contains: query[field], mode: 'insensitive' };
     }
+
     // Read the page and its total from the same snapshot, with an ID tie-breaker for stable ordering.
     return paginate(query, (range) =>
       this.prisma.$transaction(

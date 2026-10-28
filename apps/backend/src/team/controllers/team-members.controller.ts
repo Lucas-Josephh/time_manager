@@ -1,13 +1,9 @@
 import {
-  ApiOperation,
-  ApiCreatedResponse,
-  ApiOkResponse,
-} from '@nestjs/swagger';
-import { ApiTeamController } from '../team.swagger';
-import {
-  ApiWriteErrors,
-  ApiNotFoundError,
-} from '../../common/swagger/api-response.decorator';
+  ApiTeamController,
+  ApiTeamAddMembers,
+  ApiTeamRemoveMember,
+  ApiTeamTransferMember,
+} from '../team.swagger';
 import {
   Body,
   Controller,
@@ -22,14 +18,11 @@ import type { AuthRequest } from '../../auth/auth.types';
 import { TeamMembersService } from '../services/team-members.service';
 import { AddMembersDto, TransferMemberDto } from '../dto/team-actions.dto';
 @ApiTeamController()
-@ApiWriteErrors()
-@ApiNotFoundError('not_found')
 @Controller('team/:id')
 @UseGuards(AuthGuard)
 export class TeamMembersController {
   constructor(private readonly members: TeamMembersService) {}
-  @ApiOperation({ summary: 'Ajouter des utilisateurs sans équipe' })
-  @ApiCreatedResponse()
+  @ApiTeamAddMembers()
   @Post('members')
   add(
     @Param('id') id: string,
@@ -39,8 +32,7 @@ export class TeamMembersController {
     return this.members.add(id, dto.memberIds, req.session!.user.id);
   }
 
-  @ApiOperation({ summary: 'Retirer un membre' })
-  @ApiOkResponse()
+  @ApiTeamRemoveMember()
   @Delete('members/:userId')
   remove(
     @Param('id') id: string,
@@ -50,8 +42,7 @@ export class TeamMembersController {
     return this.members.remove(id, userId, req.session!.user.id);
   }
 
-  @ApiOperation({ summary: 'Transférer un membre depuis une équipe explicite' })
-  @ApiCreatedResponse()
+  @ApiTeamTransferMember()
   @Post('transfers')
   transfer(
     @Param('id') id: string,

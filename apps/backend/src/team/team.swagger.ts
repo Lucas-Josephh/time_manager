@@ -1,5 +1,5 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiConflictError,
   ApiErrorResponse,
@@ -90,7 +90,6 @@ Utiliser PATCH /team/:id/manager pour le responsable, POST /team/:id/members pou
     }),
     ApiWriteErrors(),
     ApiNotFoundError('not_found'),
-    ApiConflictError(),
   );
 }
 
@@ -169,6 +168,45 @@ Session requise. Admin : toutes les équipes. Manager d’organisation : ses org
     }),
     ApiResourceId('team-administration'),
     ApiSuccessResponse({ type: TeamWithRelationsDto, status: HttpStatus.OK }),
+    ApiNotFoundError('not_found'),
+  );
+}
+
+export function ApiTeamSetManager() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Nommer ou retirer le manager',
+      description: 'Admin ou manager d’organisation requis. Un membre de cette équipe doit être retiré explicitement avant sa nomination.',
+    }),
+    ApiOkResponse({ type: TeamWithRelationsDto }),
+    ApiWriteErrors(),
+    ApiNotFoundError('not_found'),
+  );
+}
+
+export function ApiTeamAddMembers() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Ajouter des utilisateurs sans équipe' }),
+    ApiCreatedResponse(),
+    ApiWriteErrors(),
+    ApiNotFoundError('not_found'),
+  );
+}
+
+export function ApiTeamRemoveMember() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Retirer un membre' }),
+    ApiOkResponse(),
+    ApiWriteErrors(),
+    ApiNotFoundError('not_found'),
+  );
+}
+
+export function ApiTeamTransferMember() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Transférer un membre depuis une équipe explicite' }),
+    ApiCreatedResponse(),
+    ApiWriteErrors(),
     ApiNotFoundError('not_found'),
   );
 }

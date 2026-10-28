@@ -1,5 +1,3 @@
-import { ApiOperation, ApiOkResponse } from '@nestjs/swagger';
-import { ApiWriteErrors, ApiNotFoundError } from '../../common/swagger/api-response.decorator';
 import { AvailableUsersQueryDto, SetManagerDto } from '../dto/team-actions.dto';
 import {
   ApiTeamController,
@@ -9,6 +7,7 @@ import {
   ApiTeamFindAll,
   ApiTeamFindAvailableUsers,
   ApiTeamFindOne,
+  ApiTeamSetManager,
 } from '../team.swagger';
 import {
   Body,
@@ -98,10 +97,7 @@ export class TeamController {
   }
 
   @SerializeResponse(TeamWithRelationsDto)
-  @ApiOperation({ summary: 'Nommer ou retirer le manager', description: 'Admin ou manager d’organisation requis. Un membre de cette équipe doit être retiré explicitement avant sa nomination.' })
-  @ApiOkResponse({ type: TeamWithRelationsDto })
-  @ApiWriteErrors()
-  @ApiNotFoundError('not_found')
+  @ApiTeamSetManager()
   @Patch(':id/manager')
   setManager(
     @Param('id') id: string,

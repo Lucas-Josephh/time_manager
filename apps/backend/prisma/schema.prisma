@@ -8,6 +8,73 @@ datasource db {
   provider = "postgresql"
 }
 
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model WorkSchedule {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdByUserId String
+  createdBy       User   @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  versions WorkScheduleVersion[]
+
+  @@map("work_schedule")
+}
+
+model WorkScheduleVersion {
+  id             String   @id @default(uuid())
+  workScheduleId String
+  version        Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  createdByUserId String
+  createdBy       User   @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  workSchedule WorkSchedule  @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
+  days         ScheduleDay[]
+  workSessions WorkSession[]
+
+  @@unique([workScheduleId, version])
+  @@map("work_schedule_version")
+}
+
+model ScheduleDay {
+  id                    String    @id @default(uuid())
+  workScheduleVersionId String
+  dayOfWeek             DayOfWeek
+
+  workScheduleVersion WorkScheduleVersion @relation(fields: [workScheduleVersionId], references: [id], onDelete: Restrict)
+
+  timeSlots TimeSlot[]
+
+  @@unique([workScheduleVersionId, dayOfWeek])
+  @@map("schedule_day")
+}
+
+model TimeSlot {
+  id            String @id @default(uuid())
+  scheduleDayId String
+  startTime     String
+  endTime       String
+
+  scheduleDay ScheduleDay @relation(fields: [scheduleDayId], references: [id], onDelete: Restrict)
+
+  @@index([scheduleDayId])
+  @@map("time_slot")
+}
+
 model Organization {
   id        String   @id @default(uuid())
   name      String
@@ -77,10 +144,31 @@ model User {
 
   managedTeams Team[] @relation("TeamManager")
 
+  workSessions         WorkSession[]
+  workSchedules        WorkSchedule[]
+  workScheduleVersions WorkScheduleVersion[]
+
   @@unique([email])
   @@index([organizationId])
   @@index([teamId])
   @@map("user")
+}
+
+model WorkSession {
+  id        String    @id @default(uuid())
+  userId    String
+  startedAt DateTime
+  endedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  workScheduleVersionId String
+  workScheduleversion   WorkScheduleVersion @relation(fields: [workScheduleVersionId], references: [id], onDelete: Restrict)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, startedAt])
+  @@map("work_session")
 }
 
 model Session {

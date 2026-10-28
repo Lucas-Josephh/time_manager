@@ -1,7 +1,7 @@
 import { PaginatedDto, PaginationQueryDto } from '../../common/pagination/pagination.dto';
 import { Trim } from '../../common/decorator/transform/trim.decorator';
-import { Unique } from '../../common/decorator/unique.decorator';
-import { Reference } from '../../common/decorator/reference.decorator';
+import { Unique } from '../../common/validation/unique.decorator';
+import { Reference } from '../../common/validation/reference.decorator';
 import { OrganizationDetailsDto } from '../../organization/dto/organization.dto';
 import { UserSummaryDto } from '../../user/dto/user.dto';
 import { Exclude, Expose, Type } from 'class-transformer';

@@ -2,7 +2,7 @@ import { APIError } from 'better-auth/api';
 import {
   PASSWORD_REQUIREMENTS_REGEX,
   PASSWORD_REQUIREMENTS_CODE,
-} from '../../common/decorator/password.decorator';
+} from '../../common/validation/password.decorator';
 import type { AuthTypes } from '../auth.types';
 
 /**

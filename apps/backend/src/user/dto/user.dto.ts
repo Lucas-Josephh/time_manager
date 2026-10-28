@@ -12,9 +12,9 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { Unique } from '../../common/decorator/unique.decorator';
-import { Reference } from '../../common/decorator/reference.decorator';
-import { IsPassword } from '../../common/decorator/password.decorator';
+import { Unique } from '../../common/validation/unique.decorator';
+import { Reference } from '../../common/validation/reference.decorator';
+import { IsPassword } from '../../common/validation/password.decorator';
 import { Lowercase } from '../../common/decorator/transform/lowercase.decorator';
 
 @Exclude()

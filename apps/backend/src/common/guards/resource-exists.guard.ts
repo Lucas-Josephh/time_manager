@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../../prisma/prisma.service';
-import type { ReferenceModel } from '../decorator/reference.decorator';
+import type { ReferenceModel } from '../validation/reference.decorator';
 
 const RESOURCE = 'required_resource';
 

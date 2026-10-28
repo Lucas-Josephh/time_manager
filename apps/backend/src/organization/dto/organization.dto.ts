@@ -1,6 +1,6 @@
 import { PaginatedDto, PaginationQueryDto } from '../../common/pagination/pagination.dto';
 import { Trim } from '../../common/decorator/transform/trim.decorator';
-import { Reference } from '../../common/decorator/reference.decorator';
+import { Reference } from '../../common/validation/reference.decorator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Exclude, Expose, Type } from 'class-transformer';
 import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';

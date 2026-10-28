@@ -1,5 +1,5 @@
-import { UniqueConstraint } from './common/decorator/unique.decorator';
-import { ReferenceExistsConstraint } from './common/decorator/reference.decorator';
+import { UniqueConstraint } from './common/validation/unique.constraint';
+import { ReferenceExistsConstraint } from './common/validation/reference-exists.constraint';
 import { validationOptions } from './common/validation/validation.config';
 import { AuthModule } from './auth/auth.module';
 import { Module, ValidationPipe } from '@nestjs/common';

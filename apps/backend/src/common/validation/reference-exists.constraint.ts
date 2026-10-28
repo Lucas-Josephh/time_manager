@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Validate, ValidatorConstraint } from 'class-validator';
-import type { ValidationArguments, ValidatorConstraintInterface } from 'class-validator';
+import { ValidatorConstraint, type ValidationArguments, type ValidatorConstraintInterface } from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service';
-import type { Prisma } from '../../generated/prisma/client';
-
-// Prisma model names become client properties: Organization -> organization.
-export type ReferenceModel = Uncapitalize<Prisma.ModelName>;
+import type { ReferenceModel } from './reference.decorator';
 
 // All referenced models use a unique string primary key named id.
 type ReferenceDelegate = {
@@ -33,14 +29,4 @@ export class ReferenceExistsConstraint implements ValidatorConstraintInterface {
     // Database errors propagate; an outage is not a missing reference.
     return resource !== null;
   }
-}
-
-/**
- * Validates that a string is a reference to an existing resource in the database.
- *
- * @param model
- * @constructor
- */
-export function Reference(model: ReferenceModel): PropertyDecorator {
-  return Validate(ReferenceExistsConstraint, [model]);
 }

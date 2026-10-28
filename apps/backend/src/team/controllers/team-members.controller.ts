@@ -7,7 +7,6 @@ import { ApiTeamController } from '../team.swagger';
 import {
   ApiWriteErrors,
   ApiNotFoundError,
-  ApiConflictError,
 } from '../../common/swagger/api-response.decorator';
 import {
   Body,
@@ -25,7 +24,6 @@ import { AddMembersDto, TransferMemberDto } from '../dto/team-actions.dto';
 @ApiTeamController()
 @ApiWriteErrors()
 @ApiNotFoundError('not_found')
-@ApiConflictError()
 @Controller('team/:id')
 @UseGuards(AuthGuard)
 export class TeamMembersController {

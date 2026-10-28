@@ -34,6 +34,32 @@ describe('Shared API documentation', () => {
       expect(users.post?.requestBody).toMatchObject({
         content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateUserDto' } } },
       });
+      for (const operation of [
+        users.post,
+        document.paths['/api/users/{id}'].patch,
+        document.paths['/api/organizations/{id}'].patch,
+      ]) {
+        expect(operation?.responses['409']).toMatchObject({
+          content: {
+            'application/json': {
+              schema: {
+                properties: {
+                  message: {
+                    enum: ['already_exists', 'reference_conflict', 'concurrent_modification'],
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+      expect(document.paths['/api/organizations'].get?.responses['401']).toMatchObject({
+        content: {
+          'application/json': {
+            schema: { properties: { message: { enum: ['unauthorized'] } } },
+          },
+        },
+      });
       expect(users.get?.parameters).toEqual(expect.arrayContaining(
         ['page', 'limit', 'email', 'firstname', 'lastname'].map(name =>
           expect.objectContaining({ name, in: 'query', required: false }),

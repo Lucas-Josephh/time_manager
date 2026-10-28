@@ -1,5 +1,5 @@
 import { ApiOperation, ApiOkResponse } from '@nestjs/swagger';
-import { ApiWriteErrors, ApiNotFoundError, ApiConflictError } from '../../common/swagger/api-response.decorator';
+import { ApiWriteErrors, ApiNotFoundError } from '../../common/swagger/api-response.decorator';
 import { AvailableUsersQueryDto, SetManagerDto } from '../dto/team-actions.dto';
 import {
   ApiTeamController,
@@ -102,7 +102,6 @@ export class TeamController {
   @ApiOkResponse({ type: TeamWithRelationsDto })
   @ApiWriteErrors()
   @ApiNotFoundError('not_found')
-  @ApiConflictError()
   @Patch(':id/manager')
   setManager(
     @Param('id') id: string,

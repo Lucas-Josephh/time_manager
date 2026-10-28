@@ -1,19 +1,18 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiConflictError,
   ApiErrorResponse,
   ApiResourceId,
   ApiNotFoundError,
   ApiServerError,
+  ApiUnauthorizedError,
   ApiSuccessResponse,
   ApiWriteErrors,
   ApiValidationError,
 } from '../common/swagger/api-response.decorator';
 import { UserSummaryDto } from '../user/dto/user.dto';
 import {
-  PartialSetTeamDto,
-  SetTeamDto,
   TeamDetailsDto,
   TeamWithRelationsDto,
   TeamListDto,
@@ -29,9 +28,9 @@ export function ApiTeamController() {
   return applyDecorators(
     ApiTags('Team'),
     ApiServerError(),
-    ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
+    ApiUnauthorizedError(),
     ApiErrorResponse(
-      403,
+      HttpStatus.FORBIDDEN,
       ['forbidden', 'password_change_required'],
       'Droits de gestion requis pour les écritures ; mot de passe temporaire à changer si nécessaire.',
     ),
@@ -57,20 +56,18 @@ ${memberRules}
 Les utilisateurs de \`memberIds\` déjà affectés à une équipe sont transférés automatiquement après vérification des droits sur leur équipe source.
 La création et les affectations sont **atomiques**.`,
     }),
-    ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
     ApiErrorResponse(
-      403,
+      HttpStatus.FORBIDDEN,
       'forbidden',
       'Administrateur ou manager de cette organisation ou d’une organisation parente requis.',
     ),
-    ApiBody({ type: SetTeamDto }),
+
     ApiSuccessResponse({
       type: TeamWithRelationsDto,
-      status: 201,
+      status: HttpStatus.CREATED,
       message: 'team_created',
     }),
     ApiWriteErrors(),
-    ApiConflictError(),
   );
 }
 
@@ -86,10 +83,9 @@ Seuls name et organizationId sont acceptés. Un déplacement exige les droits de
 Utiliser PATCH /team/:id/manager pour le responsable, POST /team/:id/members pour les ajouts, DELETE /team/:id/members/:userId pour les retraits, POST /team/:id/transfers pour les transferts.`,
     }),
     ApiResourceId('team-administration'),
-    ApiBody({ type: PartialSetTeamDto }),
     ApiSuccessResponse({
       type: TeamWithRelationsDto,
-      status: 200,
+      status: HttpStatus.OK,
       message: 'team_partially_updated',
     }),
     ApiWriteErrors(),
@@ -114,7 +110,7 @@ La suppression est exécutée **avant** l\'envoi de la réponse **200**.`,
     ApiResourceId('team-administration'),
     ApiSuccessResponse({
       type: TeamDetailsDto,
-      status: 200,
+      status: HttpStatus.OK,
       message: 'team_deleted',
     }),
     ApiNotFoundError('not_found'),
@@ -156,8 +152,7 @@ export function ApiTeamFindAvailableUsers() {
       isArray: true,
       message: 'team_available_users_listed',
     }),
-    ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
-    ApiErrorResponse(403, 'forbidden', 'Aucun droit de gestion d’organisation ou d’équipe.'),
+    ApiErrorResponse(HttpStatus.FORBIDDEN, 'forbidden', 'Aucun droit de gestion d’organisation ou d’équipe.'),
   );
 }
 

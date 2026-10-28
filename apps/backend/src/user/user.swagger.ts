@@ -1,18 +1,17 @@
-import { applyDecorators } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { applyDecorators, HttpStatus } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiConflictError,
   ApiErrorResponse,
   ApiNotFoundError,
   ApiResourceId,
   ApiServerError,
+  ApiUnauthorizedError,
   ApiSuccessResponse,
   ApiValidationError,
   ApiWriteErrors,
 } from '../common/swagger/api-response.decorator';
 import {
-  CreateUserDto,
-  UpdateUserDto,
   UserDetailsDto,
   UserListDto,
 } from './dto/user.dto';
@@ -21,9 +20,9 @@ export function ApiUserController() {
   return applyDecorators(
     ApiTags('Users'),
     ApiServerError(),
-    ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
+    ApiUnauthorizedError(),
     ApiErrorResponse(
-      403,
+      HttpStatus.FORBIDDEN,
       ['forbidden', 'password_change_required'],
       'Administrateur requis. Le mot de passe temporaire doit avoir été changé.',
     ),
@@ -60,15 +59,12 @@ Le champ \`mustChangePassword\` est fixé à \`true\` : l’utilisateur doit cha
 - Les champs non prévus par le DTO sont refusés avec \`validation_unknown_field\`.
 - **409** : conflit de contrainte ou modification concurrente ; aucune création partielle.`,
     }),
-    ApiBody({ type: CreateUserDto }),
     ApiSuccessResponse({
       type: UserDetailsDto,
-      status: 201,
+      status: HttpStatus.CREATED,
       message: 'user_created',
     }),
-    ApiWriteErrors(),
-    ApiErrorResponse(
-      409,
+    ApiWriteErrors(
       ['already_exists', 'reference_conflict', 'concurrent_modification'],
       'Conflit de contrainte ou modification concurrente ; réessayer après vérification des données.',
     ),
@@ -142,12 +138,9 @@ Retourne \`user_updated\` et le profil après modification dans \`data\`.
 - **409** : conflit de contrainte ou modification concurrente.`,
     }),
     ApiResourceId('user-id'),
-    ApiBody({ type: UpdateUserDto }),
     ApiSuccessResponse({ type: UserDetailsDto, message: 'user_updated' }),
     ApiNotFoundError('not_found'),
-    ApiWriteErrors(),
-    ApiErrorResponse(
-      409,
+    ApiWriteErrors(
       ['already_exists', 'reference_conflict', 'concurrent_modification'],
       'Conflit de contrainte ou modification concurrente ; réessayer après vérification des données.',
     ),

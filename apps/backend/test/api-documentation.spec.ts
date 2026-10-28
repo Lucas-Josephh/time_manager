@@ -1,3 +1,5 @@
+import { ScheduleController } from '../src/schedule/controllers/schedule.controller';
+import { ScheduleService } from '../src/schedule/services/schedule.service';
 import { UserController } from '../src/user/controllers/user.controller';
 import { UserService } from '../src/user/services/user.service';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -13,8 +15,9 @@ import { OrganizationService } from '../src/organization/services/organization.s
 describe('Shared API documentation', () => {
   it('documents real envelopes, relations, filters and reusable errors', async () => {
     const module = await Test.createTestingModule({
-      controllers: [TeamController, OrganizationController, UserController, AppController],
+      controllers: [TeamController, OrganizationController, UserController, AppController, ScheduleController],
       providers: [
+        { provide: ScheduleService, useValue: {} },
         { provide: PrismaService, useValue: {} },
         { provide: AuthService, useValue: {} },
         { provide: TeamService, useValue: {} },
@@ -30,6 +33,44 @@ describe('Shared API documentation', () => {
         app,
         new DocumentBuilder().build(),
       );
+      const schedules = document.paths['/api/schedule'];
+      const schedule = document.paths['/api/schedule/{id}'];
+      for (const operation of [schedules.get, schedules.post, schedule.get, schedule.patch]) {
+        expect(operation?.tags).toContain('Schedule');
+        expect(operation?.summary).toBeTruthy();
+        expect(operation?.description).toBeTruthy();
+        for (const status of ['401', '403', '500']) {
+          expect(operation?.responses).toHaveProperty(status);
+        }
+      }
+      expect(schedules.post?.requestBody).toMatchObject({
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateScheduleDto' } } },
+      });
+      expect(schedules.get?.parameters).toEqual(expect.arrayContaining(
+        ['page', 'limit', 'name', 'createdByUserId'].map(name =>
+          expect.objectContaining({ name, in: 'query', required: false }),
+        ),
+      ));
+      expect(schedules.get?.responses['200']).toMatchObject({
+        content: { 'application/json': { schema: { properties: {
+          data: { $ref: '#/components/schemas/ScheduleListDto' },
+        } } } },
+      });
+      expect(schedule.get?.responses).not.toHaveProperty('404');
+      expect(schedule.get?.responses['200']).toMatchObject({
+        content: { 'application/json': { schema: { properties: {
+          data: { oneOf: [
+            { $ref: '#/components/schemas/ScheduleResponseDto' },
+            { type: 'object', additionalProperties: false },
+          ] },
+        } } } },
+      });
+      expect(schedule.patch?.responses).toHaveProperty('404');
+      expect(schedule.patch?.responses['409']).toMatchObject({
+        content: { 'application/json': { schema: { properties: {
+          message: { enum: expect.arrayContaining(['concurrent_modification']) },
+        } } } },
+      });
       const users = document.paths['/api/users'];
       expect(users.post?.requestBody).toMatchObject({
         content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateUserDto' } } },

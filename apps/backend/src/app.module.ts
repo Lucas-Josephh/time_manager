@@ -13,6 +13,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { OrganizationModule } from './organization/organization.module';
 import { TeamModule } from './team/team.module';
 import { UserModule } from './user/user.module';
+import { ScheduleModule } from './schedule/schedule.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UserModule } from './user/user.module';
     OrganizationModule,
     TeamModule,
     UserModule,
+    ScheduleModule,
   ],
   controllers: [AppController],
   providers: [

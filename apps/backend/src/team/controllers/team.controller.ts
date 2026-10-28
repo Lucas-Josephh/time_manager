@@ -1,3 +1,4 @@
+import { ApiResult } from '../../common/decorator/api-result.decorator';
 import { AvailableUsersQueryDto, SetManagerDto } from '../dto/team-actions.dto';
 import {
   ApiTeamController,
@@ -10,6 +11,7 @@ import {
   ApiTeamSetManager,
 } from '../team.swagger';
 import {
+  HttpStatus,
   Body,
   Controller,
   Delete,
@@ -33,28 +35,31 @@ import {
   TeamListDto,
   TeamWithRelationsDto,
 } from '../dto/team.dto';
-import { ResponseMessage } from '../../common/decorator/response-message.decorator';
-import { SerializeResponse } from '../../common/serialization/serialize-response.decorator';
 
 @ApiTeamController()
 @Controller('team')
 @UseGuards(AuthGuard)
-@SerializeResponse(TeamDetailsDto)
 export class TeamController {
   constructor(private readonly teamService: TeamService) {}
 
-  @ResponseMessage('team_created')
   @ApiTeamCreate()
-  @SerializeResponse(TeamWithRelationsDto)
   @Post()
+  @ApiResult({
+    type: TeamWithRelationsDto,
+    status: HttpStatus.CREATED,
+    message: 'team_created',
+  })
   create(@Body() dto: SetTeamDto, @Req() request: AuthRequest) {
     return this.teamService.create(dto, request.session!.user.id);
   }
 
-  @ResponseMessage('team_partially_updated')
   @ApiTeamUpdate()
-  @SerializeResponse(TeamWithRelationsDto)
   @Patch(':id')
+  @ApiResult({
+    type: TeamWithRelationsDto,
+    status: HttpStatus.OK,
+    message: 'team_partially_updated',
+  })
   update(
     @Param('id') id: string,
     @Body() dto: PartialSetTeamDto,
@@ -63,25 +68,37 @@ export class TeamController {
     return this.teamService.update(id, dto, request.session!.user.id);
   }
 
-  @ResponseMessage('team_deleted')
   @ApiTeamDelete()
   @Delete(':id')
+  @ApiResult({
+    type: TeamDetailsDto,
+    status: HttpStatus.OK,
+    message: 'team_deleted',
+  })
   delete(@Param('id') id: string, @Req() request: AuthRequest) {
     return this.teamService.delete(id, request.session!.user.id);
   }
 
-  @ResponseMessage('team_listed')
   @ApiTeamFindAll()
-  @SerializeResponse(TeamListDto)
   @Get()
+  @ApiResult({
+    type: TeamListDto,
+    status: HttpStatus.OK,
+    message: 'team_listed',
+  })
   findAll(@Query() query: QuerySetTeamDto, @Req() request: AuthRequest) {
     return this.teamService.findAll(query, request.session!.user.id);
   }
 
-  @SerializeResponse(UserSummaryDto)
-  @ResponseMessage('team_available_users_listed')
+
   @ApiTeamFindAvailableUsers()
   @Get('available-users')
+  @ApiResult({
+    type: UserSummaryDto,
+    status: HttpStatus.OK,
+    message: 'team_available_users_listed',
+    isArray: true,
+  })
   findAvailableUsers(
     @Req() request: AuthRequest,
     @Query() query: AvailableUsersQueryDto,
@@ -90,15 +107,21 @@ export class TeamController {
   }
 
   @ApiTeamFindOne()
-  @SerializeResponse(TeamWithRelationsDto)
   @Get(':id')
+  @ApiResult({
+    type: TeamWithRelationsDto,
+    status: HttpStatus.OK,
+  })
   findOne(@Param('id') id: string, @Req() request: AuthRequest) {
     return this.teamService.findOne(id, request.session!.user.id);
   }
 
-  @SerializeResponse(TeamWithRelationsDto)
   @ApiTeamSetManager()
   @Patch(':id/manager')
+  @ApiResult({
+    type: TeamWithRelationsDto,
+    status: HttpStatus.OK,
+  })
   setManager(
     @Param('id') id: string,
     @Body() dto: SetManagerDto,

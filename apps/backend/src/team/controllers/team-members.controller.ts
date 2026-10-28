@@ -1,3 +1,4 @@
+import { ApiResult } from '../../common/decorator/api-result.decorator';
 import {
   ApiTeamController,
   ApiTeamAddMembers,
@@ -5,6 +6,7 @@ import {
   ApiTeamTransferMember,
 } from '../team.swagger';
 import {
+  HttpStatus,
   Body,
   Controller,
   Delete,
@@ -24,6 +26,9 @@ export class TeamMembersController {
   constructor(private readonly members: TeamMembersService) {}
   @ApiTeamAddMembers()
   @Post('members')
+  @ApiResult({
+    status: HttpStatus.CREATED,
+  })
   add(
     @Param('id') id: string,
     @Body() dto: AddMembersDto,
@@ -34,6 +39,9 @@ export class TeamMembersController {
 
   @ApiTeamRemoveMember()
   @Delete('members/:userId')
+  @ApiResult({
+    status: HttpStatus.OK,
+  })
   remove(
     @Param('id') id: string,
     @Param('userId') userId: string,
@@ -44,6 +52,9 @@ export class TeamMembersController {
 
   @ApiTeamTransferMember()
   @Post('transfers')
+  @ApiResult({
+    status: HttpStatus.CREATED,
+  })
   transfer(
     @Param('id') id: string,
     @Body() dto: TransferMemberDto,

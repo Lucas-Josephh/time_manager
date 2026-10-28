@@ -6,9 +6,9 @@ import {
   getSchemaPath,
 } from '@nestjs/swagger';
 
-interface SuccessOptions {
-  type: Type<unknown>;
-  status?: number;
+export interface SuccessOptions {
+  type?: Type<object>;
+  status?: HttpStatus;
   message?: string;
   isArray?: boolean;
   allowEmpty?: boolean;
@@ -36,7 +36,9 @@ export function ApiSuccessResponse({
   allowEmpty = false,
   description = 'Opération réussie.',
 }: SuccessOptions) {
-  const reference = { $ref: getSchemaPath(type) };
+  const reference = type
+    ? { $ref: getSchemaPath(type) }
+    : { type: 'object' as const, additionalProperties: false };
   const data = isArray
     ? { type: 'array' as const, items: reference }
     : allowEmpty
@@ -49,7 +51,7 @@ export function ApiSuccessResponse({
       : reference;
 
   return applyDecorators(
-    ApiExtraModels(type),
+    ...(type ? [ApiExtraModels(type)] : []),
     ApiResponse({
       status,
       description,

@@ -7,7 +7,6 @@ import {
   MailOutlined,
   PhoneOutlined,
   UserOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -15,6 +14,7 @@ import useAppNotification from '@/hooks/useAppNotification';
 import Button from '@/components/button/Button';
 import InputMessage from '@/components/input/InputMessage';
 import ActionModal from '@/components/modal/ActionModal';
+import MessageCard from '@/components/message-card/MessageCard';
 
 const PASSWORD_LENGTH = 12;
 
@@ -309,13 +309,11 @@ export default function RegisterForm() {
           onCopy={handleCopyPassword}
         />
 
-        <div className="warning-card">
-          <WarningOutlined />
-          <div>
-            <h4>{t('success.savePasswordTitle')}</h4>
-            <p>{t('success.savePasswordDescription')}</p>
-          </div>
-        </div>
+        <MessageCard
+          type="warning"
+          title={t('success.savePasswordTitle')}
+          message={t('success.savePasswordDescription')}
+        />
 
         <InputMessage
           type="info"

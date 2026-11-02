@@ -17,8 +17,7 @@
     "signIn": "Sign in",
     "signOut": "Sign out",
     "unexpectedError": "An error occurred.",
-    "or": "Or",
-    "continueWithMicrosoft": "Continue with Microsofr"
+    "or": "Or"
   },
   "Navigation": {
     "menu": "Menu",
@@ -74,14 +73,21 @@
       "passwordChangeRequired": "The employee must change this password on their first login."
     }
   },
-  "LoginExamplePage": {
+  "LoginPage": {
+    "title": "Welcome back",
+    "subtitle": "Log in to your account",
+    "validation": {
+      "passwordRequired": "Please enter a password."
+    },
+    "errors": {
+      "serverUnavailable": "Unable to reach the server. Please try again."
+    },
     "microsoftCallbackError": "Microsoft sign-in was denied. Check that your account belongs to our organization and that your email address has been added to Time Manager.",
     "microsoftSignInFailed": "Microsoft sign-in failed.",
     "signInFailed": "Sign-in failed.",
     "signOutFailed": "Sign-out failed.",
-    "greeting": "Hello {name}",
     "signInHelp": "Sign in with your authorized account.",
-    "signInWithMicrosoft": "Sign in with Microsoft 365",
+    "signInWithMicrosoft": "Continue with Microsoft 365",
     "microsoftAccountHelp": "Use the Microsoft 365 account whose email address was added by your administrator. The accounts are linked automatically on your first sign-in.",
     "passwordLabel": "Time Manager password",
     "sessionCheckFailed": "Unable to verify the session."

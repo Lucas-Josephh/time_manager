@@ -1,21 +1,28 @@
 'use client';
 
 import Input from '@/components/input/Input';
-import { MailOutlined } from '@ant-design/icons';
+import { LoadingOutlined, MailOutlined } from '@ant-design/icons';
 import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { authClient } from '@/lib/auth-client';
+import { useRouter } from 'next/navigation';
 import Button from '@/components/button/Button';
 import PasswordField from '@/components/input/PasswordField';
+import MessageCard from '@/components/message-card/MessageCard';
 
 export default function LoginForm() {
   type FormErrors = Partial<Record<keyof typeof formData, string>>;
 
   const t = useTranslations('RegisterPage');
   const common = useTranslations('Common');
+  const messages = useTranslations();
   const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -69,7 +76,7 @@ export default function LoginForm() {
     }
 
     if (!formData.password) {
-      nextErrors.password = "Veuillez saisir un mot de passe";
+      nextErrors.password = messages('LoginPage.validation.passwordRequired');
       isValid = false;
     }
 
@@ -77,13 +84,41 @@ export default function LoginForm() {
     return isValid;
   };
 
-  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = (event) => {
+  const handleSubmit: React.SubmitEventHandler<HTMLFormElement> = async (
+    event,
+  ) => {
     event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    setSubmitError(null);
 
     if (!validateForm()) {
       return;
     }
-    // POST USER BLABLABLI.
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await authClient.signIn.email({
+        email: formData.email.trim(),
+        password: formData.password,
+      });
+
+      if (error) {
+        setSubmitError(error.message ?? messages('LoginPage.signInFailed'));
+        return;
+      }
+
+      router.replace('/');
+      router.refresh();
+    } catch {
+      setSubmitError(messages('LoginPage.errors.serverUnavailable'));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -91,6 +126,7 @@ export default function LoginForm() {
       ref={formRef}
       onSubmit={handleSubmit}
       noValidate
+      className="login-form"
     >
       <Input
         id="email"
@@ -123,8 +159,9 @@ export default function LoginForm() {
         onToggleVisibility={handleTogglePasswordVisibility}
         autoComplete="current-password"
       />
-      <Button type="submit" className="full-width">
-        Log in
+      {submitError && <MessageCard type="error" message={submitError} />}
+      <Button type="submit" className="full-width" disabled={isSubmitting}>
+        {isSubmitting ? <LoadingOutlined /> : common('signIn')}
       </Button>
     </form>
   );

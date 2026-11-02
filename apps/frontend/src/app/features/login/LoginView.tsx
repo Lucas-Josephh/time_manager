@@ -5,7 +5,9 @@ import Button from '@/components/button/Button';
 import LoginForm from './LoginForm';
 
 export default function LoginView() {
-  const t = useTranslations('RegisterPage');
+  const t = useTranslations('LoginPage');
+  const common = useTranslations('Common');
+
   return (
     <ConfigProvider
       theme={{
@@ -19,17 +21,17 @@ export default function LoginView() {
         <div className="screen screen--centered">
           <div className="auth-container">
             <AuthHeader
-              title="Welcome back"
-              subtitle="Login to your account"
+              title={t('title')}
+              subtitle={t('subtitle')}
             ></AuthHeader>
             <div className="card">
               <LoginForm />
               <Divider>
-                <span className="surtitre">Or</span>
+                <span className="surtitre">{common('or')}</span>
               </Divider>
               <Button variant="secondary" className="full-width">
                 {/* <FcGoogle size={16} /> */}
-                Continue with Microsoft
+                {t('signInWithMicrosoft')}
               </Button>
             </div>
           </div>

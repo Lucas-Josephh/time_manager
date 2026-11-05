@@ -8,6 +8,8 @@ import {
 } from '../dto/schedule.dto';
 import { DayOfWeek, Prisma, WorkSchedule } from '../../generated/prisma/client';
 import { paginate } from '../../common/pagination/paginate';
+import { PaginationMetaDto } from '../../common/pagination/pagination.dto';
+import { ScheduleAuthorizationService } from './schedule-authorization.service';
 
 const weekdays = [
   ['1', DayOfWeek.MONDAY],
@@ -21,9 +23,14 @@ const weekdays = [
 
 @Injectable()
 export class ScheduleService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly authorization: ScheduleAuthorizationService,
+  ) {}
 
-  private buildWhereClause(filters: QueryScheduleDto): Prisma.WorkScheduleWhereInput {
+  private buildWhereClause(
+    filters: QueryScheduleDto,
+  ): Prisma.WorkScheduleWhereInput {
     const where: Prisma.WorkScheduleWhereInput = {};
     if (filters.name) {
       where.name = { contains: filters.name, mode: 'insensitive' };
@@ -34,7 +41,10 @@ export class ScheduleService {
     return where;
   }
 
-  findAll(filters: QueryScheduleDto) {
+  findAll(filters: QueryScheduleDto): Promise<{
+    items: WorkSchedule[];
+    meta: PaginationMetaDto;
+  }> {
     const where = this.buildWhereClause(filters);
 
     return paginate<WorkSchedule>(filters, (range) =>
@@ -84,7 +94,9 @@ export class ScheduleService {
   }
 
   /** Creates a schedule and its initial weekly version atomically. */
-  create(dto: CreateScheduleDto, actor: string) {
+  async create(dto: CreateScheduleDto, actor: string) {
+    await this.authorization.assertCanCreate(actor, this.prisma);
+
     return this.prisma.workSchedule.create({
       data: {
         name: dto.name,
@@ -119,10 +131,13 @@ export class ScheduleService {
    *
    * @param id
    * @param dto
+   * @param actor
    */
   async update(id: string, dto: UpdateScheduleDto, actor: string) {
     return this.prisma.$transaction(
       async (tx) => {
+        await this.authorization.assertCanManage(actor, id, tx);
+
         const schedule = await tx.workSchedule.findUniqueOrThrow({
           where: { id },
           select: {

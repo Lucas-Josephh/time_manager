@@ -27,6 +27,10 @@ model WorkSchedule {
   createdByUserId String
   createdBy       User   @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
 
+  usersAssignments         UserWorkScheduleAssignment[]
+  teamsAssignments         TeamWorkScheduleAssignment[]
+  organizationsAssignments OrganizationWorkScheduleAssignment[]
+
   versions WorkScheduleVersion[]
 
   @@map("work_schedule")
@@ -63,6 +67,47 @@ model ScheduleDay {
   @@map("schedule_day")
 }
 
+/**
+ * Represents the assignment of a work schedule to a user.
+ * - One user can be associate with same multiple work schedule
+ * - One user can be associate to any work schedule
+ */
+model UserWorkScheduleAssignment {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  workScheduleId String
+  workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
+  effectiveFrom  DateTime     @default(now())
+
+  @@unique([userId, effectiveFrom])
+  @@map("user_work_schedule_assignment")
+}
+
+model TeamWorkScheduleAssignment {
+  id             String       @id @default(uuid())
+  teamId         String
+  team           Team         @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  workScheduleId String
+  workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
+  effectiveFrom  DateTime     @default(now())
+
+  @@unique([teamId, effectiveFrom])
+  @@map("team_work_schedule_assignment")
+}
+
+model OrganizationWorkScheduleAssignment {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  workScheduleId String
+  workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
+  effectiveFrom  DateTime     @default(now())
+
+  @@unique([organizationId, effectiveFrom])
+  @@map("organization_work_schedule_assignment")
+}
+
 model TimeSlot {
   id            String @id @default(uuid())
   scheduleDayId String
@@ -91,6 +136,8 @@ model Organization {
   teams Team[]
   users User[] @relation("OrganizationMembers")
 
+  workScheduleAssignments OrganizationWorkScheduleAssignment[]
+
   @@index([parentId])
   @@index([managerId])
   @@map("organization")
@@ -110,6 +157,8 @@ model Team {
   manager   User?   @relation("TeamManager", fields: [managerId], references: [id], onDelete: SetNull)
 
   members User[] @relation("TeamMembers")
+
+  workScheduleAssignments TeamWorkScheduleAssignment[]
 
   @@index([organizationId])
   @@index([managerId])
@@ -134,19 +183,31 @@ model User {
   sessions Session[]
   accounts Account[]
 
+  // A user can be associated to a single organization
   organizationId String?
   organization   Organization? @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: SetNull)
 
+  // A user can manage multiple organizations
   managedOrganizations Organization[] @relation("OrganizationManager")
 
+  // A user can be a member of a single team
   teamId String?
   team   Team?   @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Restrict)
 
+  // A user can manager multiple teams (disclaimer: manager != member)
   managedTeams Team[] @relation("TeamManager")
 
-  workSessions         WorkSession[]
-  workSchedules        WorkSchedule[]
+  // A user can make multiple work session to store their work timee
+  workSessions WorkSession[]
+
+  // A user can create multiple work schedule
+  workSchedules WorkSchedule[]
+
+  // A user can create multiple variant of work schedule with differents hours
   workScheduleVersions WorkScheduleVersion[]
+
+  // A user can be assigned to a multiple work schedules
+  workScheduleAssignments UserWorkScheduleAssignment[]
 
   @@unique([email])
   @@index([organizationId])

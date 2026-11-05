@@ -138,7 +138,7 @@ Les routes conservent `AuthGuard` et `AdminGuard`. Les services reçoivent aussi
 
 `UserService` orchestre la création : vérification des droits, résolution de l’équipe initiale, puis appel à `UserProvisioningService` avec le même client transactionnel. Ce dernier intègre Better Auth, crée les identifiants et récupère le profil complet. Aucun client transactionnel n’est conservé dans un provider partagé. Les erreurs de doublon Better Auth sont interprétées après annulation de la transaction pour préserver la réponse `validation_failed` sur le champ email.
 
-Les changements d’appartenance restent dans Team. Les mises à jour du profil conservent la reconstruction du nom complet et la remise à zéro de `emailVerified` si l’email est modifié. Le guard `ResourceExists` reste présent sur le PATCH User : une cible absente est détectée avant la validation du DTO.
+Les changements d’appartenance restent dans Team. Les mises à jour du profil conservent la reconstruction du nom complet et la remise à zéro de `emailVerified` si l’email est modifié. Sur le PATCH User, le DTO est validé avant que le service vérifie l’existence de la cible dans la transaction ; une cible absente avec un body valide renvoie 404.
 
 ## Création des utilisateurs
 

@@ -21,7 +21,6 @@ import {
   UserDetailsDto,
   UserListDto,
 } from '../dto/user.dto';
-import { ResourceExists } from '../../common/guards/resource-exists.guard';
 import { AuthGuard } from '../../auth/guards/auth.guard';
 import { AdminGuard } from '../../auth/guards/admin.guard';
 import {
@@ -97,7 +96,6 @@ export class UserController {
    * @param request - Authenticated request containing the administrator’s session.
    */
   @Patch(':id')
-  @ResourceExists('user')
   @ApiUserUpdate()
   @ApiResult({
     type: UserDetailsDto,

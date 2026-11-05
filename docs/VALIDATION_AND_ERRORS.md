@@ -90,33 +90,16 @@ contre les modifications concurrentes.
 ### Ordre des contrôles
 
 Les guards d’authentification s’exécutent d’abord sur les routes protégées.
-Pour Team et Organization, les DTO sont ensuite validés, puis les services
+Pour User, Team et Organization, les DTO sont ensuite validés, puis les services
 chargent les cibles et vérifient les droits. Pour les écritures, ces lectures,
 les contrôles d’autorisation et les mutations utilisent la même transaction
 Serializable. Un body invalide renvoie 400 avant toute recherche de cible ;
 une cible absente avec un body valide renvoie 404.
 
-Le décorateur générique `@ResourceExists` reste disponible pour les autres
-routes qui souhaitent vérifier la cible avant les pipes.
-
-Le guard est générique : le modèle vient du décorateur et les modèles acceptés
-sont dérivés de Prisma. Aucun `if/else` par modèle n’est nécessaire.
-Le paramètre est configurable :
-
-```ts
-@ResourceExists('user', { param: 'userId', trimId: true })
-```
-
-Ce décorateur se place sur les méthodes ciblant une ressource, pas sur les
-routes de collection. S’il y a un `@UseGuards(AuthGuard)` sur la méthode,
-placer `@ResourceExists` au-dessus : Nest enregistrera l’authentification avant
-la vérification d’existence. Un guard d’authentification de contrôleur passe
-toujours avant les guards de méthode.
-
 Les identifiants de la query des utilisateurs disponibles sont nettoyés par leur DTO
 de paramètres. Les identifiants vides sont laissés à la validation de format.
 Les services et les contraintes SQL continuent à protéger les opérations si
-une ressource disparaît entre la vérification et l’écriture.
+une ressource disparaît entre la validation et l’écriture.
 
 ### Construction des erreurs
 

@@ -16,6 +16,9 @@ import { useTranslations } from 'next-intl';
 import { tabs } from '@/config/navigation';
 import Button from '../button/Button';
 import { Avatar } from 'antd';
+import { authClient } from '@/lib/auth-client';
+import { useRouter } from 'next/navigation';
+import useAppNotification from '@/hooks/useAppNotification';
 
 interface NavItem {
   logo: LucideIcon | IconType;
@@ -25,8 +28,13 @@ interface NavItem {
 
 export default function Navbar() {
   const common = useTranslations('Common');
+  const login = useTranslations('LoginPage');
   const navigation = useTranslations('Navigation');
+  const router = useRouter();
+
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [select, setSelect] = useState(navigation('dashboard'));
+
   const navItems: NavItem[] = [
     {
       logo: LayoutDashboard,
@@ -51,6 +59,35 @@ export default function Navbar() {
       link: tabs.reports.href,
     },
   ];
+
+  const { notify } = useAppNotification();
+
+  const handleLogout = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+
+    try {
+      const { error } = await authClient.signOut();
+
+      if (error) {
+        notify('error', {
+          title: login('errors.signOutfailed'),
+          description: error.message ?? login('errors.signOutFailed'),
+        });
+        return;
+      }
+
+      router.replace('/login');
+      router.refresh();
+    } catch {
+      notify('error', {
+        title: login('errors.signOutfailed'),
+        description: login('errors.serverUnavailable'),
+      });
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   return (
     <div className="extranet-navbar">
@@ -139,7 +176,12 @@ export default function Navbar() {
                   Frontend Developer
                 </p>
               </div>
-              <Button variant="logout" />
+              <Button
+                variant="logout"
+                onClick={handleLogout}
+                disabled={isSigningOut}
+                aria-label={common('signOut')}
+              />
             </div>
           </div>
         </div>

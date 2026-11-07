@@ -15,7 +15,8 @@ export default function LoginForm() {
 
   const t = useTranslations('RegisterPage');
   const common = useTranslations('Common');
-  const messages = useTranslations();
+  const login = useTranslations('LoginPage');
+  
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
 
@@ -76,7 +77,7 @@ export default function LoginForm() {
     }
 
     if (!formData.password) {
-      nextErrors.password = messages('LoginPage.validation.passwordRequired');
+      nextErrors.password = login('validation.passwordRequired');
       isValid = false;
     }
 
@@ -108,14 +109,14 @@ export default function LoginForm() {
       });
 
       if (error) {
-        setSubmitError(error.message ?? messages('LoginPage.signInFailed'));
+        setSubmitError(error.message ?? login('errors.signInFailed'));
         return;
       }
 
       router.replace('/');
       router.refresh();
     } catch {
-      setSubmitError(messages('LoginPage.errors.serverUnavailable'));
+      setSubmitError(login('errors.serverUnavailable'));
     } finally {
       setIsSubmitting(false);
     }
@@ -139,7 +140,6 @@ export default function LoginForm() {
         value={formData.email}
         error={errors.email}
         onChange={(event) => {
-          console.log('Email changed');
           updateField('email', event.currentTarget.value);
         }}
         aria-invalid={Boolean(errors.email)}
@@ -152,7 +152,6 @@ export default function LoginForm() {
         value={formData.password}
         error={errors.password}
         onChange={(event) => {
-          console.log('Password changed');
           updateField('password', event.currentTarget.value);
         }}
         isVisible={isPasswordVisible}

@@ -1,3 +1,4 @@
+import { SCHEDULE_DAYS } from './schedule-week';
 import { FieldErrorsBuilder } from '../common/validation/field-errors.builder';
 import { ValidationException } from '../common/validation/validation.exception';
 import type { FieldErrors } from '../common/validation/format-validation-errors';
@@ -57,8 +58,8 @@ export function getScheduleWeekErrors(
   if (!isObject(value))
     return errors.add(field, 'invalid_schedule_slots').toObject();
 
-  for (let day = 1; day <= 7; day++) {
-    const slots = value[String(day)];
+  for (const day of SCHEDULE_DAYS) {
+    const slots = value[day];
     if (!Array.isArray(slots)) {
       errors.at(field, day).add('invalid_schedule_slots');
       continue;

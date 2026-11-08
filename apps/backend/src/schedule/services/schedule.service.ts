@@ -1,3 +1,4 @@
+import { SCHEDULE_DAYS, createEmptyWeek } from '../schedule-week';
 import { scheduleDetails } from '../schedule.include';
 import { assertValidSchedule } from '../schedule-validation';
 import { Injectable } from '@nestjs/common';
@@ -7,30 +8,11 @@ import {
   QueryScheduleDto,
   UpdateScheduleDto,
   WeeklyScheduleDto,
+  ScheduleTimeSlotDto,
 } from '../dto/schedule.dto';
-import { DayOfWeek, Prisma } from '../../generated/prisma/client';
+import { Prisma } from '../../generated/prisma/client';
 import { paginate } from '../../common/pagination/paginate';
 import { ScheduleAuthorizationService } from './schedule-authorization.service';
-
-const weekdays = [
-  DayOfWeek.MONDAY,
-  DayOfWeek.TUESDAY,
-  DayOfWeek.WEDNESDAY,
-  DayOfWeek.THURSDAY,
-  DayOfWeek.FRIDAY,
-  DayOfWeek.SATURDAY,
-  DayOfWeek.SUNDAY,
-];
-// The DTO uses ISO weekday numbers: Monday = "1", Sunday = "7".
-const weekdayKeys: Record<DayOfWeek, keyof WeeklyScheduleDto> = {
-  MONDAY: '1',
-  TUESDAY: '2',
-  WEDNESDAY: '3',
-  THURSDAY: '4',
-  FRIDAY: '5',
-  SATURDAY: '6',
-  SUNDAY: '7',
-};
 
 @Injectable()
 export class ScheduleService {
@@ -141,18 +123,9 @@ export class ScheduleService {
         const timezone = dto.timezone ?? source.timezone;
         let week = dto.weeklySchedule;
         if (!week) {
-          week = {
-            '1': [],
-            '2': [],
-            '3': [],
-            '4': [],
-            '5': [],
-            '6': [],
-            '7': [],
-          };
+          week = createEmptyWeek<ScheduleTimeSlotDto>();
           for (const day of source.days) {
-            const key = weekdayKeys[day.dayOfWeek];
-            week[key] = day.timeSlots;
+            week[day.dayOfWeek] = day.timeSlots;
           }
         }
 
@@ -203,10 +176,10 @@ export class ScheduleService {
   }
 
   private buildDays(week: WeeklyScheduleDto) {
-    return weekdays.map((dayOfWeek) => ({
+    return SCHEDULE_DAYS.map((dayOfWeek) => ({
       dayOfWeek,
       timeSlots: {
-        create: week[weekdayKeys[dayOfWeek]].map((slot) => ({
+        create: week[dayOfWeek].map((slot) => ({
           startTime: slot.startTime,
           endTime: slot.endTime,
         })),

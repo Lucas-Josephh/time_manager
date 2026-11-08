@@ -4,13 +4,13 @@ import { Prisma } from '../../../src/generated/prisma/client';
 import { createHttpTestApp } from '../support/http-test-app';
 
 const weeklySchedule = {
-  '1': [{ startTime: '09:00', endTime: '17:00' }],
-  '2': [],
-  '3': [],
-  '4': [],
-  '5': [],
-  '6': [],
-  '7': [],
+  MONDAY: [{ startTime: '09:00', endTime: '17:00' }],
+  TUESDAY: [],
+  WEDNESDAY: [],
+  THURSDAY: [],
+  FRIDAY: [],
+  SATURDAY: [],
+  SUNDAY: [],
 };
 const date = new Date('2026-10-30T09:00:00Z');
 const schedule = {
@@ -208,10 +208,10 @@ describe('Schedule HTTP API', () => {
   ] as const)('points to the exact invalid endTime for %s %s', async (method, path) => {
     const response = await request(app.getHttpServer())[method](path).send({
       name: 'Planning Postman', timezone: 'Europe/Paris',
-      weeklySchedule: { ...weeklySchedule, '1': [{ startTime: '09:00', endTime: '08:00' }, { startTime: '13:00', endTime: '17:00' }] },
+      weeklySchedule: { ...weeklySchedule, MONDAY: [{ startTime: '09:00', endTime: '08:00' }, { startTime: '13:00', endTime: '17:00' }] },
     }).expect(400);
     expect(response.body).toEqual({ success: false, message: 'validation_failed', data: { errors: {
-      'weeklySchedule[1][0][endTime]': { messages: ['schedule_end_time_must_follow_start_time'] },
+      'weeklySchedule[MONDAY][0][endTime]': { messages: ['schedule_end_time_must_follow_start_time'] },
     } } });
     expect(prisma.workSchedule.create).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -263,7 +263,7 @@ describe('Schedule HTTP API', () => {
 
   it.each([
     { name: 'Matin', weeklySchedule, createdByUserId: 'forged' },
-    { name: 'Matin', weeklySchedule: { '1': [] } },
+    { name: 'Matin', weeklySchedule: { MONDAY: [] } },
     { name: '   ', weeklySchedule },
   ])('rejects invalid creation before writing: %p', async (body) => {
     const response = await request(app.getHttpServer())
@@ -277,7 +277,7 @@ describe('Schedule HTTP API', () => {
   it('rejects invalid update and query data before accessing the database', async () => {
     await request(app.getHttpServer())
       .patch('/api/schedule/schedule-1')
-      .send({ weeklySchedule: { '1': [] } })
+      .send({ weeklySchedule: { MONDAY: [] } })
       .expect(400);
     await request(app.getHttpServer())
       .get('/api/schedule?limit=101')

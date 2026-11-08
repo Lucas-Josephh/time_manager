@@ -1,3 +1,4 @@
+import { createEmptyWeek } from '../schedule-week';
 import {
   getScheduleWeekErrors,
   isValidTimezone,
@@ -49,7 +50,7 @@ export class ScheduleTimeSlotDto {
   endTime!: string;
 }
 
-/** Weekly time slots indexed by ISO weekday (1 = Monday, 7 = Sunday). */
+/** Weekly time slots indexed by the shared DayOfWeek enum. */
 export class WeeklyScheduleDto {
   @IsDefined()
   @IsArray()
@@ -59,7 +60,7 @@ export class WeeklyScheduleDto {
     type: [ScheduleTimeSlotDto],
     description: 'Créneaux du lundi : tableau vide pour un jour non travaillé.',
   })
-  '1'!: ScheduleTimeSlotDto[];
+  [DayOfWeek.MONDAY]!: ScheduleTimeSlotDto[];
 
   @IsDefined()
   @IsArray()
@@ -69,7 +70,7 @@ export class WeeklyScheduleDto {
     type: [ScheduleTimeSlotDto],
     description: 'Créneaux du mardi : tableau vide pour un jour non travaillé.',
   })
-  '2'!: ScheduleTimeSlotDto[];
+  [DayOfWeek.TUESDAY]!: ScheduleTimeSlotDto[];
 
   @IsDefined()
   @IsArray()
@@ -80,7 +81,7 @@ export class WeeklyScheduleDto {
     description:
       'Créneaux du mercredi : tableau vide pour un jour non travaillé.',
   })
-  '3'!: ScheduleTimeSlotDto[];
+  [DayOfWeek.WEDNESDAY]!: ScheduleTimeSlotDto[];
 
   @IsDefined()
   @IsArray()
@@ -90,7 +91,7 @@ export class WeeklyScheduleDto {
     type: [ScheduleTimeSlotDto],
     description: 'Créneaux du jeudi : tableau vide pour un jour non travaillé.',
   })
-  '4'!: ScheduleTimeSlotDto[];
+  [DayOfWeek.THURSDAY]!: ScheduleTimeSlotDto[];
 
   @IsDefined()
   @IsArray()
@@ -101,7 +102,7 @@ export class WeeklyScheduleDto {
     description:
       'Créneaux du vendredi : tableau vide pour un jour non travaillé.',
   })
-  '5'!: ScheduleTimeSlotDto[];
+  [DayOfWeek.FRIDAY]!: ScheduleTimeSlotDto[];
 
   @IsDefined()
   @IsArray()
@@ -112,7 +113,7 @@ export class WeeklyScheduleDto {
     description:
       'Créneaux du samedi : tableau vide pour un jour non travaillé.',
   })
-  '6'!: ScheduleTimeSlotDto[];
+  [DayOfWeek.SATURDAY]!: ScheduleTimeSlotDto[];
 
   @IsDefined()
   @IsArray()
@@ -123,7 +124,7 @@ export class WeeklyScheduleDto {
     description:
       'Créneaux du dimanche : tableau vide pour un jour non travaillé.',
   })
-  '7'!: ScheduleTimeSlotDto[];
+  [DayOfWeek.SUNDAY]!: ScheduleTimeSlotDto[];
 }
 
 export class ScheduleDto {
@@ -231,30 +232,10 @@ export class ScheduleResponseDto {
   @ApiProperty({ type: WeeklyScheduleDto })
   @Transform(
     ({ obj }) => {
-      const week: WeeklyScheduleDto = {
-        '1': [],
-        '2': [],
-        '3': [],
-        '4': [],
-        '5': [],
-        '6': [],
-        '7': [],
-      };
-      const weekdays: DayOfWeek[] = [
-        'MONDAY',
-        'TUESDAY',
-        'WEDNESDAY',
-        'THURSDAY',
-        'FRIDAY',
-        'SATURDAY',
-        'SUNDAY',
-      ];
+      const week = createEmptyWeek<ScheduleTimeSlotDto>();
       for (const day of (obj.days ?? []) as ScheduleDayResponseDto[]) {
-        const key = String(
-          weekdays.indexOf(day.dayOfWeek) + 1,
-        ) as keyof WeeklyScheduleDto;
-        if (key in week) {
-          week[key] = day.timeSlots.map(({ startTime, endTime }) => ({
+        if (day.dayOfWeek in week) {
+          week[day.dayOfWeek] = day.timeSlots.map(({ startTime, endTime }) => ({
             startTime,
             endTime,
           }));

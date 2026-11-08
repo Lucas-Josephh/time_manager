@@ -23,16 +23,16 @@ function makeSchedule(id = 'schedule-1') {
 
 function makeWeek(): WeeklyScheduleDto {
   return {
-    '1': [
+    MONDAY: [
       { startTime: '09:00', endTime: '12:00' },
       { startTime: '13:00', endTime: '17:00' },
     ],
-    '2': [{ startTime: '10:00', endTime: '16:00' }],
-    '3': [],
-    '4': [],
-    '5': [],
-    '6': [],
-    '7': [],
+    TUESDAY: [{ startTime: '10:00', endTime: '16:00' }],
+    WEDNESDAY: [],
+    THURSDAY: [],
+    FRIDAY: [],
+    SATURDAY: [],
+    SUNDAY: [],
   };
 }
 

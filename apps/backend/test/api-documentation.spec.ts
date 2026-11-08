@@ -108,6 +108,11 @@ describe('Shared API documentation', () => {
       expect(document.paths['/api/team'].post?.responses['400']).toMatchObject({ content: { 'application/json': { schema: { properties: {
         data: { properties: { errors: { type: 'object' } } },
       } } } } });
+      const weeklySchema = document.components?.schemas?.WeeklyScheduleDto;
+      expect(weeklySchema).toMatchObject({ required: expect.arrayContaining([
+        'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY',
+      ]) });
+      expect(weeklySchema).not.toHaveProperty('properties.1');
       const users = document.paths['/api/users'];
       expect(users.post?.requestBody).toMatchObject({
         content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateUserDto' } } },

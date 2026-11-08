@@ -114,7 +114,7 @@ describe('Schedule assignment HTTP API', () => {
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
-    expect(response.body.data[0].workSchedule.weeklySchedule['1']).toEqual([
+    expect(response.body.data[0].workSchedule.weeklySchedule.MONDAY).toEqual([
       { startTime: '09:00', endTime: '17:00' },
     ]);
     expect(response.body.data[0].workSchedule).not.toHaveProperty('days');

@@ -6,10 +6,15 @@ import {
 } from './schedule-validation';
 
 const week = () =>
-  ({ '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [] }) as Record<
-    string,
-    { startTime: string; endTime: string }[]
-  >;
+  ({
+    MONDAY: [],
+    TUESDAY: [],
+    WEDNESDAY: [],
+    THURSDAY: [],
+    FRIDAY: [],
+    SATURDAY: [],
+    SUNDAY: [],
+  }) as Record<string, { startTime: string; endTime: string }[]>;
 
 describe('Schedule time validation', () => {
   it.each(['Europe/Paris', 'America/New_York', 'UTC'])(
@@ -22,7 +27,7 @@ describe('Schedule time validation', () => {
   );
   it('accepts adjacent slots and unsorted non-overlapping slots', () => {
     const value = week();
-    value['1'] = [
+    value.MONDAY = [
       { startTime: '13:00', endTime: '17:00' },
       { startTime: '09:00', endTime: '13:00' },
     ];
@@ -37,20 +42,20 @@ describe('Schedule time validation', () => {
     ],
   ])('rejects invalid durations and overlaps: %p', (...slots) => {
     const value = week();
-    value['1'] = slots;
+    value.MONDAY = slots;
     expect(isValidWeek(value)).toBe(false);
   });
   it('checks each day independently', () => {
     const value = week();
-    value['1'] = [{ startTime: '09:00', endTime: '17:00' }];
-    value['2'] = [{ startTime: '09:00', endTime: '17:00' }];
+    value.MONDAY = [{ startTime: '09:00', endTime: '17:00' }];
+    value.TUESDAY = [{ startTime: '09:00', endTime: '17:00' }];
     expect(isValidWeek(value)).toBe(true);
   });
   it('points an invalid duration to the exact endTime input', () => {
     const value = week();
-    value['1'] = [{ startTime: '09:00', endTime: '08:00' }];
+    value.MONDAY = [{ startTime: '09:00', endTime: '08:00' }];
     expect(getScheduleWeekErrors(value)).toEqual({
-      'weeklySchedule[1][0][endTime]': {
+      'weeklySchedule[MONDAY][0][endTime]': {
         messages: ['schedule_end_time_must_follow_start_time'],
       },
     });
@@ -66,20 +71,20 @@ describe('Schedule time validation', () => {
 
   it('keeps original indexes and finds every overlap with a containing slot', () => {
     const value = week();
-    value['1'] = [
+    value.MONDAY = [
       { startTime: '14:00', endTime: '15:00' },
       { startTime: '09:00', endTime: '17:00' },
       { startTime: '10:00', endTime: '11:00' },
       { startTime: '17:00', endTime: '18:00' },
     ];
     expect(getScheduleWeekErrors(value)).toEqual({
-      'weeklySchedule[1][0][startTime]': {
+      'weeklySchedule[MONDAY][0][startTime]': {
         messages: ['schedule_slots_overlap'],
       },
-      'weeklySchedule[1][1][startTime]': {
+      'weeklySchedule[MONDAY][1][startTime]': {
         messages: ['schedule_slots_overlap'],
       },
-      'weeklySchedule[1][2][startTime]': {
+      'weeklySchedule[MONDAY][2][startTime]': {
         messages: ['schedule_slots_overlap'],
       },
     });

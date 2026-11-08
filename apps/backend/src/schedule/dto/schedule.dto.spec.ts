@@ -10,13 +10,13 @@ function validSchedule() {
   return {
     name: 'Matin',
     weeklySchedule: {
-      '1': [{ startTime: '09:00', endTime: '17:00' }],
-      '2': [],
-      '3': [],
-      '4': [],
-      '5': [],
-      '6': [],
-      '7': [],
+      MONDAY: [{ startTime: '09:00', endTime: '17:00' }],
+      TUESDAY: [],
+      WEDNESDAY: [],
+      THURSDAY: [],
+      FRIDAY: [],
+      SATURDAY: [],
+      SUNDAY: [],
     },
   };
 }
@@ -35,7 +35,7 @@ describe('Schedule DTO validation', () => {
     it('accepts a complete week and trims its name', async () => {
       const result = await create({ ...validSchedule(), name: '  Matin  ' });
       expect(result.name).toBe('Matin');
-      expect(result.weeklySchedule['1'][0].startTime).toBe('09:00');
+      expect(result.weeklySchedule.MONDAY[0].startTime).toBe('09:00');
     });
 
     it.each([undefined, null, '', '   ', 12, 'a'.repeat(256)])(
@@ -62,7 +62,28 @@ describe('Schedule DTO validation', () => {
       },
     );
 
-    it.each(['1', '2', '3', '4', '5', '6', '7'] as const)(
+    it('rejects the former numeric weekday keys', async () => {
+      const body = validSchedule();
+      const numericWeek = Object.fromEntries(
+        Object.values(body.weeklySchedule).map((slots, index) => [
+          String(index + 1),
+          slots,
+        ]),
+      );
+      await expect(
+        create({ ...body, weeklySchedule: numericWeek }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it.each([
+      'MONDAY',
+      'TUESDAY',
+      'WEDNESDAY',
+      'THURSDAY',
+      'FRIDAY',
+      'SATURDAY',
+      'SUNDAY',
+    ] as const)(
       'requires weekday %s even when it has no slots',
       async (day) => {
         const body = validSchedule();
@@ -78,7 +99,7 @@ describe('Schedule DTO validation', () => {
         await expect(
           create({
             ...body,
-            weeklySchedule: { ...body.weeklySchedule, '1': slots },
+            weeklySchedule: { ...body.weeklySchedule, MONDAY: slots },
           }),
         ).rejects.toBeInstanceOf(BadRequestException);
       },
@@ -88,10 +109,10 @@ describe('Schedule DTO validation', () => {
       'accepts a valid time: %s',
       async (time) => {
         const body = validSchedule();
-        body.weeklySchedule['1'][0].startTime = time;
+        body.weeklySchedule.MONDAY[0].startTime = time;
         if (time === '23:59') {
-          body.weeklySchedule['1'][0].startTime = '23:00';
-          body.weeklySchedule['1'][0].endTime = time;
+          body.weeklySchedule.MONDAY[0].startTime = '23:00';
+          body.weeklySchedule.MONDAY[0].endTime = time;
         }
         await expect(create(body)).resolves.toBeDefined();
       },
@@ -106,7 +127,7 @@ describe('Schedule DTO validation', () => {
           await expect(
             create({
               ...body,
-              weeklySchedule: { ...body.weeklySchedule, '1': [slot] },
+              weeklySchedule: { ...body.weeklySchedule, MONDAY: [slot] },
             }),
           ).rejects.toBeInstanceOf(BadRequestException);
         }
@@ -132,7 +153,7 @@ describe('Schedule DTO validation', () => {
           ...body,
           weeklySchedule: {
             ...body.weeklySchedule,
-            '1': [{ startTime: '09:00', endTime: '17:00', extra: true }],
+            MONDAY: [{ startTime: '09:00', endTime: '17:00', extra: true }],
           },
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -150,7 +171,7 @@ describe('Schedule DTO validation', () => {
 
     it('still requires every weekday when the week is supplied', async () => {
       await expect(
-        update({ weeklySchedule: { '1': [] } }),
+        update({ weeklySchedule: { MONDAY: [] } }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -159,7 +180,7 @@ describe('Schedule DTO validation', () => {
         BadRequestException,
       );
       const week = validSchedule().weeklySchedule;
-      week['1'][0].endTime = '25:00';
+      week.MONDAY[0].endTime = '25:00';
       await expect(update({ weeklySchedule: week })).rejects.toBeInstanceOf(
         BadRequestException,
       );
@@ -182,7 +203,7 @@ describe('Schedule DTO validation', () => {
     });
     it('rejects overlapping slots through the HTTP validation pipe', async () => {
       const body = validSchedule();
-      body.weeklySchedule['1'].push({ startTime: '10:00', endTime: '11:00' });
+      body.weeklySchedule.MONDAY.push({ startTime: '10:00', endTime: '11:00' });
       await expect(create(body)).rejects.toBeInstanceOf(BadRequestException);
       await expect(
         update({ weeklySchedule: body.weeklySchedule }),
@@ -190,9 +211,9 @@ describe('Schedule DTO validation', () => {
     });
     it('rejects an overnight slot and the removed endsNextDay option', async () => {
       const body = validSchedule();
-      body.weeklySchedule['1'][0] = { startTime: '22:00', endTime: '06:00' };
+      body.weeklySchedule.MONDAY[0] = { startTime: '22:00', endTime: '06:00' };
       await expect(create(body)).rejects.toBeInstanceOf(BadRequestException);
-      Object.assign(body.weeklySchedule['1'][0], { endsNextDay: true });
+      Object.assign(body.weeklySchedule.MONDAY[0], { endsNextDay: true });
       await expect(create(body)).rejects.toBeInstanceOf(BadRequestException);
     });
     it('formats custom rules using the shared error-code pipeline', async () => {
@@ -208,13 +229,13 @@ describe('Schedule DTO validation', () => {
       });
 
       const body = validSchedule();
-      body.weeklySchedule['1'][0].endTime = '08:00';
+      body.weeklySchedule.MONDAY[0].endTime = '08:00';
       await expect(create(body)).rejects.toMatchObject({
         response: {
           message: 'validation_failed',
           data: {
             errors: {
-              'weeklySchedule[1][0][endTime]': {
+              'weeklySchedule[MONDAY][0][endTime]': {
                 messages: ['schedule_end_time_must_follow_start_time'],
               },
             },
@@ -224,23 +245,23 @@ describe('Schedule DTO validation', () => {
     });
     it('rejects zero duration', async () => {
       const body = validSchedule();
-      body.weeklySchedule['1'][0].endTime = '09:00';
+      body.weeklySchedule.MONDAY[0].endTime = '09:00';
       await expect(create(body)).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
   it('reports exact slot fields for overlapping slots through the validation pipe', async () => {
     const body = validSchedule();
-    body.weeklySchedule['1'].push({ startTime: '10:00', endTime: '12:00' });
+    body.weeklySchedule.MONDAY.push({ startTime: '10:00', endTime: '12:00' });
     await expect(create(body)).rejects.toMatchObject({
       response: {
         message: 'validation_failed',
         data: {
           errors: {
-            'weeklySchedule[1][0][startTime]': {
+            'weeklySchedule[MONDAY][0][startTime]': {
               messages: ['schedule_slots_overlap'],
             },
-            'weeklySchedule[1][1][startTime]': {
+            'weeklySchedule[MONDAY][1][startTime]': {
               messages: ['schedule_slots_overlap'],
             },
           },

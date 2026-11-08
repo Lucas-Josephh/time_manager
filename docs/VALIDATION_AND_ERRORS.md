@@ -153,10 +153,14 @@ errors.at('weeklySchedule', day, slotIndex, 'endTime')
 
 if (errors.hasErrors()) {
   throw new ForbiddenException(
-    fieldErrorsResponse('schedule_assignment_forbidden', errors.toObject()),
+    fieldErrorsResponse('schedule_assignment_forbidden', errors),
   );
 }
 ```
+
+`fieldErrorsResponse` et `ValidationException` acceptent directement le collecteur
+ou un objet d’erreurs. La conversion du collecteur est faite au moment de
+construire la réponse ; aucun état interne n’est exposé.
 
 `merge(errors)` permet d’agréger un formateur personnalisé. Le collecteur ne
 vérifie aucun droit et ne choisit ni code métier ni statut HTTP.

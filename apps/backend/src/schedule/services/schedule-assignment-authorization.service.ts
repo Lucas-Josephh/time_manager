@@ -64,7 +64,7 @@ export class ScheduleAssignmentAuthorizationService {
     }
     if (missing.hasErrors()) {
       throw new NotFoundException(
-        fieldErrorsResponse('not_found', missing.toObject()),
+        fieldErrorsResponse('not_found', missing),
       );
     }
 
@@ -95,7 +95,7 @@ export class ScheduleAssignmentAuthorizationService {
 
     if (errors.hasErrors()) {
       throw new ForbiddenException(
-        fieldErrorsResponse('schedule_assignment_forbidden', errors.toObject()),
+        fieldErrorsResponse('schedule_assignment_forbidden', errors),
       );
     }
   }

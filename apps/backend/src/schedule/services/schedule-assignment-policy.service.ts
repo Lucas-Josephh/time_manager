@@ -47,9 +47,10 @@ export class ScheduleAssignmentPolicyService {
       throw new ForbiddenException(
         fieldErrorsResponse(
           'retroactive_assignment_forbidden',
-          new FieldErrorsBuilder()
-            .add('effectiveFrom', 'retroactive_assignment_forbidden')
-            .toObject(),
+          new FieldErrorsBuilder().add(
+            'effectiveFrom',
+            'retroactive_assignment_forbidden',
+          ),
         ),
       );
     }
@@ -58,12 +59,10 @@ export class ScheduleAssignmentPolicyService {
       throw new BadRequestException(
         fieldErrorsResponse(
           'retroactive_assignment_confirmation_required',
-          new FieldErrorsBuilder()
-            .add(
-              'confirmRetroactive',
-              'retroactive_assignment_confirmation_required',
-            )
-            .toObject(),
+          new FieldErrorsBuilder().add(
+            'confirmRetroactive',
+            'retroactive_assignment_confirmation_required',
+          ),
         ),
       );
     }
@@ -110,13 +109,9 @@ export class ScheduleAssignmentPolicyService {
           errors.at('userIds', index).add('later_schedule_assignment_exists');
       }
       throw new ConflictException(
-        fieldErrorsResponse(
-          'later_schedule_assignment_exists',
-          errors.toObject(),
-          {
-            conflictingAssignments,
-          },
-        ),
+        fieldErrorsResponse('later_schedule_assignment_exists', errors, {
+          conflictingAssignments,
+        }),
       );
     }
   }
@@ -130,9 +125,10 @@ export class ScheduleAssignmentPolicyService {
       throw new BadRequestException(
         fieldErrorsResponse(
           'effective_from_requires_timezone',
-          new FieldErrorsBuilder()
-            .add(field, 'effective_from_requires_timezone')
-            .toObject(),
+          new FieldErrorsBuilder().add(
+            field,
+            'effective_from_requires_timezone',
+          ),
         ),
       );
     }
@@ -146,9 +142,7 @@ export class ScheduleAssignmentPolicyService {
       throw new BadRequestException(
         fieldErrorsResponse(
           'invalid_effective_from',
-          new FieldErrorsBuilder()
-            .add(field, 'invalid_effective_from')
-            .toObject(),
+          new FieldErrorsBuilder().add(field, 'invalid_effective_from'),
         ),
       );
     }
@@ -159,9 +153,7 @@ export class ScheduleAssignmentPolicyService {
       throw new BadRequestException(
         fieldErrorsResponse(
           'invalid_effective_from',
-          new FieldErrorsBuilder()
-            .add(field, 'invalid_effective_from')
-            .toObject(),
+          new FieldErrorsBuilder().add(field, 'invalid_effective_from'),
         ),
       );
     }

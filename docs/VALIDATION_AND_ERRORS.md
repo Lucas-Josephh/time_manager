@@ -108,7 +108,34 @@ Le pipe construit une `ValidationException`, dérivée de `BadRequestException`,
 puis le filtre global formate la réponse.
 Le formatage conserve une erreur par champ : `isNotEmpty`, `isDefined`, puis
 `isString` sont prioritaires ; sinon, la première règle remontée est retenue.
-Les erreurs imbriquées utilisent un chemin avec des points.
+`data.errors` est un objet indexé par nom d’input. Les champs imbriqués
+utilisent des crochets à chaque niveau, par exemple
+`weeklySchedule[1][0][startTime]` (heure de début du premier créneau du lundi).
+
+```json
+{
+  "success": false,
+  "message": "validation_failed",
+  "data": {
+    "errors": {
+      "name": { "messages": ["is_required"] },
+      "userIds[2]": { "messages": ["outside_management_scope"] }
+    }
+  }
+}
+```
+
+Ce format remplace l’ancien tableau `{ field, messages }` : les consommateurs
+doivent utiliser `errors[input.name]?.messages`. Une erreur de groupe utilise
+`userIds` ; une erreur sur une case utilise `userIds[index]`, avec un index
+commençant à zéro dans la requête initiale. Les valeurs reçues ne sont pas
+recopiées dans les erreurs.
+
+Les services peuvent utiliser `fieldErrorsResponse(message, errors, details?)`
+avec une exception 403, 404 ou 409 : le format des champs est commun aux DTO,
+mais le statut et le code métier sont conservés. Les détails additionnels,
+comme `conflictingAssignments`, restent dans `data`. Les permissions et les
+contrôles dépendant de la base restent dans la transaction du service.
 
 Le registre des correspondances est `VALIDATION_CODES` dans
 `common/validation/format-validation-errors.ts`. Le maintenir dans le code

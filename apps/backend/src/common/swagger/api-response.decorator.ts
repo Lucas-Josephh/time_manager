@@ -1,3 +1,4 @@
+import { fieldErrorsSchema } from './field-errors.schema';
 import { HttpStatus, applyDecorators, type Type } from '@nestjs/common';
 import {
   ApiExtraModels,
@@ -82,6 +83,7 @@ export function ApiErrorResponse(
   status: number,
   message: string | string[],
   description: string,
+  includeFieldErrors = false,
 ) {
   return ApiResponse({
     status,
@@ -95,7 +97,9 @@ export function ApiErrorResponse(
           type: 'string',
           enum: Array.isArray(message) ? message : [message],
         },
-        data: { type: 'object', additionalProperties: false },
+        data: includeFieldErrors
+          ? { type: 'object', properties: { errors: fieldErrorsSchema } }
+          : { type: 'object', additionalProperties: false },
       },
       example: {
         success: false,
@@ -128,28 +132,14 @@ export function ApiValidationError() {
           type: 'object',
           required: ['errors'],
           properties: {
-            errors: {
-              type: 'array',
-              items: {
-                type: 'object',
-                required: ['field', 'messages'],
-                properties: {
-                  field: { type: 'string', example: 'name' },
-                  messages: {
-                    type: 'array',
-                    items: { type: 'string' },
-                    example: ['already_exists'],
-                  },
-                },
-              },
-            },
+            errors: fieldErrorsSchema,
           },
         },
       },
       example: {
         success: false,
         message: 'validation_failed',
-        data: { errors: [{ field: 'name', messages: ['already_exists'] }] },
+        data: { errors: { name: { messages: ['already_exists'] } } },
       },
     },
   });

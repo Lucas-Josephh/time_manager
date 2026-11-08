@@ -82,6 +82,18 @@
       "key": "rootScheduleId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "assignmentEffectiveFrom",
+      "value": "2099-01-01T00:00:00+01:00",
+      "type": "string",
+      "description": "Instant de prise d’effet ISO avec offset, utilisé uniquement dans le corps JSON."
+    },
+    {
+      "key": "scheduleAt",
+      "value": "2098-12-31T23:00:00Z",
+      "type": "string",
+      "description": "Instant de consultation ISO avec fuseau ; Z évite un signe + dans la query string."
     }
   ],
   "item": [
@@ -1228,7 +1240,58 @@
               }
             }
           },
-          "response": [],
+          "response": [
+            {
+              "name": "400 — Fin du créneau avant son début",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule"
+                  ]
+                },
+                "description": "Administrateur ou responsable requis. Crée un planning racine et mémorise son identifiant dans scheduleId et rootScheduleId. Les sept jours sont obligatoires ; créneaux sur la même journée, sans chevauchement.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Planning Postman\",\n  \"timezone\": \"Europe/Paris\",\n  \"weeklySchedule\": {\n    \"1\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"08:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"2\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"3\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"4\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"5\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"6\": [],\n    \"7\": []\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"validation_failed\",\n  \"data\": {\n    \"errors\": {\n      \"weeklySchedule[1][0][endTime]\": {\n        \"messages\": [\n          \"schedule_end_time_must_follow_start_time\"\n        ]\n      }\n    }\n  }\n}"
+            }
+          ],
           "event": [
             {
               "listen": "test",
@@ -1392,7 +1455,1515 @@
       ]
     },
     {
-      "name": "07 — Suppressions (exécution manuelle)",
+      "name": "07 — Affectations de planning",
+      "item": [
+        {
+          "name": "Attribuer un planning immédiatement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule",
+                "{{scheduleId}}",
+                "assignments"
+              ]
+            },
+            "description": "Affecte le planning exact à toute la sélection. Ajouter les identifiants dans userIds (1 à 500, uniques). Date omise : instant serveur. Administrateur ou responsable du périmètre de chaque utilisateur requis. Échec atomique si un utilisateur est refusé. Réponse : data est un tableau des affectations avec workSchedule.weeklySchedule. data.errors est un objet indexé par nom d’input : userIds[index] pour les cases de la sélection initiale, userId pour les lectures. Chaque entrée contient messages. Les dates utilisent effectiveFrom, confirmRetroactive ou at.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 — Affectation créée",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Affecte le planning exact à toute la sélection. Ajouter les identifiants dans userIds (1 à 500, uniques). Date omise : instant serveur. Administrateur ou responsable du périmètre de chaque utilisateur requis. Échec atomique si un utilisateur est refusé. Réponse : data est un tableau des affectations avec workSchedule.weeklySchedule.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": [\n    {\n      \"id\": \"assignment-example\",\n      \"userId\": \"{{userId}}\",\n      \"workScheduleId\": \"{{scheduleId}}\",\n      \"effectiveFrom\": \"2026-11-08T10:00:00.000Z\",\n      \"workSchedule\": {\n        \"id\": \"{{scheduleId}}\",\n        \"name\": \"Planning Postman\",\n        \"timezone\": \"Europe/Paris\",\n        \"createdAt\": \"2026-11-08T09:00:00.000Z\",\n        \"updatedAt\": \"2026-11-08T09:00:00.000Z\",\n        \"createdBy\": {\n          \"id\": \"manager-example\",\n          \"firstname\": \"Alice\",\n          \"lastname\": \"Martin\"\n        },\n        \"weeklySchedule\": {\n          \"1\": [\n            {\n              \"startTime\": \"09:00\",\n              \"endTime\": \"17:00\"\n            }\n          ],\n          \"2\": [],\n          \"3\": [],\n          \"4\": [],\n          \"5\": [],\n          \"6\": [],\n          \"7\": []\n        },\n        \"sourceWorkScheduleId\": null\n      }\n    }\n  ]\n}"
+            },
+            {
+              "name": "409 — Affectation ultérieure existante",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Affecte le planning exact à toute la sélection. Ajouter les identifiants dans userIds (1 à 500, uniques). Date omise : instant serveur. Administrateur ou responsable du périmètre de chaque utilisateur requis. Échec atomique si un utilisateur est refusé. Réponse : data est un tableau des affectations avec workSchedule.weeklySchedule.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"later_schedule_assignment_exists\",\n  \"data\": {\n    \"conflictingAssignments\": [\n      {\n        \"userId\": \"{{userId}}\",\n        \"workScheduleId\": \"other-schedule-example\",\n        \"effectiveFrom\": \"2099-02-01T00:00:00.000Z\"\n      }\n    ],\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"later_schedule_assignment_exists\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "403 — Utilisateur hors périmètre",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Affecte le planning exact à toute la sélection. Ajouter les identifiants dans userIds (1 à 500, uniques). Date omise : instant serveur. Administrateur ou responsable du périmètre de chaque utilisateur requis. Échec atomique si un utilisateur est refusé. Réponse : data est un tableau des affectations avec workSchedule.weeklySchedule.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"schedule_assignment_forbidden\",\n  \"data\": {\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "404 — Utilisateur introuvable",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Affecte le planning exact à toute la sélection. Ajouter les identifiants dans userIds (1 à 500, uniques). Date omise : instant serveur. Administrateur ou responsable du périmètre de chaque utilisateur requis. Échec atomique si un utilisateur est refusé. Réponse : data est un tableau des affectations avec workSchedule.weeklySchedule.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"not_found\",\n  \"data\": {\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"reference_not_found\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "403 — Plusieurs cases refusées",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Affecte le planning exact à toute la sélection. Ajouter les identifiants dans userIds (1 à 500, uniques). Date omise : instant serveur. Administrateur ou responsable du périmètre de chaque utilisateur requis. Échec atomique si un utilisateur est refusé. Réponse : data est un tableau des affectations avec workSchedule.weeklySchedule.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"schedule_assignment_forbidden\",\n  \"data\": {\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      },\n      \"userIds[2]\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      }\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Programmer une affectation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule",
+                "{{scheduleId}}",
+                "assignments"
+              ]
+            },
+            "description": "Instant avec offset obligatoire. Une affectation strictement postérieure déjà programmée bloque toute la sélection : 409 later_schedule_assignment_exists avec data.conflictingAssignments. Une date identique déjà utilisée retourne 409 already_exists. 409 concurrent_modification : relire avant de réessayer. data.errors est un objet indexé par nom d’input : userIds[index] pour les cases de la sélection initiale, userId pour les lectures. Chaque entrée contient messages. Les dates utilisent effectiveFrom, confirmRetroactive ou at.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"{{assignmentEffectiveFrom}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 — Affectation créée",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Instant avec offset obligatoire. Une affectation strictement postérieure déjà programmée bloque toute la sélection : 409 later_schedule_assignment_exists avec data.conflictingAssignments. Une date identique déjà utilisée retourne 409 already_exists. 409 concurrent_modification : relire avant de réessayer.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"{{assignmentEffectiveFrom}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": [\n    {\n      \"id\": \"assignment-example\",\n      \"userId\": \"{{userId}}\",\n      \"workScheduleId\": \"{{scheduleId}}\",\n      \"effectiveFrom\": \"{{assignmentEffectiveFrom}}\",\n      \"workSchedule\": {\n        \"id\": \"{{scheduleId}}\",\n        \"name\": \"Planning Postman\",\n        \"timezone\": \"Europe/Paris\",\n        \"createdAt\": \"2026-11-08T09:00:00.000Z\",\n        \"updatedAt\": \"2026-11-08T09:00:00.000Z\",\n        \"createdBy\": {\n          \"id\": \"manager-example\",\n          \"firstname\": \"Alice\",\n          \"lastname\": \"Martin\"\n        },\n        \"weeklySchedule\": {\n          \"1\": [\n            {\n              \"startTime\": \"09:00\",\n              \"endTime\": \"17:00\"\n            }\n          ],\n          \"2\": [],\n          \"3\": [],\n          \"4\": [],\n          \"5\": [],\n          \"6\": [],\n          \"7\": []\n        },\n        \"sourceWorkScheduleId\": null\n      }\n    }\n  ]\n}"
+            },
+            {
+              "name": "409 — Affectation ultérieure existante",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Instant avec offset obligatoire. Une affectation strictement postérieure déjà programmée bloque toute la sélection : 409 later_schedule_assignment_exists avec data.conflictingAssignments. Une date identique déjà utilisée retourne 409 already_exists. 409 concurrent_modification : relire avant de réessayer.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"{{assignmentEffectiveFrom}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"later_schedule_assignment_exists\",\n  \"data\": {\n    \"conflictingAssignments\": [\n      {\n        \"userId\": \"{{userId}}\",\n        \"workScheduleId\": \"other-schedule-example\",\n        \"effectiveFrom\": \"2099-02-01T00:00:00.000Z\"\n      }\n    ],\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"later_schedule_assignment_exists\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "403 — Utilisateur hors périmètre",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Instant avec offset obligatoire. Une affectation strictement postérieure déjà programmée bloque toute la sélection : 409 later_schedule_assignment_exists avec data.conflictingAssignments. Une date identique déjà utilisée retourne 409 already_exists. 409 concurrent_modification : relire avant de réessayer.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"{{assignmentEffectiveFrom}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"schedule_assignment_forbidden\",\n  \"data\": {\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "404 — Utilisateur introuvable",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Instant avec offset obligatoire. Une affectation strictement postérieure déjà programmée bloque toute la sélection : 409 later_schedule_assignment_exists avec data.conflictingAssignments. Une date identique déjà utilisée retourne 409 already_exists. 409 concurrent_modification : relire avant de réessayer.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"{{assignmentEffectiveFrom}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"not_found\",\n  \"data\": {\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"reference_not_found\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "403 — Plusieurs cases refusées",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Instant avec offset obligatoire. Une affectation strictement postérieure déjà programmée bloque toute la sélection : 409 later_schedule_assignment_exists avec data.conflictingAssignments. Une date identique déjà utilisée retourne 409 already_exists. 409 concurrent_modification : relire avant de réessayer.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"{{assignmentEffectiveFrom}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"schedule_assignment_forbidden\",\n  \"data\": {\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      },\n      \"userIds[2]\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      }\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Affectation rétroactive — administrateur",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule",
+                "{{scheduleId}}",
+                "assignments"
+              ]
+            },
+            "description": "Administrateur uniquement, confirmation explicite obligatoire. Peut être refusé si une affectation ultérieure existe déjà. Exécuter individuellement après vérification de la date et des utilisateurs. data.errors est un objet indexé par nom d’input : userIds[index] pour les cases de la sélection initiale, userId pour les lectures. Chaque entrée contient messages. Les dates utilisent effectiveFrom, confirmRetroactive ou at.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"2026-01-01T00:00:00+01:00\",\n  \"confirmRetroactive\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "201 — Affectation créée",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Administrateur uniquement, confirmation explicite obligatoire. Peut être refusé si une affectation ultérieure existe déjà. Exécuter individuellement après vérification de la date et des utilisateurs.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"2026-01-01T00:00:00+01:00\",\n  \"confirmRetroactive\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": [\n    {\n      \"id\": \"assignment-example\",\n      \"userId\": \"{{userId}}\",\n      \"workScheduleId\": \"{{scheduleId}}\",\n      \"effectiveFrom\": \"2026-01-01T00:00:00+01:00\",\n      \"workSchedule\": {\n        \"id\": \"{{scheduleId}}\",\n        \"name\": \"Planning Postman\",\n        \"timezone\": \"Europe/Paris\",\n        \"createdAt\": \"2026-11-08T09:00:00.000Z\",\n        \"updatedAt\": \"2026-11-08T09:00:00.000Z\",\n        \"createdBy\": {\n          \"id\": \"manager-example\",\n          \"firstname\": \"Alice\",\n          \"lastname\": \"Martin\"\n        },\n        \"weeklySchedule\": {\n          \"1\": [\n            {\n              \"startTime\": \"09:00\",\n              \"endTime\": \"17:00\"\n            }\n          ],\n          \"2\": [],\n          \"3\": [],\n          \"4\": [],\n          \"5\": [],\n          \"6\": [],\n          \"7\": []\n        },\n        \"sourceWorkScheduleId\": null\n      }\n    }\n  ]\n}"
+            },
+            {
+              "name": "409 — Affectation ultérieure existante",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Administrateur uniquement, confirmation explicite obligatoire. Peut être refusé si une affectation ultérieure existe déjà. Exécuter individuellement après vérification de la date et des utilisateurs.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"2026-01-01T00:00:00+01:00\",\n  \"confirmRetroactive\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"later_schedule_assignment_exists\",\n  \"data\": {\n    \"conflictingAssignments\": [\n      {\n        \"userId\": \"{{userId}}\",\n        \"workScheduleId\": \"other-schedule-example\",\n        \"effectiveFrom\": \"2099-02-01T00:00:00.000Z\"\n      }\n    ],\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"later_schedule_assignment_exists\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "403 — Utilisateur hors périmètre",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Administrateur uniquement, confirmation explicite obligatoire. Peut être refusé si une affectation ultérieure existe déjà. Exécuter individuellement après vérification de la date et des utilisateurs.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"2026-01-01T00:00:00+01:00\",\n  \"confirmRetroactive\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"schedule_assignment_forbidden\",\n  \"data\": {\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "404 — Utilisateur introuvable",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Administrateur uniquement, confirmation explicite obligatoire. Peut être refusé si une affectation ultérieure existe déjà. Exécuter individuellement après vérification de la date et des utilisateurs.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"2026-01-01T00:00:00+01:00\",\n  \"confirmRetroactive\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"not_found\",\n  \"data\": {\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"reference_not_found\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "403 — Plusieurs cases refusées",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/{{scheduleId}}/assignments",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "{{scheduleId}}",
+                    "assignments"
+                  ]
+                },
+                "description": "Administrateur uniquement, confirmation explicite obligatoire. Peut être refusé si une affectation ultérieure existe déjà. Exécuter individuellement après vérification de la date et des utilisateurs.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userIds\": [\n    \"{{userId}}\"\n  ],\n  \"effectiveFrom\": \"2026-01-01T00:00:00+01:00\",\n  \"confirmRetroactive\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"schedule_assignment_forbidden\",\n  \"data\": {\n    \"errors\": {\n      \"userIds[0]\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      },\n      \"userIds[2]\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      }\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Historique des affectations utilisateur",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule/users/{{userId}}/assignments?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule",
+                "users",
+                "{{userId}}",
+                "assignments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Accessible à soi-même, aux administrateurs et aux responsables du périmètre. Retourne data.items et data.meta, affectations futures incluses, par prise d’effet décroissante. data.errors est un objet indexé par nom d’input : userIds[index] pour les cases de la sélection initiale, userId pour les lectures. Chaque entrée contient messages. Les dates utilisent effectiveFrom, confirmRetroactive ou at."
+          },
+          "response": [
+            {
+              "name": "200 — Historique paginé",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/users/{{userId}}/assignments?page=1&limit=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "users",
+                    "{{userId}}",
+                    "assignments"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "description": "Accessible à soi-même, aux administrateurs et aux responsables du périmètre. Retourne data.items et data.meta, affectations futures incluses, par prise d’effet décroissante."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"assignment-example\",\n        \"userId\": \"{{userId}}\",\n        \"workScheduleId\": \"{{scheduleId}}\",\n        \"effectiveFrom\": \"2098-12-31T23:00:00.000Z\",\n        \"workSchedule\": {\n          \"id\": \"{{scheduleId}}\",\n          \"name\": \"Planning Postman\",\n          \"timezone\": \"Europe/Paris\",\n          \"createdAt\": \"2026-11-08T09:00:00.000Z\",\n          \"updatedAt\": \"2026-11-08T09:00:00.000Z\",\n          \"createdBy\": {\n            \"id\": \"manager-example\",\n            \"firstname\": \"Alice\",\n            \"lastname\": \"Martin\"\n          },\n          \"weeklySchedule\": {\n            \"1\": [\n              {\n                \"startTime\": \"09:00\",\n                \"endTime\": \"17:00\"\n              }\n            ],\n            \"2\": [],\n            \"3\": [],\n            \"4\": [],\n            \"5\": [],\n            \"6\": [],\n            \"7\": []\n          },\n          \"sourceWorkScheduleId\": null\n        }\n      }\n    ],\n    \"meta\": {\n      \"total\": 1,\n      \"page\": 1,\n      \"limit\": 10,\n      \"totalPages\": 1\n    }\n  }\n}"
+            },
+            {
+              "name": "403 — Hors périmètre",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/users/{{userId}}/assignments?page=1&limit=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "users",
+                    "{{userId}}",
+                    "assignments"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "description": "Accessible à soi-même, aux administrateurs et aux responsables du périmètre. Retourne data.items et data.meta, affectations futures incluses, par prise d’effet décroissante."
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"schedule_assignment_forbidden\",\n  \"data\": {\n    \"errors\": {\n      \"userId\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "404 — Utilisateur introuvable",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/users/{{userId}}/assignments?page=1&limit=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "users",
+                    "{{userId}}",
+                    "assignments"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "description": "Accessible à soi-même, aux administrateurs et aux responsables du périmètre. Retourne data.items et data.meta, affectations futures incluses, par prise d’effet décroissante."
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"not_found\",\n  \"data\": {\n    \"errors\": {\n      \"userId\": {\n        \"messages\": [\n          \"reference_not_found\"\n        ]\n      }\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Planning actuel d’un utilisateur",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "Retourne la dernière affectation entrée en vigueur à l’instant serveur. data.assignment contient workSchedule, ou vaut null si aucune affectation ne s’applique. Accessible à l’utilisateur concerné, aux administrateurs et aux responsables de son périmètre. data.errors est un objet indexé par nom d’input : userIds[index] pour les cases de la sélection initiale, userId pour les lectures. Chaque entrée contient messages. Les dates utilisent effectiveFrom, confirmRetroactive ou at."
+          },
+          "response": [
+            {
+              "name": "200 — Planning applicable",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/users/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "users",
+                    "{{userId}}"
+                  ]
+                },
+                "description": "Retourne la dernière affectation entrée en vigueur à l’instant serveur. data.assignment contient workSchedule, ou vaut null si aucune affectation ne s’applique. Accessible à l’utilisateur concerné, aux administrateurs et aux responsables de son périmètre."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": {\n    \"assignment\": {\n      \"id\": \"assignment-example\",\n      \"userId\": \"{{userId}}\",\n      \"workScheduleId\": \"{{scheduleId}}\",\n      \"effectiveFrom\": \"2026-11-08T10:00:00.000Z\",\n      \"workSchedule\": {\n        \"id\": \"{{scheduleId}}\",\n        \"name\": \"Planning Postman\",\n        \"timezone\": \"Europe/Paris\",\n        \"createdAt\": \"2026-11-08T09:00:00.000Z\",\n        \"updatedAt\": \"2026-11-08T09:00:00.000Z\",\n        \"createdBy\": {\n          \"id\": \"manager-example\",\n          \"firstname\": \"Alice\",\n          \"lastname\": \"Martin\"\n        },\n        \"weeklySchedule\": {\n          \"1\": [\n            {\n              \"startTime\": \"09:00\",\n              \"endTime\": \"17:00\"\n            }\n          ],\n          \"2\": [],\n          \"3\": [],\n          \"4\": [],\n          \"5\": [],\n          \"6\": [],\n          \"7\": []\n        },\n        \"sourceWorkScheduleId\": null\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "200 — Aucune affectation applicable",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/users/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "users",
+                    "{{userId}}"
+                  ]
+                },
+                "description": "Retourne la dernière affectation entrée en vigueur à l’instant serveur. data.assignment contient workSchedule, ou vaut null si aucune affectation ne s’applique. Accessible à l’utilisateur concerné, aux administrateurs et aux responsables de son périmètre."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": {\n    \"assignment\": null\n  }\n}"
+            },
+            {
+              "name": "403 — Hors périmètre",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/users/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "users",
+                    "{{userId}}"
+                  ]
+                },
+                "description": "Retourne la dernière affectation entrée en vigueur à l’instant serveur. data.assignment contient workSchedule, ou vaut null si aucune affectation ne s’applique. Accessible à l’utilisateur concerné, aux administrateurs et aux responsables de son périmètre."
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"schedule_assignment_forbidden\",\n  \"data\": {\n    \"errors\": {\n      \"userId\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "404 — Utilisateur introuvable",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/users/{{userId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "users",
+                    "{{userId}}"
+                  ]
+                },
+                "description": "Retourne la dernière affectation entrée en vigueur à l’instant serveur. data.assignment contient workSchedule, ou vaut null si aucune affectation ne s’applique. Accessible à l’utilisateur concerné, aux administrateurs et aux responsables de son périmètre."
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"not_found\",\n  \"data\": {\n    \"errors\": {\n      \"userId\": {\n        \"messages\": [\n          \"reference_not_found\"\n        ]\n      }\n    }\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Planning applicable à une date donnée",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule/users/{{userId}}?at={{scheduleAt}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule",
+                "users",
+                "{{userId}}"
+              ],
+              "query": [
+                {
+                  "key": "at",
+                  "value": "{{scheduleAt}}"
+                }
+              ]
+            },
+            "description": "Même lecture avec un instant at explicite (ISO avec fuseau obligatoire). L’affectation est applicable dès effectiveFrom, borne incluse. scheduleAt utilise Z par défaut ; si vous utilisez un offset positif dans une URL, encoder le signe + en %2B. data.errors est un objet indexé par nom d’input : userIds[index] pour les cases de la sélection initiale, userId pour les lectures. Chaque entrée contient messages. Les dates utilisent effectiveFrom, confirmRetroactive ou at."
+          },
+          "response": [
+            {
+              "name": "200 — Planning applicable",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/users/{{userId}}?at={{scheduleAt}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "users",
+                    "{{userId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "at",
+                      "value": "{{scheduleAt}}"
+                    }
+                  ]
+                },
+                "description": "Même lecture avec un instant at explicite (ISO avec fuseau obligatoire). L’affectation est applicable dès effectiveFrom, borne incluse. scheduleAt utilise Z par défaut ; si vous utilisez un offset positif dans une URL, encoder le signe + en %2B."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": {\n    \"assignment\": {\n      \"id\": \"assignment-example\",\n      \"userId\": \"{{userId}}\",\n      \"workScheduleId\": \"{{scheduleId}}\",\n      \"effectiveFrom\": \"2026-11-08T10:00:00.000Z\",\n      \"workSchedule\": {\n        \"id\": \"{{scheduleId}}\",\n        \"name\": \"Planning Postman\",\n        \"timezone\": \"Europe/Paris\",\n        \"createdAt\": \"2026-11-08T09:00:00.000Z\",\n        \"updatedAt\": \"2026-11-08T09:00:00.000Z\",\n        \"createdBy\": {\n          \"id\": \"manager-example\",\n          \"firstname\": \"Alice\",\n          \"lastname\": \"Martin\"\n        },\n        \"weeklySchedule\": {\n          \"1\": [\n            {\n              \"startTime\": \"09:00\",\n              \"endTime\": \"17:00\"\n            }\n          ],\n          \"2\": [],\n          \"3\": [],\n          \"4\": [],\n          \"5\": [],\n          \"6\": [],\n          \"7\": []\n        },\n        \"sourceWorkScheduleId\": null\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "200 — Aucune affectation applicable",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/users/{{userId}}?at={{scheduleAt}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "users",
+                    "{{userId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "at",
+                      "value": "{{scheduleAt}}"
+                    }
+                  ]
+                },
+                "description": "Même lecture avec un instant at explicite (ISO avec fuseau obligatoire). L’affectation est applicable dès effectiveFrom, borne incluse. scheduleAt utilise Z par défaut ; si vous utilisez un offset positif dans une URL, encoder le signe + en %2B."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": {\n    \"assignment\": null\n  }\n}"
+            },
+            {
+              "name": "403 — Hors périmètre",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/users/{{userId}}?at={{scheduleAt}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "users",
+                    "{{userId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "at",
+                      "value": "{{scheduleAt}}"
+                    }
+                  ]
+                },
+                "description": "Même lecture avec un instant at explicite (ISO avec fuseau obligatoire). L’affectation est applicable dès effectiveFrom, borne incluse. scheduleAt utilise Z par défaut ; si vous utilisez un offset positif dans une URL, encoder le signe + en %2B."
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"schedule_assignment_forbidden\",\n  \"data\": {\n    \"errors\": {\n      \"userId\": {\n        \"messages\": [\n          \"outside_management_scope\"\n        ]\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "404 — Utilisateur introuvable",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/schedule/users/{{userId}}?at={{scheduleAt}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "schedule",
+                    "users",
+                    "{{userId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "at",
+                      "value": "{{scheduleAt}}"
+                    }
+                  ]
+                },
+                "description": "Même lecture avec un instant at explicite (ISO avec fuseau obligatoire). L’affectation est applicable dès effectiveFrom, borne incluse. scheduleAt utilise Z par défaut ; si vous utilisez un offset positif dans une URL, encoder le signe + en %2B."
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"not_found\",\n  \"data\": {\n    \"errors\": {\n      \"userId\": {\n        \"messages\": [\n          \"reference_not_found\"\n        ]\n      }\n    }\n  }\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Utiliser scheduleId pour le planning exact à attribuer et userId pour l’utilisateur cible. Les requêtes d’écriture sont des scénarios alternatifs à exécuter individuellement : une affectation programmée peut bloquer ensuite une affectation immédiate ou rétroactive. Pour plusieurs utilisateurs, ajouter leurs identifiants au tableau userIds. Les lectures sont accessibles à l’utilisateur concerné et aux responsables autorisés, sans exiger un rôle administrateur."
+    },
+    {
+      "name": "08 — Suppressions (exécution manuelle)",
       "item": [
         {
           "name": "Supprimer une équipe",

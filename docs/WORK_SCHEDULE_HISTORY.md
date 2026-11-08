@@ -28,10 +28,59 @@ Les affectations d’équipe et d’organisation sont supprimées : aucun hérit
 planning n’intervient dans les calculs. Les pointages référencent directement le
 planning via `WorkSession.workScheduleId`.
 
-Le service, les routes et les permissions d’affectation utilisateur restent à
-implémenter séparément. Cette refactorisation ne crée ni ne remplace d’affectation.
-Le périmètre à contrôler sera celui des utilisateurs explicitement sélectionnés :
-membres de l’équipe gérée, ou équipes des organisations gérées et descendantes.
+## Affectations utilisateur
+
+`POST /api/schedule/:id/assignments` accepte `userIds` (1 à 500 identifiants
+uniques), `effectiveFrom` facultatif et `confirmRetroactive` facultatif.
+Sans date, l’instant serveur est utilisé pour toute la sélection. Une date fournie
+doit être un instant ISO avec offset (ex. `2026-12-01T00:00:00+01:00`).
+Les créneaux restent exprimés dans le fuseau du planning ; la date d’affectation
+est un instant absolu.
+
+Un administrateur peut affecter tous les utilisateurs. Un responsable peut
+sélectionner les membres de son équipe, les utilisateurs de son organisation ou
+de ses descendants, ainsi que les membres des équipes de ces organisations.
+Toutes les vérifications et la création groupée sont dans une transaction
+sérialisée : aucun utilisateur n’est affecté si un contrôle échoue.
+Une modification concurrente retourne `409 concurrent_modification` ; relire
+avant de réessayer. Deux affectations au même instant pour un utilisateur sont
+refusées par la contrainte unique (`409 already_exists`).
+
+L’affectation référence exactement le planning sélectionné : créer ensuite un
+descendant ne change ni les affectations ni les pointages existants.
+
+`GET /api/schedule/users/:userId/assignments?page=1&limit=10` retourne l’historique
+paginé dans `data.items` et `data.meta`, futures affectations incluses, par date
+de prise d’effet décroissante. Chaque entrée expose `workSchedule`, avec son
+`weeklySchedule`, et les identifiants de l’affectation, de l’utilisateur et du planning.
+
+`GET /api/schedule/users/:userId?at=2026-12-01T00:00:00Z` retourne la dernière
+affectation entrée en vigueur à cet instant (maintenant si `at` est omis),
+dans `data.assignment`. Sans affectation applicable : `data.assignment: null`.
+Ces deux lectures sont accessibles à l’utilisateur concerné, aux administrateurs
+et aux responsables de son périmètre. Elles utilisent un instantané cohérent.
+Une référence utilisateur ou planning inexistante retourne 404 ; des droits
+insuffisants retournent 403. Aucun endpoint d’annulation n’est encore fourni.
+
+
+Les contrôles métier d’affectation utilisent `data.errors`, un objet indexé
+par nom d’input, comme les DTO. Les utilisateurs refusés ou manquants sont
+signalés sous `userIds[index]` à l’écriture et `userId` à la lecture. Les index
+proviennent de la requête initiale, indépendamment de l’ordre des résultats SQL.
+Tous les refus de la sélection sont collectés avant l’exception ; les références
+manquantes sont prioritaires. Aucun refus ne crée d’affectation.
+
+- 403 `schedule_assignment_forbidden` : `outside_management_scope` pour chaque case refusée.
+- 404 `not_found` : `reference_not_found` pour chaque case manquante.
+- 409 `later_schedule_assignment_exists` : une erreur par case en conflit,
+  avec les détails conservés dans `data.conflictingAssignments`.
+- Dates invalides : erreur sur `effectiveFrom` ou `at` selon la route.
+- Rétroactivité refusée : erreur sur `effectiveFrom` ; confirmation absente :
+  erreur sur `confirmRetroactive`.
+
+Exemple : `data.errors["userIds[2]"].messages` identifie les erreurs de la
+troisième case de la sélection. Une erreur DTO globale sur le tableau conserve
+la clé `userIds`. Les erreurs ne renvoient ni valeur reçue ni données personnelles.
 
 ## Migration
 
@@ -63,14 +112,13 @@ début. Un créneau passant minuit (22:00 → 06:00) est refusé. Les chevauchem
 sont contrôlés séparément pour chaque jour ; les créneaux adjacents sont acceptés.
 Le champ `endsNextDay` est supprimé.
 
-`ScheduleAssignmentPolicyService.assertEffectiveFrom` prépare le contrôle des
-futures affectations : instant ISO avec offset obligatoire, rétroactivité réservée
+`ScheduleAssignmentPolicyService.assertEffectiveFrom` contrôle les
+affectations : instant ISO avec offset obligatoire, rétroactivité réservée
 aux administrateurs et confirmation `confirmRetroactive: true` obligatoire.
-Ce contrôle doit être appelé depuis le futur service d’affectation, dans la
-transaction et après vérification du périmètre des utilisateurs concernés.
-Il n’existe encore aucune route d’affectation ni confirmation dans une interface.
-Pour une prise d’effet immédiate, le service d’affectation devra produire lui-même
-l’instant serveur plutôt qu’envoyer une date client quelques secondes antérieure.
+Ce contrôle est appelé dans la transaction après vérification du périmètre.
+Le client doit fournir cette confirmation dans le corps de la requête.
+Pour une prise d’effet immédiate, omettre `effectiveFrom` : le service produit
+l’instant serveur.
 
 La migration ajoute les champs sans modifier les horaires et interprète les
 anciens instants Prisma comme UTC. Les anciennes données sont considérées comme
@@ -94,10 +142,9 @@ planning soit remplacé par ce changement, annulez d’abord les affectations
 programmées concernées ou retirez ces utilisateurs de la sélection. Aucune
 nouvelle affectation n’a été enregistrée. »
 
-Le futur service d’affectation doit vérifier les droits sur toute la sélection,
-puis appeler `assertEffectiveFrom` et `assertNoLaterAssignments` avant toute
-écriture, dans la même transaction sérialisée que la création des affectations.
+Le service d’affectation vérifie les droits sur toute la sélection, puis appelle
+`assertEffectiveFrom` et `assertNoLaterAssignments` avant toute écriture, dans la
+même transaction sérialisée que la création des affectations.
 Tout conflit doit annuler l’opération complète. Une vérification hors transaction
 ne protège pas des changements concurrents. La création d’un planning sans
-utilisateurs n’est pas bloquée. Ces contrôles sont préparés mais aucune route
-ou écriture d’affectation n’est encore implémentée.
+utilisateurs n’est pas bloquée. Ces contrôles sont appliqués à toutes les affectations.

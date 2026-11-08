@@ -43,6 +43,7 @@ export class ScheduleAssignmentAuthorizationService {
   ) {
     const isAdmin = await this.auth.isAdmin(actor, tx);
 
+    // Retrieves all relevant users
     const users = await tx.user.findMany({
       where: { id: { in: userIds } },
       select: {
@@ -52,19 +53,20 @@ export class ScheduleAssignmentAuthorizationService {
       },
     });
 
+    // Transform users array to users map with userId to user object
     const usersById = new Map(users.map((user) => [user.id, user]));
+
     const missing = new FieldErrorsBuilder();
-    const errors = new FieldErrorsBuilder();
     const input = (builder: FieldErrorsBuilder, index: number) =>
       access === 'assign' ? builder.at('userIds', index) : builder.at('userId');
 
     for (const [index, id] of userIds.entries()) {
       if (!usersById.has(id)) input(missing, index).add('reference_not_found');
     }
-    if (missing.hasErrors()) {
-      throw missing.exception(NotFoundException);
-    }
 
+    if (missing.hasErrors()) throw missing.exception(NotFoundException);
+
+    const errors = new FieldErrorsBuilder();
     for (const [index, id] of userIds.entries()) {
       const user = usersById.get(id)!;
       if (
@@ -91,7 +93,10 @@ export class ScheduleAssignmentAuthorizationService {
     }
 
     if (errors.hasErrors()) {
-      throw errors.exception(ForbiddenException, 'schedule_assignment_forbidden');
+      throw errors.exception(
+        ForbiddenException,
+        'schedule_assignment_forbidden',
+      );
     }
   }
 }

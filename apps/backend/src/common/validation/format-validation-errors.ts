@@ -39,30 +39,24 @@ function getErrorCode(error: ValidationError): string | undefined {
   return VALIDATION_CODES[rule] ?? 'validation_invalid';
 }
 
-export type FieldError = { field: string; messages: string[] };
+export type FieldErrors = Record<string, { messages: string[] }>;
 
-/**
- * Recursively formats validation errors into a flat array of field errors.
- *
- * @param errors
- * @param parent
- */
+/** Format nested validation errors using the corresponding HTML input names. */
 export function formatValidationErrors(
   errors: ValidationError[],
   parent = '',
-): FieldError[] {
-  const result: FieldError[] = [];
+): FieldErrors {
+  const fields = new Map<string, { messages: string[] }>();
 
-  for (const error of errors) {
-    const field = parent ? `${parent}.${error.property}` : error.property;
-    const code = getErrorCode(error);
-    if (code) {
-      result.push({ field, messages: [code] });
+  function visit(items: ValidationError[], prefix: string) {
+    for (const error of items) {
+      const field = prefix ? `${prefix}[${error.property}]` : error.property;
+      const code = getErrorCode(error);
+      if (code) fields.set(field, { messages: [code] });
+      visit(error.children ?? [], field);
     }
-
-    const childErrors = formatValidationErrors(error.children ?? [], field);
-    result.push(...childErrors);
   }
 
-  return result;
+  visit(errors, parent);
+  return Object.fromEntries(fields);
 }

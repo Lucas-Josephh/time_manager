@@ -48,7 +48,7 @@ describe('Team HTTP API: validation', () => {
     expect(response.body).toEqual(
       envelope(
         'validation_failed',
-        { errors: [{ field, messages: [code] }] },
+        { errors: { [field]: { messages: [code] } } },
         false,
       ),
     );
@@ -72,7 +72,7 @@ describe('Team HTTP API: validation', () => {
         .expect(
           envelope(
             'validation_failed',
-            { errors: [{ field, messages: ['reference_not_found'] }] },
+            { errors: { [field]: { messages: ['reference_not_found'] } } },
             false,
           ),
         );

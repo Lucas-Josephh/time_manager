@@ -167,17 +167,26 @@ describe('Schedule DTO validation', () => {
   });
 
   describe('timezone and slot semantics', () => {
-    it.each(['Europe/Paris', 'UTC', 'America/New_York'])('accepts explicit zone %s', async timezone => {
-      await expect(create({ ...validSchedule(), timezone })).resolves.toBeDefined();
-    });
+    it.each(['Europe/Paris', 'UTC', 'America/New_York'])(
+      'accepts explicit zone %s',
+      async (timezone) => {
+        await expect(
+          create({ ...validSchedule(), timezone }),
+        ).resolves.toBeDefined();
+      },
+    );
     it('rejects an unknown zone', async () => {
-      await expect(create({ ...validSchedule(), timezone: 'Paris/Invalid' })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        create({ ...validSchedule(), timezone: 'Paris/Invalid' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
     it('rejects overlapping slots through the HTTP validation pipe', async () => {
       const body = validSchedule();
       body.weeklySchedule['1'].push({ startTime: '10:00', endTime: '11:00' });
       await expect(create(body)).rejects.toBeInstanceOf(BadRequestException);
-      await expect(update({ weeklySchedule: body.weeklySchedule })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        update({ weeklySchedule: body.weeklySchedule }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
     it('rejects an overnight slot and the removed endsNextDay option', async () => {
       const body = validSchedule();
@@ -187,10 +196,14 @@ describe('Schedule DTO validation', () => {
       await expect(create(body)).rejects.toBeInstanceOf(BadRequestException);
     });
     it('formats custom rules using the shared error-code pipeline', async () => {
-      await expect(create({ ...validSchedule(), timezone: 'Invalid/Zone' })).rejects.toMatchObject({
+      await expect(
+        create({ ...validSchedule(), timezone: 'Invalid/Zone' }),
+      ).rejects.toMatchObject({
         response: {
           message: 'validation_failed',
-          data: { errors: [{ field: 'timezone', messages: ['invalid_schedule_timezone'] }] },
+          data: {
+            errors: { timezone: { messages: ['invalid_schedule_timezone'] } },
+          },
         },
       });
 
@@ -199,7 +212,13 @@ describe('Schedule DTO validation', () => {
       await expect(create(body)).rejects.toMatchObject({
         response: {
           message: 'validation_failed',
-          data: { errors: [{ field: 'weeklySchedule', messages: ['invalid_schedule_slots'] }] },
+          data: {
+            errors: {
+              'weeklySchedule[1][0][endTime]': {
+                messages: ['schedule_end_time_must_follow_start_time'],
+              },
+            },
+          },
         },
       });
     });
@@ -210,19 +229,39 @@ describe('Schedule DTO validation', () => {
     });
   });
 
+  it('reports exact slot fields for overlapping slots through the validation pipe', async () => {
+    const body = validSchedule();
+    body.weeklySchedule['1'].push({ startTime: '10:00', endTime: '12:00' });
+    await expect(create(body)).rejects.toMatchObject({
+      response: {
+        message: 'validation_failed',
+        data: {
+          errors: {
+            'weeklySchedule[1][0][startTime]': {
+              messages: ['schedule_slots_overlap'],
+            },
+            'weeklySchedule[1][1][startTime]': {
+              messages: ['schedule_slots_overlap'],
+            },
+          },
+        },
+      },
+    });
+  });
+
   describe('list query', () => {
     it('converts pagination strings to numbers and trims filters', async () => {
       const result = await query({
         page: '2',
         limit: '20',
         name: ' Matin ',
-        createdByUserId: ' user-1 ',
+        createdBy: ' user-1 ',
       });
       expect(result).toMatchObject({
         page: 2,
         limit: 20,
         name: 'Matin',
-        createdByUserId: 'user-1',
+        createdBy: 'user-1',
       });
     });
 
@@ -238,7 +277,7 @@ describe('Schedule DTO validation', () => {
       { limit: '101' },
       { limit: '2.5' },
       { name: '   ' },
-      { createdByUserId: '' },
+      { createdBy: '' },
     ])('rejects invalid query parameters: %p', async (filters) => {
       await expect(query(filters)).rejects.toBeInstanceOf(BadRequestException);
     });

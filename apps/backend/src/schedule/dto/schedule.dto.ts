@@ -1,4 +1,8 @@
-import { isValidTimezone, isValidWeek } from '../schedule-validation';
+import {
+  getScheduleWeekErrors,
+  isValidTimezone,
+  isValidWeek,
+} from '../schedule-validation';
 import {
   IsArray,
   ValidateBy,
@@ -7,7 +11,8 @@ import {
   IsDefined,
   IsObject,
   ValidateNested,
-  MaxLength, IsOptional,
+  MaxLength,
+  IsOptional,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { Trim } from '../../common/decorator/transform/trim.decorator';
@@ -16,7 +21,10 @@ import { TIME_PATTERN } from '../../common/validation/time.pattern';
 import { Exclude, Expose, Transform, Type } from 'class-transformer';
 import { DayOfWeek } from '../../generated/prisma/enums';
 import { UserSummaryDto } from '../../user/dto/user.dto';
-import { PaginatedDto, PaginationQueryDto } from '../../common/pagination/pagination.dto';
+import {
+  PaginatedDto,
+  PaginationQueryDto,
+} from '../../common/pagination/pagination.dto';
 
 /**
  * TODO:
@@ -136,10 +144,16 @@ export class ScheduleDto {
   name!: string;
 
   @IsDefined()
-  @ValidateBy({
-    name: 'isValidScheduleWeek',
-    validator: { validate: isValidWeek },
-  })
+  @ValidateBy(
+    {
+      name: 'isValidScheduleWeek',
+      validator: { validate: isValidWeek },
+    },
+    {
+      message: 'invalid_schedule_slots',
+      context: { fieldErrors: getScheduleWeekErrors },
+    },
+  )
   @IsObject()
   @ValidateNested()
   @Type(() => WeeklyScheduleDto)
@@ -164,8 +178,6 @@ export class ScheduleTimeSlotResponseDto extends ScheduleTimeSlotDto {
 
   @Expose()
   declare endTime: string;
-
-
 
   @Expose()
   @ApiProperty()
@@ -217,21 +229,41 @@ export class ScheduleResponseDto {
 
   @Expose()
   @ApiProperty({ type: WeeklyScheduleDto })
-  @Transform(({ obj }) => {
-    const week: WeeklyScheduleDto = {
-      '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [],
-    };
-    const weekdays: DayOfWeek[] = [
-      'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY',
-    ];
-    for (const day of (obj.days ?? []) as ScheduleDayResponseDto[]) {
-      const key = String(weekdays.indexOf(day.dayOfWeek) + 1) as keyof WeeklyScheduleDto;
-      if (key in week) {
-        week[key] = day.timeSlots.map(({ startTime, endTime }) => ({ startTime, endTime }));
+  @Transform(
+    ({ obj }) => {
+      const week: WeeklyScheduleDto = {
+        '1': [],
+        '2': [],
+        '3': [],
+        '4': [],
+        '5': [],
+        '6': [],
+        '7': [],
+      };
+      const weekdays: DayOfWeek[] = [
+        'MONDAY',
+        'TUESDAY',
+        'WEDNESDAY',
+        'THURSDAY',
+        'FRIDAY',
+        'SATURDAY',
+        'SUNDAY',
+      ];
+      for (const day of (obj.days ?? []) as ScheduleDayResponseDto[]) {
+        const key = String(
+          weekdays.indexOf(day.dayOfWeek) + 1,
+        ) as keyof WeeklyScheduleDto;
+        if (key in week) {
+          week[key] = day.timeSlots.map(({ startTime, endTime }) => ({
+            startTime,
+            endTime,
+          }));
+        }
       }
-    }
-    return week;
-  }, { toClassOnly: true })
+      return week;
+    },
+    { toClassOnly: true },
+  )
   weeklySchedule!: WeeklyScheduleDto;
 
   @Expose()
@@ -248,7 +280,6 @@ export class ScheduleTreeDto extends ScheduleResponseDto {
 }
 
 export class QueryScheduleDto extends PaginationQueryDto {
-
   @IsOptional()
   @Trim()
   @IsString()
@@ -262,6 +293,5 @@ export class QueryScheduleDto extends PaginationQueryDto {
   @IsNotEmpty()
   @ApiPropertyOptional({ description: 'Filtre par identifiant de créateur.' })
   createdBy?: string;
-
 }
 export class ScheduleListDto extends PaginatedDto(ScheduleResponseDto) {}

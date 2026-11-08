@@ -1,4 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
+import { ValidationException } from '../common/validation/validation.exception';
+import type { FieldErrors } from '../common/validation/format-validation-errors';
 import { TIME_PATTERN } from '../common/validation/time.pattern';
 
 type Slot = { startTime: string; endTime: string };
@@ -46,71 +47,64 @@ function timeToMinutes(time: string): number {
   return Number(hours) * 60 + Number(minutes);
 }
 
-function getSlotInterval(slot: Slot): Interval | null {
-  const start = timeToMinutes(slot.startTime);
-  const end = timeToMinutes(slot.endTime);
-
-  if (end <= start) {
-    return null;
-  }
-
-  return { start, end };
-}
-
-function hasOverlappingSlots(intervals: Interval[]): boolean {
-  intervals.sort((first, second) => first.start - second.start);
-
-  for (let index = 1; index < intervals.length; index++) {
-    const previous = intervals[index - 1];
-    const current = intervals[index];
-
-    if (current.start < previous.end) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-export function isValidWeek(value: unknown): boolean {
-  if (!isObject(value)) {
-    return false;
-  }
+/** Collect precise input names while preserving the submitted slot order. */
+export function getScheduleWeekErrors(
+  value: unknown,
+  field = 'weeklySchedule',
+): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!isObject(value))
+    return { [field]: { messages: ['invalid_schedule_slots'] } };
 
   for (let day = 1; day <= 7; day++) {
     const slots = value[String(day)];
-
+    const dayField = `${field}[${day}]`;
     if (!Array.isArray(slots)) {
-      return false;
+      errors[dayField] = { messages: ['invalid_schedule_slots'] };
+      continue;
     }
-
-    const intervals: Interval[] = [];
-
-    for (const slot of slots) {
+    const intervals: (Interval & { index: number })[] = [];
+    for (const [index, slot] of slots.entries()) {
+      const slotField = `${dayField}[${index}]`;
       if (!isValidSlot(slot)) {
-        return false;
+        errors[slotField] = { messages: ['invalid_schedule_slots'] };
+        continue;
       }
-
-      const interval = getSlotInterval(slot);
-
-      if (interval === null) {
-        return false;
+      const start = timeToMinutes(slot.startTime);
+      const end = timeToMinutes(slot.endTime);
+      if (end <= start) {
+        errors[`${slotField}[endTime]`] = {
+          messages: ['schedule_end_time_must_follow_start_time'],
+        };
+        continue;
       }
-
-      intervals.push(interval);
+      intervals.push({ start, end, index });
     }
 
-    if (hasOverlappingSlots(intervals)) {
-      return false;
+    // Keep original indexes when sorting, including overlaps with a containing slot.
+    intervals.sort((first, second) => first.start - second.start);
+    let furthest: (typeof intervals)[number] | undefined;
+    for (const interval of intervals) {
+      if (furthest && interval.start < furthest.end) {
+        for (const index of [furthest.index, interval.index]) {
+          errors[`${dayField}[${index}][startTime]`] = {
+            messages: ['schedule_slots_overlap'],
+          };
+        }
+      }
+      if (!furthest || interval.end > furthest.end) furthest = interval;
     }
   }
+  return errors;
+}
 
-  return true;
+export function isValidWeek(value: unknown): boolean {
+  return Object.keys(getScheduleWeekErrors(value)).length === 0;
 }
 
 export function assertValidSchedule(week: unknown, timezone: unknown): void {
   if (!isValidTimezone(timezone))
-    throw new BadRequestException('invalid_schedule_timezone');
-  if (!isValidWeek(week))
-    throw new BadRequestException('invalid_schedule_slots');
+    throw ValidationException.forField('timezone', 'invalid_schedule_timezone');
+  const errors = getScheduleWeekErrors(week);
+  if (Object.keys(errors).length) throw new ValidationException(errors);
 }

@@ -178,7 +178,7 @@ describe('Schedule HTTP API', () => {
   it('transforms list filters and returns a paginated envelope', async () => {
     const response = await request(app.getHttpServer())
       .get(
-        '/api/schedule?page=2&limit=5&name=%20Matin%20&createdByUserId=%20actor%20',
+        '/api/schedule?page=2&limit=5&name=%20Matin%20&createdBy=%20actor%20',
       )
       .expect(200);
     expect(response.body.data.meta).toEqual({
@@ -200,6 +200,21 @@ describe('Schedule HTTP API', () => {
         },
       }),
     );
+  });
+
+  it.each([
+    ['post', '/api/schedule'],
+    ['patch', '/api/schedule/schedule-1'],
+  ] as const)('points to the exact invalid endTime for %s %s', async (method, path) => {
+    const response = await request(app.getHttpServer())[method](path).send({
+      name: 'Planning Postman', timezone: 'Europe/Paris',
+      weeklySchedule: { ...weeklySchedule, '1': [{ startTime: '09:00', endTime: '08:00' }, { startTime: '13:00', endTime: '17:00' }] },
+    }).expect(400);
+    expect(response.body).toEqual({ success: false, message: 'validation_failed', data: { errors: {
+      'weeklySchedule[1][0][endTime]': { messages: ['schedule_end_time_must_follow_start_time'] },
+    } } });
+    expect(prisma.workSchedule.create).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('uses the authenticated actor when creating a schedule', async () => {

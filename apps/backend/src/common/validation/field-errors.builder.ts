@@ -1,6 +1,7 @@
+import type { HttpException } from '@nestjs/common';
 import type { FieldErrors } from './format-validation-errors';
 
-/** Collect input errors without coupling validation rules to HTTP exceptions. */
+/** Collect input errors and wrap them in the HTTP exception chosen by the caller. */
 export class FieldErrorsBuilder {
   private readonly fields = new Map<string, Set<string>>();
 
@@ -19,7 +20,10 @@ export class FieldErrorsBuilder {
     return this;
   }
 
-  at(field: string, ...segments: (string | number)[]): {
+  at(
+    field: string,
+    ...segments: (string | number)[]
+  ): {
     add: (...messages: string[]) => FieldErrorsBuilder;
   } {
     const path = FieldErrorsBuilder.path(field, ...segments);
@@ -35,6 +39,17 @@ export class FieldErrorsBuilder {
 
   hasErrors(): boolean {
     return this.fields.size > 0;
+  }
+
+  exception<T extends HttpException>(
+    Exception: new (response: object) => T,
+    message?: string,
+    details: Record<string, unknown> = {},
+  ): T {
+    return new Exception({
+      ...(message === undefined ? {} : { message }),
+      data: { ...details, errors: this.toObject() },
+    });
   }
 
   toObject(): FieldErrors {

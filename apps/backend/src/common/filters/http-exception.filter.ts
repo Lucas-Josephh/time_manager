@@ -23,7 +23,6 @@ const DEFAULT_MESSAGES: Record<number, string> = {
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-
   private readonly logger = new Logger(HttpExceptionFilter.name);
 
   constructor(private readonly adapterHost: HttpAdapterHost) {}
@@ -57,15 +56,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
         /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(customMessage)
       ) {
         message = customMessage;
-        if (
-          typeof exceptionResponse === 'object' &&
-          'data' in exceptionResponse &&
-          typeof exceptionResponse.data === 'object' &&
-          exceptionResponse.data !== null &&
-          !Array.isArray(exceptionResponse.data)
-        ) {
-          data = exceptionResponse.data as Record<string, unknown>;
-        }
+      }
+      if (
+        typeof exceptionResponse === 'object' &&
+        'data' in exceptionResponse &&
+        typeof exceptionResponse.data === 'object' &&
+        exceptionResponse.data !== null &&
+        !Array.isArray(exceptionResponse.data)
+      ) {
+        data = exceptionResponse.data as Record<string, unknown>;
       }
     }
 

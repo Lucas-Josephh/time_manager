@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { FieldErrorsBuilder } from './field-errors.builder';
 
 describe('FieldErrorsBuilder', () => {
@@ -29,6 +30,20 @@ describe('FieldErrorsBuilder', () => {
     expect(errors.toObject()).toEqual({});
     errors.add('name', 'is_required');
     expect(errors.hasErrors()).toBe(true);
+  });
+
+  it('builds a real Nest exception and snapshots errors without inventing a message', () => {
+    const errors = new FieldErrorsBuilder().add(
+      'userId',
+      'reference_not_found',
+    );
+    const exception = errors.exception(NotFoundException);
+    errors.add('userId', 'another_error');
+    expect(exception).toBeInstanceOf(NotFoundException);
+    expect(exception.getStatus()).toBe(404);
+    expect(exception.getResponse()).toEqual({
+      data: { errors: { userId: { messages: ['reference_not_found'] } } },
+    });
   });
 
   it('returns independent snapshots and protects special property names', () => {

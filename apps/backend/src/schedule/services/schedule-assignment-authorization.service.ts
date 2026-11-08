@@ -1,4 +1,3 @@
-import { fieldErrorsResponse } from '../../common/validation/field-errors';
 import { FieldErrorsBuilder } from '../../common/validation/field-errors.builder';
 import {
   ForbiddenException,
@@ -63,9 +62,7 @@ export class ScheduleAssignmentAuthorizationService {
       if (!usersById.has(id)) input(missing, index).add('reference_not_found');
     }
     if (missing.hasErrors()) {
-      throw new NotFoundException(
-        fieldErrorsResponse('not_found', missing),
-      );
+      throw missing.exception(NotFoundException);
     }
 
     for (const [index, id] of userIds.entries()) {
@@ -94,9 +91,7 @@ export class ScheduleAssignmentAuthorizationService {
     }
 
     if (errors.hasErrors()) {
-      throw new ForbiddenException(
-        fieldErrorsResponse('schedule_assignment_forbidden', errors),
-      );
+      throw errors.exception(ForbiddenException, 'schedule_assignment_forbidden');
     }
   }
 }

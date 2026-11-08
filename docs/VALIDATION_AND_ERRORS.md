@@ -152,10 +152,20 @@ errors.at('weeklySchedule', day, slotIndex, 'endTime')
   .add('schedule_end_time_must_follow_start_time');
 
 if (errors.hasErrors()) {
-  throw new ForbiddenException(
-    fieldErrorsResponse('schedule_assignment_forbidden', errors),
-  );
+  throw errors.exception(ForbiddenException, 'schedule_assignment_forbidden');
 }
+```
+
+`errors.exception(NotFoundException)` construit une véritable exception Nest
+contenant `data.errors`, sans code générique redondant : le filtre déduit
+`not_found` du statut 404. Un second argument facultatif permet un code métier
+plus précis, et un troisième conserve les détails additionnels :
+
+```ts
+throw missing.exception(NotFoundException);
+throw errors.exception(ConflictException, 'later_schedule_assignment_exists', {
+  conflictingAssignments,
+});
 ```
 
 `fieldErrorsResponse` et `ValidationException` acceptent directement le collecteur
@@ -163,7 +173,8 @@ ou un objet d’erreurs. La conversion du collecteur est faite au moment de
 construire la réponse ; aucun état interne n’est exposé.
 
 `merge(errors)` permet d’agréger un formateur personnalisé. Le collecteur ne
-vérifie aucun droit et ne choisit ni code métier ni statut HTTP.
+vérifie aucun droit : le service choisit la classe d’exception et, si nécessaire,
+un code métier.
 
 Les services peuvent utiliser `fieldErrorsResponse(message, errors, details?)`
 avec une exception 403, 404 ou 409 : le format des champs est commun aux DTO,

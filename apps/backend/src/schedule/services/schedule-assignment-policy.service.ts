@@ -1,5 +1,4 @@
 import { FieldErrorsBuilder } from '../../common/validation/field-errors.builder';
-import { fieldErrorsResponse } from '../../common/validation/field-errors';
 import { isISO8601 } from 'class-validator';
 import {
   BadRequestException,
@@ -44,27 +43,21 @@ export class ScheduleAssignmentPolicyService {
       select: { isAdmin: true },
     });
     if (!user || !user.isAdmin) {
-      throw new ForbiddenException(
-        fieldErrorsResponse(
-          'retroactive_assignment_forbidden',
-          new FieldErrorsBuilder().add(
-            'effectiveFrom',
-            'retroactive_assignment_forbidden',
-          ),
-        ),
-      );
+      throw new FieldErrorsBuilder()
+        .add('effectiveFrom', 'retroactive_assignment_forbidden')
+        .exception(ForbiddenException, 'retroactive_assignment_forbidden');
     }
 
     if (!confirmRetroactive) {
-      throw new BadRequestException(
-        fieldErrorsResponse(
+      throw new FieldErrorsBuilder()
+        .add(
+          'confirmRetroactive',
           'retroactive_assignment_confirmation_required',
-          new FieldErrorsBuilder().add(
-            'confirmRetroactive',
-            'retroactive_assignment_confirmation_required',
-          ),
-        ),
-      );
+        )
+        .exception(
+          BadRequestException,
+          'retroactive_assignment_confirmation_required',
+        );
     }
   }
 
@@ -108,10 +101,10 @@ export class ScheduleAssignmentPolicyService {
         if (conflictingUserIds.has(id))
           errors.at('userIds', index).add('later_schedule_assignment_exists');
       }
-      throw new ConflictException(
-        fieldErrorsResponse('later_schedule_assignment_exists', errors, {
-          conflictingAssignments,
-        }),
+      throw errors.exception(
+        ConflictException,
+        'later_schedule_assignment_exists',
+        { conflictingAssignments },
       );
     }
   }
@@ -122,15 +115,9 @@ export class ScheduleAssignmentPolicyService {
     const hasTimezone = value.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(value);
 
     if (!hasTime || !hasTimezone) {
-      throw new BadRequestException(
-        fieldErrorsResponse(
-          'effective_from_requires_timezone',
-          new FieldErrorsBuilder().add(
-            field,
-            'effective_from_requires_timezone',
-          ),
-        ),
-      );
+      throw new FieldErrorsBuilder()
+        .add(field, 'effective_from_requires_timezone')
+        .exception(BadRequestException, 'effective_from_requires_timezone');
     }
 
     const isValidDate = isISO8601(value, {
@@ -139,23 +126,17 @@ export class ScheduleAssignmentPolicyService {
     });
 
     if (!isValidDate) {
-      throw new BadRequestException(
-        fieldErrorsResponse(
-          'invalid_effective_from',
-          new FieldErrorsBuilder().add(field, 'invalid_effective_from'),
-        ),
-      );
+      throw new FieldErrorsBuilder()
+        .add(field, 'invalid_effective_from')
+        .exception(BadRequestException, 'invalid_effective_from');
     }
 
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
-      throw new BadRequestException(
-        fieldErrorsResponse(
-          'invalid_effective_from',
-          new FieldErrorsBuilder().add(field, 'invalid_effective_from'),
-        ),
-      );
+      throw new FieldErrorsBuilder()
+        .add(field, 'invalid_effective_from')
+        .exception(BadRequestException, 'invalid_effective_from');
     }
 
     return date;

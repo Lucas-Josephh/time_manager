@@ -1,3 +1,4 @@
+import { FieldErrorsBuilder } from './field-errors.builder';
 import { fieldErrorsResponse } from './field-errors';
 import { BadRequestException } from '@nestjs/common';
 import type { FieldErrors } from './format-validation-errors';
@@ -9,6 +10,8 @@ export class ValidationException extends BadRequestException {
   }
 
   static forField(field: string, code: string): ValidationException {
-    return new ValidationException({ [field]: { messages: [code] } });
+    return new ValidationException(
+      new FieldErrorsBuilder().add(field, code).toObject(),
+    );
   }
 }

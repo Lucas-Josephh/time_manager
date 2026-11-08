@@ -1,3 +1,4 @@
+import { FieldErrorsBuilder } from './field-errors.builder';
 import type { ValidationError } from 'class-validator';
 
 const VALIDATION_CODES: Readonly<Record<string, string>> = {
@@ -46,11 +47,11 @@ export function formatValidationErrors(
   errors: ValidationError[],
   parent = '',
 ): FieldErrors {
-  const fields = new Map<string, { messages: string[] }>();
+  const fields = new FieldErrorsBuilder();
 
   function visit(items: ValidationError[], prefix: string) {
     for (const error of items) {
-      const field = prefix ? `${prefix}[${error.property}]` : error.property;
+      const field = FieldErrorsBuilder.path(prefix, error.property);
       const code = getErrorCode(error);
       if (code) {
         const rules = Object.keys(error.constraints ?? {});
@@ -60,13 +61,9 @@ export function formatValidationErrors(
         const formatter = error.contexts?.[rule]?.fieldErrors as
           ((value: unknown, field: string) => FieldErrors) | undefined;
         if (typeof formatter === 'function') {
-          for (const [name, details] of Object.entries(
-            formatter(error.value, field),
-          )) {
-            fields.set(name, details);
-          }
+          fields.merge(formatter(error.value, field));
         } else {
-          fields.set(field, { messages: [code] });
+          fields.add(field, code);
         }
       }
       visit(error.children ?? [], field);
@@ -74,5 +71,5 @@ export function formatValidationErrors(
   }
 
   visit(errors, parent);
-  return Object.fromEntries(fields);
+  return fields.toObject();
 }

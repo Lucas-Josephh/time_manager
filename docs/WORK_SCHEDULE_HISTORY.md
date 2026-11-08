@@ -1,74 +1,103 @@
 # Historique des plannings
 
-`WorkSchedule` identifie un planning. Les affectations utilisateur, équipe et
-organisation référencent ce planning via `workScheduleId`, et non une version.
-Chaque affectation conserve sa période `[effectiveFrom, effectiveTo[` : elle
-indique quand l’entité suit ce planning. Une fin nulle signifie indéterminée.
+Un `WorkSchedule` porte directement ses jours et créneaux. Ses horaires sont
+conservés : le service ne les modifie jamais en place. `WorkScheduleVersion`
+est supprimé.
 
-`WorkScheduleVersion` contient un numéro de version, une période de validité
-`[effectiveFrom, effectiveTo[`, un fuseau IANA (par exemple `Europe/Paris`),
-ses jours et ses créneaux. Les dates de validité sont des instants avec fuseau
-en base ; les heures des créneaux sont locales au fuseau de la version.
-Les périodes des versions d’un même planning ne doivent pas se chevaucher.
+`POST /api/schedule` crée un planning. `PATCH /api/schedule/:id` crée un nouveau
+planning indépendant, dont `sourceWorkScheduleId` référence la source. Les champs
+omis sont copiés ; les jours et créneaux ont de nouveaux identifiants. Même un
+changement de nom crée un successeur. Le client doit utiliser l’identifiant retourné.
+Une source peut avoir plusieurs descendants ; aucune propagation n’est implicite.
 
-## Corriger une période
+`GET /api/schedule` liste tous les plannings avec pagination.
+`GET /api/schedule/tree` retourne les racines et leurs descendants dans `children`.
+`GET /api/schedule/:id/tree` retourne un tableau contenant le planning demandé
+et ses descendants (404 si absent). Les arbres ne sont pas paginés ; chaque
+feuille contient `children: []`. Les lectures utilisent un instantané cohérent.
 
-Modifier les jours ou créneaux d’une version existante corrige les horaires
-applicables à toute sa période, y compris passée. Les résultats historiques
-recalculés changent donc ; les pointages réels restent inchangés. Les résultats
-mis en cache ou persistés doivent être invalidés ou recalculés par l’application.
-`updatedAt` indique la dernière modification ; ce champ ne remplace pas un journal
-d’audit détaillé, à ajouter si nécessaire.
+Les réponses exposent `weeklySchedule`, indexé de `1` à `7`, comme le POST. La filiation
+n’accorde aucun droit sur les utilisateurs du planning source. Les administrateurs
+et responsables d’équipe ou d’organisation peuvent créer ou dériver des plannings.
+Les lectures restent accessibles à toute session autorisée par AuthGuard.
 
-## Faire évoluer à partir d’une date
+`UserWorkScheduleAssignment` conserve les affectations individuelles avec
+`effectiveFrom`. Pour une date donnée, l’affectation applicable est la dernière
+entrée en vigueur. L’unicité `(userId, effectiveFrom)` interdit deux débuts identiques.
+Les affectations d’équipe et d’organisation sont supprimées : aucun héritage de
+planning n’intervient dans les calculs. Les pointages référencent directement le
+planning via `WorkSession.workScheduleId`.
 
-Pour passer de 35 h à 39 h le 1er novembre :
+Le service, les routes et les permissions d’affectation utilisateur restent à
+implémenter séparément. Cette refactorisation ne crée ni ne remplace d’affectation.
+Le périmètre à contrôler sera celui des utilisateurs explicitement sélectionnés :
+membres de l’équipe gérée, ou équipes des organisations gérées et descendantes.
 
-1. Fermer la version précédente au 1er novembre à minuit local.
-2. Créer une nouvelle version avec cette date de début, ses jours et créneaux.
-3. Effectuer ces opérations dans une transaction.
+## Migration
 
-Toutes les entités rattachées au planning suivent automatiquement cette évolution,
-sans nouvelle affectation. Les périodes antérieures gardent leurs anciens horaires.
-Un changement futur déjà programmé nécessite de découper les périodes concernées
-sans créer de chevauchement ni écraser une autre évolution.
+La migration transforme chaque ancienne version en planning distinct, conserve
+les jours/créneaux et réaffecte les références des pointages. La première version
+conserve l’identifiant du planning original ; les suivantes forment une filiation.
+Les affectations utilisateur d’un planning à une seule version restent inchangées.
 
-## Résolution et historique individuel
+La migration refuse de continuer si des affectations collectives existent, ou si
+une affectation utilisateur référence un planning possédant plusieurs versions :
+les versions n’ayant pas de dates de validité, cette conversion nécessite une
+reprise métier explicite. Aucune date historique n’est inventée. Le refus annule
+la transaction ; résoudre ces cas avant de relancer.
 
-À la date concernée, retrouver l’affectation utilisateur applicable, puis la version
-du planning dont la période contient cette date. `WorkSession` conserve uniquement
-les pointages réels ; aucune version n’y est figée. Les heures attendues sont aussi
-calculées pour les jours sans pointage. Un calcul couvrant plusieurs affectations
-ou versions doit être découpé à leurs bornes.
+La migration n’est pas appliquée automatiquement. Tester sur une copie des données
+avant déploiement. La conservation des horaires est assurée par le service ;
+les écritures SQL ou Prisma directes restent sous la responsabilité de l’appelant.
 
-Pour l’héritage, la priorité proposée est : choix individuel, équipe, organisation,
-puis organisation parente. L’application doit matérialiser le planning hérité dans
-une affectation utilisateur datée, afin de ne pas dépendre de l’équipe ou de
-l’organisation actuelle pour les calculs passés. Lors d’un changement d’équipe,
-d’organisation ou de planning collectif, fermer et créer les affectations
-individuelles concernées à la date d’effet. La résolution et la propagation dans
-les services doivent être adaptées à ce modèle.
+## Fuseau, créneaux et rétroactivité
 
-## Garanties à ajouter dans la couche métier ou une migration SQL
+Chaque planning porte un fuseau IANA `timezone`, `Europe/Paris` par défaut.
+Une copie reprend le fuseau source sauf remplacement explicite. Les heures sont
+locales à ce fuseau ; elles ne sont pas des heures UTC. Lors des futurs calculs,
+utiliser une conversion avec les règles de changement d’heure, jamais un décalage
+UTC fixe. L’affectation conserve un instant `TIMESTAMPTZ(3)`.
 
-Prisma valide les relations et l’unicité, mais ce schéma seul ne garantit pas :
+Chaque créneau reste sur une seule journée : sa fin est strictement après son
+début. Un créneau passant minuit (22:00 → 06:00) est refusé. Les chevauchements
+sont contrôlés séparément pour chaque jour ; les créneaux adjacents sont acceptés.
+Le champ `endsNextDay` est supprimé.
 
-- l’absence de chevauchement des versions d’un même planning ;
-- l’absence de chevauchement des affectations d’un même propriétaire ;
-- `effectiveTo > effectiveFrom`, lorsque la fin existe, pour versions et affectations ;
-- la présence d’une version applicable pendant les périodes d’affectation ;
-- un numéro de version positif, un jour entre 1 et 7 et un fuseau IANA valide ;
-- le format des heures, leur ordre et l’absence de chevauchement des créneaux.
+`ScheduleAssignmentPolicyService.assertEffectiveFrom` prépare le contrôle des
+futures affectations : instant ISO avec offset obligatoire, rétroactivité réservée
+aux administrateurs et confirmation `confirmRetroactive: true` obligatoire.
+Ce contrôle doit être appelé depuis le futur service d’affectation, dans la
+transaction et après vérification du périmètre des utilisateurs concernés.
+Il n’existe encore aucune route d’affectation ni confirmation dans une interface.
+Pour une prise d’effet immédiate, le service d’affectation devra produire lui-même
+l’instant serveur plutôt qu’envoyer une date client quelques secondes antérieure.
 
-Les contrôles de concurrence doivent être assurés en base (contraintes d’exclusion
-PostgreSQL pour les périodes, par exemple) ou par des transactions sérialisées
-avec reprise sur conflit. Les relations `Restrict` protègent contre les suppressions
-en cascade, mais permettent les corrections de contenu.
+La migration ajoute les champs sans modifier les horaires et interprète les
+anciens instants Prisma comme UTC. Les anciennes données sont considérées comme
+des horaires Europe/Paris : adapter cette hypothèse avant toute reprise si besoin.
 
-Cette modification porte sur le schéma uniquement. Avant son déploiement, adapter
-les services, créer et relire une migration et reprendre les données existantes.
-Les anciennes affectations de version doivent référencer leur planning ; les
-périodes de validité des versions doivent être établies à partir des données métier.
-Si une même version était utilisée à des périodes différentes selon les entités,
-la conversion nécessite une décision métier : ces périodes ne définissent pas
-forcément une validité globale unique. Ne pas inventer de date historique inconnue.
+## Refuser un changement avant une affectation déjà programmée
+
+`ScheduleAssignmentPolicyService.assertNoLaterAssignments` refuse une affectation
+si au moins un utilisateur sélectionné a déjà une affectation strictement
+postérieure à la date demandée. Une affectation antérieure ne bloque pas le
+changement ; une date identique reste protégée par la contrainte d’unicité.
+
+Le refus utilise HTTP 409, le code `later_schedule_assignment_exists`, et
+`data.conflictingAssignments` fournit les utilisateurs, plannings et dates qui
+bloquent l’opération. Aucun changement futur n’est annulé automatiquement.
+
+Texte à afficher pour expliquer le refus :
+« Affectation impossible : un changement de planning est déjà prévu après la date
+choisie pour certains utilisateurs sélectionnés. Pour éviter que le nouveau
+planning soit remplacé par ce changement, annulez d’abord les affectations
+programmées concernées ou retirez ces utilisateurs de la sélection. Aucune
+nouvelle affectation n’a été enregistrée. »
+
+Le futur service d’affectation doit vérifier les droits sur toute la sélection,
+puis appeler `assertEffectiveFrom` et `assertNoLaterAssignments` avant toute
+écriture, dans la même transaction sérialisée que la création des affectations.
+Tout conflit doit annuler l’opération complète. Une vérification hors transaction
+ne protège pas des changements concurrents. La création d’un planning sans
+utilisateurs n’est pas bloquée. Ces contrôles sont préparés mais aucune route
+ou écriture d’affectation n’est encore implémentée.

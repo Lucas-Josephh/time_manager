@@ -89,6 +89,10 @@ describe('Schedule DTO validation', () => {
       async (time) => {
         const body = validSchedule();
         body.weeklySchedule['1'][0].startTime = time;
+        if (time === '23:59') {
+          body.weeklySchedule['1'][0].startTime = '23:00';
+          body.weeklySchedule['1'][0].endTime = time;
+        }
         await expect(create(body)).resolves.toBeDefined();
       },
     );
@@ -159,6 +163,50 @@ describe('Schedule DTO validation', () => {
       await expect(update({ weeklySchedule: week })).rejects.toBeInstanceOf(
         BadRequestException,
       );
+    });
+  });
+
+  describe('timezone and slot semantics', () => {
+    it.each(['Europe/Paris', 'UTC', 'America/New_York'])('accepts explicit zone %s', async timezone => {
+      await expect(create({ ...validSchedule(), timezone })).resolves.toBeDefined();
+    });
+    it('rejects an unknown zone', async () => {
+      await expect(create({ ...validSchedule(), timezone: 'Paris/Invalid' })).rejects.toBeInstanceOf(BadRequestException);
+    });
+    it('rejects overlapping slots through the HTTP validation pipe', async () => {
+      const body = validSchedule();
+      body.weeklySchedule['1'].push({ startTime: '10:00', endTime: '11:00' });
+      await expect(create(body)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(update({ weeklySchedule: body.weeklySchedule })).rejects.toBeInstanceOf(BadRequestException);
+    });
+    it('rejects an overnight slot and the removed endsNextDay option', async () => {
+      const body = validSchedule();
+      body.weeklySchedule['1'][0] = { startTime: '22:00', endTime: '06:00' };
+      await expect(create(body)).rejects.toBeInstanceOf(BadRequestException);
+      Object.assign(body.weeklySchedule['1'][0], { endsNextDay: true });
+      await expect(create(body)).rejects.toBeInstanceOf(BadRequestException);
+    });
+    it('formats custom rules using the shared error-code pipeline', async () => {
+      await expect(create({ ...validSchedule(), timezone: 'Invalid/Zone' })).rejects.toMatchObject({
+        response: {
+          message: 'validation_failed',
+          data: { errors: [{ field: 'timezone', messages: ['invalid_schedule_timezone'] }] },
+        },
+      });
+
+      const body = validSchedule();
+      body.weeklySchedule['1'][0].endTime = '08:00';
+      await expect(create(body)).rejects.toMatchObject({
+        response: {
+          message: 'validation_failed',
+          data: { errors: [{ field: 'weeklySchedule', messages: ['invalid_schedule_slots'] }] },
+        },
+      });
+    });
+    it('rejects zero duration', async () => {
+      const body = validSchedule();
+      body.weeklySchedule['1'][0].endTime = '09:00';
+      await expect(create(body)).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 

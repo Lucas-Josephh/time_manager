@@ -1,19 +1,19 @@
 import { Test } from '@nestjs/testing';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DayOfWeek, Prisma, WorkSchedule } from '../../generated/prisma/client';
-import {
-  CreateScheduleDto,
-  QueryScheduleDto,
-  WeeklyScheduleDto,
-} from '../dto/schedule.dto';
+import { QueryScheduleDto, WeeklyScheduleDto } from '../dto/schedule.dto';
 import { ScheduleService } from './schedule.service';
 import { ScheduleAuthorizationService } from './schedule-authorization.service';
 
 type SchedulePage = Awaited<ReturnType<ScheduleService['findAll']>>;
 
-function makeSchedule(id = 'schedule-1'): WorkSchedule {
+function makeSchedule(id = 'schedule-1') {
   return {
     id,
+    sourceWorkScheduleId: null,
+    timezone: 'Europe/Paris',
+    createdBy: { id: 'user-1', firstname: 'Alice', lastname: 'Martin' },
+    days: [],
     name: `Planning ${id}`,
     createdByUserId: 'user-1',
     createdAt: new Date('2026-10-30T09:00:00Z'),
@@ -40,27 +40,17 @@ function makeWeek(): WeeklyScheduleDto {
 const prisma = {
   workSchedule: {
     findUnique: jest.fn<
-      Promise<WorkSchedule | null>,
+      Promise<ReturnType<typeof makeSchedule> | null>,
       [Prisma.WorkScheduleFindUniqueArgs]
     >(),
     findMany: jest.fn<
-      Promise<WorkSchedule[]>,
+      Promise<ReturnType<typeof makeSchedule>[]>,
       [Prisma.WorkScheduleFindManyArgs]
     >(),
     count: jest.fn<Promise<number>, [Prisma.WorkScheduleCountArgs]>(),
     create: jest.fn<Promise<WorkSchedule>, [Prisma.WorkScheduleCreateArgs]>(),
   },
   $transaction: jest.fn(),
-};
-
-const tx = {
-  workSchedule: {
-    findUniqueOrThrow: jest.fn<
-      Promise<{ versions: { version: number }[] }>,
-      [Prisma.WorkScheduleFindUniqueOrThrowArgs]
-    >(),
-    update: jest.fn<Promise<WorkSchedule>, [Prisma.WorkScheduleUpdateArgs]>(),
-  },
 };
 
 // Explicit expected mapping: tests catch a swapped weekday or a lost time slot.
@@ -76,7 +66,9 @@ const expectedDays = [
   },
   {
     dayOfWeek: DayOfWeek.TUESDAY,
-    timeSlots: { create: [{ startTime: '10:00', endTime: '16:00' }] },
+    timeSlots: {
+      create: [{ startTime: '10:00', endTime: '16:00' }],
+    },
   },
   { dayOfWeek: DayOfWeek.WEDNESDAY, timeSlots: { create: [] } },
   { dayOfWeek: DayOfWeek.THURSDAY, timeSlots: { create: [] } },
@@ -229,203 +221,127 @@ describe('ScheduleService', () => {
     });
   });
 
-  describe('create', () => {
-    it('creates the schedule and initial week together with their authenticated creator', async () => {
-      const dto: CreateScheduleDto = {
-        name: 'Matin',
-        weeklySchedule: makeWeek(),
+  describe('immutable schedules', () => {
+    let authorization: { assertCanCreate: jest.Mock };
+    beforeEach(() => {
+      authorization = {
+        assertCanCreate: jest.fn().mockResolvedValue(undefined),
       };
-      const created = makeSchedule();
-      prisma.workSchedule.create.mockResolvedValue(created);
+      service = new ScheduleService(
+        prisma as unknown as PrismaService,
+        authorization as unknown as ScheduleAuthorizationService,
+      );
+      prisma.$transaction.mockImplementation((operation) => operation(prisma));
+      prisma.workSchedule.create.mockResolvedValue(makeSchedule('new'));
+    });
 
-      const result = await service.create(dto, 'user-1');
-
-      expect(result).toEqual(created);
-      expect(prisma.workSchedule.create).toHaveBeenCalledTimes(1);
+    it('creates the full week directly on a new schedule', async () => {
+      await service.create(
+        { name: 'Matin', weeklySchedule: makeWeek() },
+        'user-1',
+      );
       expect(prisma.workSchedule.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: {
             name: 'Matin',
+            timezone: 'Europe/Paris',
             createdByUserId: 'user-1',
-            versions: {
-              create: {
-                createdByUserId: 'user-1',
-                days: { create: expectedDays },
-              },
-            },
+            sourceWorkScheduleId: undefined,
+            days: { create: expectedDays },
           },
         }),
       );
     });
 
-    it('supports a week with no working days', async () => {
-      const week: WeeklyScheduleDto = {
-        '1': [],
-        '2': [],
-        '3': [],
-        '4': [],
-        '5': [],
-        '6': [],
-        '7': [],
-      };
-      await service.create({ name: 'Repos', weeklySchedule: week }, 'user-1');
-      expect(prisma.workSchedule.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            versions: {
-              create: {
-                createdByUserId: 'user-1',
-                days: {
-                  create: expectedDays.map((day) => ({
-                    ...day,
-                    timeSlots: { create: [] },
-                  })),
-                },
-              },
-            },
-          }),
-        }),
-      );
-    });
-
-    it('propagates creation failures', async () => {
-      const error = new Error('Write failed');
-      prisma.workSchedule.create.mockRejectedValue(error);
+    it('rejects unauthorized creation before writing', async () => {
+      const error = new Error('Forbidden');
+      authorization.assertCanCreate.mockRejectedValue(error);
       await expect(
         service.create({ name: 'Matin', weeklySchedule: makeWeek() }, 'user-1'),
       ).rejects.toBe(error);
-    });
-  });
-
-  describe('update', () => {
-    beforeEach(() => {
-      // Executes the callback against transaction mocks; does not prove real atomicity.
-      prisma.$transaction.mockImplementation(
-        (operation: (client: typeof tx) => Promise<unknown>) => operation(tx),
-      );
-      tx.workSchedule.findUniqueOrThrow.mockResolvedValue({
-        versions: [{ version: 3 }],
-      });
-      tx.workSchedule.update.mockResolvedValue(makeSchedule());
+      expect(prisma.workSchedule.create).not.toHaveBeenCalled();
     });
 
-    it('renames a schedule without creating a version', async () => {
+    it('creates an independent successor and leaves the source unchanged', async () => {
+      const source = {
+        ...makeSchedule(),
+        days: [
+          {
+            dayOfWeek: DayOfWeek.MONDAY,
+            timeSlots: [
+              {
+                id: 'slot',
+                startTime: '09:00',
+                endTime: '17:00',
+              },
+            ],
+          },
+        ],
+      };
+      const findUniqueOrThrow = jest.fn().mockResolvedValue(source);
+      Object.assign(prisma.workSchedule, { findUniqueOrThrow });
+      const snapshot = JSON.stringify(source);
       const result = await service.update(
-        'schedule-1',
-        { name: 'Nouveau nom' },
-        'user-2',
+        source.id,
+        { name: 'Copie' },
+        'user-1',
       );
-      expect(result).toEqual(makeSchedule());
-      expect(tx.workSchedule.update).toHaveBeenCalledWith(
+      expect(result.id).toBe('new');
+      expect(JSON.stringify(source)).toBe(snapshot);
+      expect(prisma.workSchedule.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'schedule-1' },
-          data: { name: 'Nouveau nom' },
-        }),
-      );
-      expect(tx.workSchedule.findUniqueOrThrow).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 'schedule-1' },
-          select: {
-            versions: {
-              orderBy: { version: 'desc' },
-              take: 1,
-              select: { version: true },
+          data: {
+            name: 'Copie',
+            timezone: 'Europe/Paris',
+            createdByUserId: 'user-1',
+            sourceWorkScheduleId: source.id,
+            days: {
+              create: [
+                {
+                  dayOfWeek: DayOfWeek.MONDAY,
+                  timeSlots: {
+                    create: [
+                      {
+                        startTime: '09:00',
+                        endTime: '17:00',
+                      },
+                    ],
+                  },
+                },
+              ],
             },
           },
         }),
       );
     });
 
-    it('creates the next complete version without replacing existing versions', async () => {
-      await service.update(
-        'schedule-1',
-        { weeklySchedule: makeWeek() },
-        'user-2',
-      );
-      expect(tx.workSchedule.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: {
-            versions: {
-              create: {
-                version: 4,
-                createdByUserId: 'user-2',
-                days: { create: expectedDays },
-              },
-            },
-          },
-        }),
-      );
-      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    it('replaces the full copied week when new hours are supplied', async () => {
+      Object.assign(prisma.workSchedule, {
+        findUniqueOrThrow: jest.fn().mockResolvedValue(makeSchedule()),
       });
-    });
-
-    it('can rename and create a version in the same update', async () => {
-      await service.update(
-        'schedule-1',
-        { name: 'Soir', weeklySchedule: makeWeek() },
-        'user-2',
-      );
-      expect(tx.workSchedule.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: {
-            name: 'Soir',
-            versions: {
-              create: {
-                version: 4,
-                createdByUserId: 'user-2',
-                days: { create: expectedDays },
-              },
-            },
-          },
-        }),
-      );
-    });
-
-    it('starts at version 1 if the schedule has no version', async () => {
-      tx.workSchedule.findUniqueOrThrow.mockResolvedValue({ versions: [] });
       await service.update(
         'schedule-1',
         { weeklySchedule: makeWeek() },
-        'user-2',
+        'user-1',
       );
-      expect(tx.workSchedule.update).toHaveBeenCalledWith(
+      expect(prisma.workSchedule.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            versions: { create: expect.objectContaining({ version: 1 }) },
+            name: 'Planning schedule-1',
+            sourceWorkScheduleId: 'schedule-1',
+            days: { create: expectedDays },
           }),
         }),
       );
     });
 
-    it('does not add a version for an empty patch', async () => {
-      await service.update('schedule-1', {}, 'user-2');
-      expect(tx.workSchedule.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: {} }),
-      );
-    });
-
-    it('does not write if the schedule is missing', async () => {
-      const error = new Prisma.PrismaClientKnownRequestError('Not found', {
-        code: 'P2025',
-        clientVersion: 'test',
+    it('does not create a successor for a missing source', async () => {
+      const error = new Error('Missing source');
+      Object.assign(prisma.workSchedule, {
+        findUniqueOrThrow: jest.fn().mockRejectedValue(error),
       });
-      tx.workSchedule.findUniqueOrThrow.mockRejectedValue(error);
-      await expect(
-        service.update('missing', { name: 'Matin' }, 'user-2'),
-      ).rejects.toBe(error);
-      expect(tx.workSchedule.update).not.toHaveBeenCalled();
-    });
-
-    it('propagates concurrent write conflicts for the shared error handler', async () => {
-      const error = new Prisma.PrismaClientKnownRequestError('Conflict', {
-        code: 'P2034',
-        clientVersion: 'test',
-      });
-      tx.workSchedule.update.mockRejectedValue(error);
-      await expect(
-        service.update('schedule-1', { weeklySchedule: makeWeek() }, 'user-2'),
-      ).rejects.toBe(error);
+      await expect(service.update('missing', {}, 'user-1')).rejects.toBe(error);
+      expect(prisma.workSchedule.create).not.toHaveBeenCalled();
     });
   });
 });

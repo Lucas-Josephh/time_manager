@@ -15,6 +15,8 @@ const VALIDATION_CODES: Readonly<Record<string, string>> = {
   isBoolean: 'invalid_boolean',
   isDateString: 'invalid_date_string',
   isEnum: 'invalid_enum_value',
+  isScheduleTimezone: 'invalid_schedule_timezone',
+  isValidScheduleWeek: 'invalid_schedule_slots',
   referenceExists: 'reference_not_found',
   whitelistValidation: 'validation_unknown_field',
   arrayUnique: 'validation_duplicate_array_value',

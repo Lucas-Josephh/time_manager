@@ -25,30 +25,10 @@ const schedule = {
     lastname: 'Martin',
     email: 'private@example.com',
   },
-  versions: [
-    {
-      id: 'version-1',
-      version: 1,
-      createdAt: date,
-      updatedAt: date,
-      createdByUserId: 'actor',
-      days: [
-        {
-          id: 'day-1',
-          dayOfWeek: 'MONDAY',
-          workScheduleVersionId: 'version-1',
-          timeSlots: [
-            {
-              id: 'slot-1',
-              startTime: '09:00',
-              endTime: '17:00',
-              scheduleDayId: 'day-1',
-            },
-          ],
-        },
-      ],
-    },
-  ],
+  sourceWorkScheduleId: null, timezone: 'Europe/Paris',
+  days: [{ id: 'day-1', dayOfWeek: 'MONDAY', timeSlots: [
+    { id: 'slot-1', startTime: '09:00', endTime: '17:00', scheduleDayId: 'day-1' },
+  ] }],
 };
 
 function databaseError(code: string) {
@@ -100,7 +80,7 @@ describe('Schedule HTTP API', () => {
     prisma.workSchedule.count.mockResolvedValue(1);
     prisma.workSchedule.create.mockResolvedValue(schedule);
     prisma.workSchedule.findUniqueOrThrow.mockResolvedValue({
-      versions: [{ version: 1 }],
+      ...schedule,
     });
     prisma.workSchedule.update.mockResolvedValue(schedule);
     prisma.$transaction.mockImplementation((operation) =>
@@ -151,25 +131,40 @@ describe('Schedule HTTP API', () => {
         createdAt: date.toISOString(),
         updatedAt: date.toISOString(),
         createdBy: { id: 'actor', firstname: 'Alice', lastname: 'Martin' },
-        versions: [
-          {
-            id: 'version-1',
-            version: 1,
-            createdAt: date.toISOString(),
-            updatedAt: date.toISOString(),
-            days: [
-              {
-                id: 'day-1',
-                dayOfWeek: 'MONDAY',
-                timeSlots: [
-                  { id: 'slot-1', startTime: '09:00', endTime: '17:00' },
-                ],
-              },
-            ],
-          },
-        ],
+        sourceWorkScheduleId: null, timezone: 'Europe/Paris',
+        weeklySchedule,
       },
     });
+  });
+
+  it.each(['/api/schedule/tree', '/api/schedule/schedule-1/tree'])(
+    'returns nested descendants for %s', async (path) => {
+      const child = { ...schedule, id: 'child', sourceWorkScheduleId: schedule.id };
+      const grandchild = { ...schedule, id: 'grandchild', sourceWorkScheduleId: child.id };
+      prisma.workSchedule.findMany
+        .mockReset()
+        .mockImplementation(({ where }) => Promise.resolve(
+          [schedule, child, grandchild].filter((item) =>
+            where.sourceWorkScheduleId === null
+              ? item.sourceWorkScheduleId === null
+              : where.sourceWorkScheduleId.in.includes(item.sourceWorkScheduleId),
+          ),
+        ));
+      const response = await request(app.getHttpServer()).get(path).expect(200);
+      const roots = response.body.data;
+      expect(roots).toHaveLength(1);
+      expect(roots[0].id).toBe(schedule.id);
+      expect(roots[0].weeklySchedule).toEqual(weeklySchedule);
+      expect(roots[0].children[0].id).toBe('child');
+      expect(roots[0].children[0].weeklySchedule).toEqual(weeklySchedule);
+      expect(roots[0].children[0].children[0]).toMatchObject({ id: 'grandchild', children: [] });
+      expect(roots[0]).not.toHaveProperty('days');
+    },
+  );
+
+  it('returns 404 for a missing subtree root', async () => {
+    prisma.workSchedule.findUniqueOrThrow.mockRejectedValue(databaseError('P2025'));
+    await request(app.getHttpServer()).get('/api/schedule/missing/tree').expect(404);
   });
 
   it('returns an empty success envelope for a missing detail, as currently documented', async () => {
@@ -193,6 +188,8 @@ describe('Schedule HTTP API', () => {
       totalPages: 1,
     });
     expect(response.body.data.items).toHaveLength(1);
+    expect(response.body.data.items[0].weeklySchedule).toEqual(weeklySchedule);
+    expect(response.body.data.items[0]).not.toHaveProperty('days');
     expect(prisma.workSchedule.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         skip: 5,
@@ -217,9 +214,7 @@ describe('Schedule HTTP API', () => {
         data: expect.objectContaining({
           name: 'Matin',
           createdByUserId: 'actor',
-          versions: {
-            create: expect.objectContaining({ createdByUserId: 'actor' }),
-          },
+          days: { create: expect.any(Array) },
         }),
       }),
     );
@@ -243,23 +238,12 @@ describe('Schedule HTTP API', () => {
     expect(prisma.workSchedule.update).not.toHaveBeenCalled();
   });
 
-  it('uses the authenticated actor for a new version on update', async () => {
-    await request(app.getHttpServer())
-      .patch('/api/schedule/schedule-1')
-      .send({ weeklySchedule })
-      .expect(200);
-    expect(prisma.workSchedule.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: {
-          versions: {
-            create: expect.objectContaining({
-              version: 2,
-              createdByUserId: 'actor',
-            }),
-          },
-        },
-      }),
-    );
+  it('creates a successor on update without changing the original', async () => {
+    await request(app.getHttpServer()).patch('/api/schedule/schedule-1').send({ weeklySchedule }).expect(200);
+    expect(prisma.workSchedule.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+      sourceWorkScheduleId: 'schedule-1', createdByUserId: 'actor', days: { create: expect.any(Array) },
+    }) }));
+    expect(prisma.workSchedule.update).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -299,7 +283,7 @@ describe('Schedule HTTP API', () => {
   });
 
   it('translates concurrent update conflicts to 409', async () => {
-    prisma.workSchedule.update.mockRejectedValue(databaseError('P2034'));
+    prisma.workSchedule.create.mockRejectedValue(databaseError('P2034'));
     const response = await request(app.getHttpServer())
       .patch('/api/schedule/schedule-1')
       .send({ weeklySchedule })

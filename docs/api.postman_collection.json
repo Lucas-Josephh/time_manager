@@ -72,6 +72,16 @@
       "key": "managerId",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "scheduleId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rootScheduleId",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -1131,7 +1141,258 @@
       ]
     },
     {
-      "name": "06 — Suppressions (exécution manuelle)",
+      "name": "06 — Plannings",
+      "item": [
+        {
+          "name": "Lister les plannings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "name",
+                  "value": "Postman",
+                  "disabled": true
+                },
+                {
+                  "key": "createdBy",
+                  "value": "{{userId}}",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Retourne tous les plannings, racines et descendants, dans data.items avec data.meta. Les jours sont dans weeklySchedule (clés 1 à 7), comme le POST."
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un planning",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule"
+              ]
+            },
+            "description": "Administrateur ou responsable requis. Crée un planning racine et mémorise son identifiant dans scheduleId et rootScheduleId. Les sept jours sont obligatoires ; créneaux sur la même journée, sans chevauchement.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Planning Postman\",\n  \"timezone\": \"Europe/Paris\",\n  \"weeklySchedule\": {\n    \"1\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"2\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"3\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"4\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"5\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"6\": [],\n    \"7\": []\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json().data;",
+                  "  if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"scheduleId\", data.id);",
+                  "    pm.collectionVariables.set(\"rootScheduleId\", data.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Arbre des plannings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule/tree",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule",
+                "tree"
+              ]
+            },
+            "description": "Retourne un tableau de racines dans data, avec tous leurs descendants dans children. Sans pagination ; chaque feuille contient children: []. Chaque nœud expose weeklySchedule."
+          },
+          "response": []
+        },
+        {
+          "name": "Sous-arbre d’un planning",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule/{{rootScheduleId}}/tree",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule",
+                "{{rootScheduleId}}",
+                "tree"
+              ]
+            },
+            "description": "Retourne un tableau contenant la racine demandée et tous ses descendants dans children. Utilise rootScheduleId pour conserver toute la branche après les modifications. Planning absent : 404."
+          },
+          "response": []
+        },
+        {
+          "name": "Détail d’un planning",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule/{{scheduleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule",
+                "{{scheduleId}}"
+              ]
+            },
+            "description": "Retourne le planning avec weeklySchedule et sourceWorkScheduleId (null pour une racine)."
+          },
+          "response": []
+        },
+        {
+          "name": "Modifier un planning — créer un descendant",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/schedule/{{scheduleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "schedule",
+                "{{scheduleId}}"
+              ]
+            },
+            "description": "Administrateur ou responsable requis. Crée un descendant indépendant : le planning source reste inchangé. Les champs omis sont copiés. Une weeklySchedule fournie remplace toute la semaine. Mémorise le nouvel identifiant dans scheduleId ; rootScheduleId conserve la racine.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Planning Postman modifié\",\n  \"weeklySchedule\": {\n    \"1\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"2\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"3\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"4\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"5\": [\n      {\n        \"startTime\": \"09:00\",\n        \"endTime\": \"12:00\"\n      },\n      {\n        \"startTime\": \"13:00\",\n        \"endTime\": \"17:00\"\n      }\n    ],\n    \"6\": [],\n    \"7\": []\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const data = pm.response.json().data;",
+                  "  if (data && data.id) {",
+                  "    pm.collectionVariables.set(\"scheduleId\", data.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 — Suppressions (exécution manuelle)",
       "item": [
         {
           "name": "Supprimer une équipe",

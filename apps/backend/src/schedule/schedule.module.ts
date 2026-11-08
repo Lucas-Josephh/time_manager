@@ -1,3 +1,4 @@
+import { ScheduleAssignmentPolicyService } from './services/schedule-assignment-policy.service';
 import { Module } from '@nestjs/common';
 import { ScheduleService } from './services/schedule.service';
 import { ScheduleController } from './controllers/schedule.controller';
@@ -7,7 +8,8 @@ import { ScheduleAuthorizationService } from './services/schedule-authorization.
 
 @Module({
   imports: [PrismaModule, AuthModule],
-  providers: [ScheduleService, ScheduleAuthorizationService],
+  providers: [ScheduleService, ScheduleAuthorizationService, ScheduleAssignmentPolicyService],
   controllers: [ScheduleController],
+  exports: [ScheduleAssignmentPolicyService],
 })
 export class ScheduleModule {}

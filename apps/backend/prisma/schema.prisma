@@ -19,6 +19,7 @@ enum DayOfWeek {
 }
 
 model WorkSchedule {
+  timezone  String   @default("Europe/Paris")
   id        String   @id @default(uuid())
   name      String
   createdAt DateTime @default(now())
@@ -27,43 +28,27 @@ model WorkSchedule {
   createdByUserId String
   createdBy       User   @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
 
-  usersAssignments         UserWorkScheduleAssignment[]
-  teamsAssignments         TeamWorkScheduleAssignment[]
-  organizationsAssignments OrganizationWorkScheduleAssignment[]
+  usersAssignments     UserWorkScheduleAssignment[]
+  sourceWorkScheduleId String?
+  sourceWorkSchedule   WorkSchedule?                @relation("ScheduleOrigin", fields: [sourceWorkScheduleId], references: [id], onDelete: Restrict)
+  derivedSchedules     WorkSchedule[]               @relation("ScheduleOrigin")
+  days                 ScheduleDay[]
+  workSessions         WorkSession[]
 
-  versions WorkScheduleVersion[]
-
+  @@index([sourceWorkScheduleId])
   @@map("work_schedule")
 }
 
-model WorkScheduleVersion {
-  id             String   @id @default(uuid())
-  workScheduleId String
-  version        Int      @default(1)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  createdByUserId String
-  createdBy       User   @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
-
-  workSchedule WorkSchedule  @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
-  days         ScheduleDay[]
-  workSessions WorkSession[]
-
-  @@unique([workScheduleId, version])
-  @@map("work_schedule_version")
-}
-
 model ScheduleDay {
-  id                    String    @id @default(uuid())
-  workScheduleVersionId String
-  dayOfWeek             DayOfWeek
+  id             String    @id @default(uuid())
+  workScheduleId String
+  dayOfWeek      DayOfWeek
 
-  workScheduleVersion WorkScheduleVersion @relation(fields: [workScheduleVersionId], references: [id], onDelete: Restrict)
+  workSchedule WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
 
   timeSlots TimeSlot[]
 
-  @@unique([workScheduleVersionId, dayOfWeek])
+  @@unique([workScheduleId, dayOfWeek])
   @@map("schedule_day")
 }
 
@@ -78,34 +63,11 @@ model UserWorkScheduleAssignment {
   user           User         @relation(fields: [userId], references: [id], onDelete: Restrict)
   workScheduleId String
   workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
-  effectiveFrom  DateTime     @default(now())
+  effectiveFrom  DateTime     @default(now()) @db.Timestamptz(3)
 
   @@unique([userId, effectiveFrom])
+  @@index([workScheduleId])
   @@map("user_work_schedule_assignment")
-}
-
-model TeamWorkScheduleAssignment {
-  id             String       @id @default(uuid())
-  teamId         String
-  team           Team         @relation(fields: [teamId], references: [id], onDelete: Restrict)
-  workScheduleId String
-  workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
-  effectiveFrom  DateTime     @default(now())
-
-  @@unique([teamId, effectiveFrom])
-  @@map("team_work_schedule_assignment")
-}
-
-model OrganizationWorkScheduleAssignment {
-  id             String       @id @default(uuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  workScheduleId String
-  workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
-  effectiveFrom  DateTime     @default(now())
-
-  @@unique([organizationId, effectiveFrom])
-  @@map("organization_work_schedule_assignment")
 }
 
 model TimeSlot {
@@ -136,8 +98,6 @@ model Organization {
   teams Team[]
   users User[] @relation("OrganizationMembers")
 
-  workScheduleAssignments OrganizationWorkScheduleAssignment[]
-
   @@index([parentId])
   @@index([managerId])
   @@map("organization")
@@ -157,8 +117,6 @@ model Team {
   manager   User?   @relation("TeamManager", fields: [managerId], references: [id], onDelete: SetNull)
 
   members User[] @relation("TeamMembers")
-
-  workScheduleAssignments TeamWorkScheduleAssignment[]
 
   @@index([organizationId])
   @@index([managerId])
@@ -203,9 +161,6 @@ model User {
   // A user can create multiple work schedule
   workSchedules WorkSchedule[]
 
-  // A user can create multiple variant of work schedule with differents hours
-  workScheduleVersions WorkScheduleVersion[]
-
   // A user can be assigned to a multiple work schedules
   workScheduleAssignments UserWorkScheduleAssignment[]
 
@@ -223,8 +178,8 @@ model WorkSession {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  workScheduleVersionId String
-  workScheduleversion   WorkScheduleVersion @relation(fields: [workScheduleVersionId], references: [id], onDelete: Restrict)
+  workScheduleId String
+  workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
 
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 

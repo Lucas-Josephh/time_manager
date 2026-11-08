@@ -1,3 +1,4 @@
+import { FieldErrorsBuilder } from '../common/validation/field-errors.builder';
 import { ValidationException } from '../common/validation/validation.exception';
 import type { FieldErrors } from '../common/validation/format-validation-errors';
 import { TIME_PATTERN } from '../common/validation/time.pattern';
@@ -52,30 +53,28 @@ export function getScheduleWeekErrors(
   value: unknown,
   field = 'weeklySchedule',
 ): FieldErrors {
-  const errors: FieldErrors = {};
+  const errors = new FieldErrorsBuilder();
   if (!isObject(value))
-    return { [field]: { messages: ['invalid_schedule_slots'] } };
+    return errors.add(field, 'invalid_schedule_slots').toObject();
 
   for (let day = 1; day <= 7; day++) {
     const slots = value[String(day)];
-    const dayField = `${field}[${day}]`;
     if (!Array.isArray(slots)) {
-      errors[dayField] = { messages: ['invalid_schedule_slots'] };
+      errors.at(field, day).add('invalid_schedule_slots');
       continue;
     }
     const intervals: (Interval & { index: number })[] = [];
     for (const [index, slot] of slots.entries()) {
-      const slotField = `${dayField}[${index}]`;
       if (!isValidSlot(slot)) {
-        errors[slotField] = { messages: ['invalid_schedule_slots'] };
+        errors.at(field, day, index).add('invalid_schedule_slots');
         continue;
       }
       const start = timeToMinutes(slot.startTime);
       const end = timeToMinutes(slot.endTime);
       if (end <= start) {
-        errors[`${slotField}[endTime]`] = {
-          messages: ['schedule_end_time_must_follow_start_time'],
-        };
+        errors
+          .at(field, day, index, 'endTime')
+          .add('schedule_end_time_must_follow_start_time');
         continue;
       }
       intervals.push({ start, end, index });
@@ -87,15 +86,15 @@ export function getScheduleWeekErrors(
     for (const interval of intervals) {
       if (furthest && interval.start < furthest.end) {
         for (const index of [furthest.index, interval.index]) {
-          errors[`${dayField}[${index}][startTime]`] = {
-            messages: ['schedule_slots_overlap'],
-          };
+          errors
+            .at(field, day, index, 'startTime')
+            .add('schedule_slots_overlap');
         }
       }
       if (!furthest || interval.end > furthest.end) furthest = interval;
     }
   }
-  return errors;
+  return errors.toObject();
 }
 
 export function isValidWeek(value: unknown): boolean {

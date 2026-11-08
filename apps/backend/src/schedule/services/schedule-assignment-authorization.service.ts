@@ -1,5 +1,5 @@
 import { fieldErrorsResponse } from '../../common/validation/field-errors';
-import type { FieldErrors } from '../../common/validation/format-validation-errors';
+import { FieldErrorsBuilder } from '../../common/validation/field-errors.builder';
 import {
   ForbiddenException,
   Injectable,
@@ -53,21 +53,20 @@ export class ScheduleAssignmentAuthorizationService {
       },
     });
 
-    const field = (index: number) =>
-      access === 'assign' ? `userIds[${index}]` : 'userId';
     const usersById = new Map(users.map((user) => [user.id, user]));
-    const missing = Object.fromEntries(
-      userIds.flatMap((id, index) =>
-        usersById.has(id)
-          ? []
-          : [[field(index), { messages: ['reference_not_found'] }]],
-      ),
-    );
-    if (Object.keys(missing).length) {
-      throw new NotFoundException(fieldErrorsResponse('not_found', missing));
-    }
+    const missing = new FieldErrorsBuilder();
+    const errors = new FieldErrorsBuilder();
+    const input = (builder: FieldErrorsBuilder, index: number) =>
+      access === 'assign' ? builder.at('userIds', index) : builder.at('userId');
 
-    const errors: FieldErrors = {};
+    for (const [index, id] of userIds.entries()) {
+      if (!usersById.has(id)) input(missing, index).add('reference_not_found');
+    }
+    if (missing.hasErrors()) {
+      throw new NotFoundException(
+        fieldErrorsResponse('not_found', missing.toObject()),
+      );
+    }
 
     for (const [index, id] of userIds.entries()) {
       const user = usersById.get(id)!;
@@ -91,12 +90,12 @@ export class ScheduleAssignmentAuthorizationService {
         }
       }
 
-      if (!allowed)
-        errors[field(index)] = { messages: ['outside_management_scope'] };
+      if (!allowed) input(errors, index).add('outside_management_scope');
     }
-    if (Object.keys(errors).length) {
+
+    if (errors.hasErrors()) {
       throw new ForbiddenException(
-        fieldErrorsResponse('schedule_assignment_forbidden', errors),
+        fieldErrorsResponse('schedule_assignment_forbidden', errors.toObject()),
       );
     }
   }

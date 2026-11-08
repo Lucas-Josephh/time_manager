@@ -1,4 +1,3 @@
-import { ApiOperation } from '@nestjs/swagger';
 import { ApiResult } from '../../common/decorator/api-result.decorator';
 import {
   HttpStatus,
@@ -9,7 +8,8 @@ import {
   Query,
   Patch,
   Post,
-  UseGuards, Req,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import {
   CreateScheduleDto,
@@ -27,6 +27,8 @@ import {
   ApiScheduleFindAll,
   ApiScheduleFindOne,
   ApiScheduleUpdate,
+  ApiScheduleTree,
+  ApiScheduleSubtree,
 } from '../schedule.swagger';
 import { AuthRequest } from '../../auth/auth.types';
 
@@ -47,14 +49,14 @@ export class ScheduleController {
   }
 
   @Get('tree')
-  @ApiOperation({ summary: 'Arborescence des plannings', description: 'Retourne les racines et tous leurs descendants dans children, sans pagination.' })
+  @ApiScheduleTree()
   @ApiResult({ type: ScheduleTreeDto, isArray: true, status: HttpStatus.OK })
   tree() {
     return this.scheduleService.tree();
   }
 
   @Get(':id/tree')
-  @ApiOperation({ summary: 'Sous-arborescence d’un planning', description: 'Retourne un tableau contenant le planning demandé et tous ses descendants. Planning absent : 404.' })
+  @ApiScheduleSubtree()
   @ApiResult({ type: ScheduleTreeDto, isArray: true, status: HttpStatus.OK })
   subtree(@Param('id') id: string) {
     return this.scheduleService.tree(id);
@@ -87,7 +89,11 @@ export class ScheduleController {
     type: ScheduleResponseDto,
     status: HttpStatus.OK,
   })
-  update(@Param('id') id: string, @Body() dto: UpdateScheduleDto, @Req() request: AuthRequest) {
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateScheduleDto,
+    @Req() request: AuthRequest,
+  ) {
     return this.scheduleService.update(id, dto, request.session!.user.id);
   }
 }

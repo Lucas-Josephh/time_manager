@@ -194,10 +194,10 @@ describe('ScheduleService', () => {
         { name: 'Matin' },
         { name: { contains: 'Matin', mode: 'insensitive' } },
       ],
-      ['creator', { createdByUserId: 'user-2' }, { createdByUserId: 'user-2' }],
+      ['creator', { createdBy: 'user-2' }, { createdByUserId: 'user-2' }],
       [
         'combined filters',
-        { name: 'Matin', createdByUserId: 'user-2' },
+        { name: 'Matin', createdBy: 'user-2' },
         {
           name: { contains: 'Matin', mode: 'insensitive' },
           createdByUserId: 'user-2',

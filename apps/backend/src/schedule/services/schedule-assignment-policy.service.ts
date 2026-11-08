@@ -1,3 +1,4 @@
+import { fieldErrorsResponse } from '../../common/validation/field-errors';
 import { isISO8601 } from 'class-validator';
 import {
   BadRequestException,
@@ -8,14 +9,14 @@ import {
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
-/** Policy to call from the future assignment service, after target-scope checks. */
+/** Date and conflict checks shared by schedule assignment operations. */
 @Injectable()
 export class ScheduleAssignmentPolicyService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Assert that the effectiveFrom date is valid and that
-   * the user has permission to create a retroactive assignment.s
+   * the user has permission to create a retroactive assignment.
    *
    * @param effectiveFrom
    * @param actor
@@ -42,12 +43,20 @@ export class ScheduleAssignmentPolicyService {
       select: { isAdmin: true },
     });
     if (!user || !user.isAdmin) {
-      throw new ForbiddenException('retroactive_assignment_forbidden');
+      throw new ForbiddenException(
+        fieldErrorsResponse('retroactive_assignment_forbidden', {
+          effectiveFrom: { messages: ['retroactive_assignment_forbidden'] },
+        }),
+      );
     }
 
     if (!confirmRetroactive) {
       throw new BadRequestException(
-        'retroactive_assignment_confirmation_required',
+        fieldErrorsResponse('retroactive_assignment_confirmation_required', {
+          confirmRetroactive: {
+            messages: ['retroactive_assignment_confirmation_required'],
+          },
+        }),
       );
     }
   }
@@ -84,20 +93,40 @@ export class ScheduleAssignmentPolicyService {
     );
 
     if (conflictingAssignments.length > 0) {
-      throw new ConflictException({
-        message: 'later_schedule_assignment_exists',
-        data: { conflictingAssignments },
-      });
+      const conflictingUserIds = new Set(
+        conflictingAssignments.map(({ userId }) => userId),
+      );
+      const errors = Object.fromEntries(
+        userIds.flatMap((id, index) =>
+          conflictingUserIds.has(id)
+            ? [
+                [
+                  `userIds[${index}]`,
+                  { messages: ['later_schedule_assignment_exists'] },
+                ],
+              ]
+            : [],
+        ),
+      );
+      throw new ConflictException(
+        fieldErrorsResponse('later_schedule_assignment_exists', errors, {
+          conflictingAssignments,
+        }),
+      );
     }
   }
 
   /** Accept a complete date, for example 2026-12-01T00:00:00+01:00. */
-  private parseEffectiveFrom(value: string): Date {
+  parseEffectiveFrom(value: string, field = 'effectiveFrom'): Date {
     const hasTime = value.includes('T');
     const hasTimezone = value.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(value);
 
     if (!hasTime || !hasTimezone) {
-      throw new BadRequestException('effective_from_requires_timezone');
+      throw new BadRequestException(
+        fieldErrorsResponse('effective_from_requires_timezone', {
+          [field]: { messages: ['effective_from_requires_timezone'] },
+        }),
+      );
     }
 
     const isValidDate = isISO8601(value, {
@@ -106,13 +135,21 @@ export class ScheduleAssignmentPolicyService {
     });
 
     if (!isValidDate) {
-      throw new BadRequestException('invalid_effective_from');
+      throw new BadRequestException(
+        fieldErrorsResponse('invalid_effective_from', {
+          [field]: { messages: ['invalid_effective_from'] },
+        }),
+      );
     }
 
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) {
-      throw new BadRequestException('invalid_effective_from');
+      throw new BadRequestException(
+        fieldErrorsResponse('invalid_effective_from', {
+          [field]: { messages: ['invalid_effective_from'] },
+        }),
+      );
     }
 
     return date;

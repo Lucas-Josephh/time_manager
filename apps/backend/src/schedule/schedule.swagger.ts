@@ -65,7 +65,7 @@ Session requise. Tous les plannings sont accessibles, sans restriction au créat
 
 ### Filtres
 - \`name\` : recherche partielle, sans distinction de casse ; espaces aux extrémités supprimés.
-- \`createdByUserId\` : identifiant exact du créateur ; espaces aux extrémités supprimés.
+- \`createdBy\` : identifiant exact du créateur ; espaces aux extrémités supprimés.
 - Les filtres se cumulent et s’appliquent également au total. Les chaînes vides sont refusées.
 
 ### Pagination et résultat
@@ -120,6 +120,28 @@ Un conflit concurrent peut produire 409 concurrent_modification. Un nouvel essai
       ['already_exists', 'reference_conflict', 'concurrent_modification'],
       'Contrainte de base ou modification concurrente ; vérifier les données avant de réessayer.',
     ),
+    ApiNotFoundError('not_found'),
+  );
+}
+
+export function ApiScheduleTree() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Arborescence des plannings',
+      description:
+        'Retourne les racines et tous leurs descendants dans children, sans pagination.',
+    }),
+  );
+}
+
+export function ApiScheduleSubtree() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Sous-arborescence d’un planning',
+      description:
+        'Retourne un tableau contenant le planning demandé et tous ses descendants. Planning absent : 404.',
+    }),
+    ApiResourceId('schedule-morning'),
     ApiNotFoundError('not_found'),
   );
 }

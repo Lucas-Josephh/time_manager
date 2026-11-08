@@ -1,3 +1,4 @@
+import { scheduleDetails } from '../schedule.include';
 import { assertValidSchedule } from '../schedule-validation';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -31,14 +32,6 @@ const weekdayKeys: Record<DayOfWeek, keyof WeeklyScheduleDto> = {
   SUNDAY: '7',
 };
 
-const details = {
-  createdBy: { select: { id: true, firstname: true, lastname: true } },
-  days: {
-    orderBy: { dayOfWeek: 'asc' },
-    include: { timeSlots: { orderBy: { startTime: 'asc' } } },
-  },
-} satisfies Prisma.WorkScheduleInclude;
-
 @Injectable()
 export class ScheduleService {
   constructor(
@@ -62,7 +55,7 @@ export class ScheduleService {
             where,
             ...range,
             orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-            include: details,
+            include: scheduleDetails,
           }),
           this.prisma.workSchedule.count({ where }),
         ],
@@ -73,45 +66,53 @@ export class ScheduleService {
 
   /** Return roots (or a selected schedule) with all their descendants. */
   tree(rootId?: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const roots = rootId
-        ? [await tx.workSchedule.findUniqueOrThrow({ where: { id: rootId }, include: details })]
-        : await tx.workSchedule.findMany({
-            where: { sourceWorkScheduleId: null },
+    return this.prisma.$transaction(
+      async (tx) => {
+        const roots = rootId
+          ? [
+              await tx.workSchedule.findUniqueOrThrow({
+                where: { id: rootId },
+                include: scheduleDetails,
+              }),
+            ]
+          : await tx.workSchedule.findMany({
+              where: { sourceWorkScheduleId: null },
+              orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+              include: scheduleDetails,
+            });
+        type Node = (typeof roots)[number] & { children: Node[] };
+        const result: Node[] = roots.map((root) => ({ ...root, children: [] }));
+        const visited = new Set(result.map((root) => root.id));
+        let level = result;
+        while (level.length > 0) {
+          const parents = new Map(level.map((node) => [node.id, node]));
+          const children = await tx.workSchedule.findMany({
+            where: { sourceWorkScheduleId: { in: [...parents.keys()] } },
             orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-            include: details,
+            include: scheduleDetails,
           });
-      type Node = (typeof roots)[number] & { children: Node[] };
-      const result: Node[] = roots.map((root) => ({ ...root, children: [] }));
-      const visited = new Set(result.map((root) => root.id));
-      let level = result;
-      while (level.length > 0) {
-        const parents = new Map(level.map((node) => [node.id, node]));
-        const children = await tx.workSchedule.findMany({
-          where: { sourceWorkScheduleId: { in: [...parents.keys()] } },
-          orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
-          include: details,
-        });
-        const next: Node[] = [];
-        for (const child of children) {
-          if (visited.has(child.id)) continue;
-          const parent = parents.get(child.sourceWorkScheduleId!);
-          if (!parent) continue;
-          visited.add(child.id);
-          const node: Node = { ...child, children: [] };
-          parent.children.push(node);
-          next.push(node);
+          const next: Node[] = [];
+          for (const child of children) {
+            if (visited.has(child.id)) continue;
+            const parent = parents.get(child.sourceWorkScheduleId!);
+            if (!parent) continue;
+            visited.add(child.id);
+            const node: Node = { ...child, children: [] };
+            parent.children.push(node);
+            next.push(node);
+          }
+          level = next;
         }
-        level = next;
-      }
-      return result;
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+        return result;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   }
 
   findOne(id: string) {
     return this.prisma.workSchedule.findUnique({
       where: { id },
-      include: details,
+      include: scheduleDetails,
     });
   }
 
@@ -134,7 +135,7 @@ export class ScheduleService {
 
         const source = await tx.workSchedule.findUniqueOrThrow({
           where: { id },
-          include: details,
+          include: scheduleDetails,
         });
 
         const timezone = dto.timezone ?? source.timezone;
@@ -197,7 +198,7 @@ export class ScheduleService {
         sourceWorkScheduleId,
         days: { create: days },
       },
-      include: details,
+      include: scheduleDetails,
     });
   }
 

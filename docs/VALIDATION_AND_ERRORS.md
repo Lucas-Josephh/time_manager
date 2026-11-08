@@ -110,7 +110,7 @@ Le formatage conserve une erreur par champ : `isNotEmpty`, `isDefined`, puis
 `isString` sont prioritaires ; sinon, la première règle remontée est retenue.
 `data.errors` est un objet indexé par nom d’input. Les champs imbriqués
 utilisent des crochets à chaque niveau, par exemple
-`weeklySchedule[1][0][startTime]` (heure de début du premier créneau du lundi).
+`weeklySchedule[MONDAY][0][startTime]` (heure de début du premier créneau du lundi).
 
 ```json
 {
@@ -136,7 +136,7 @@ via `ValidationOptions.context.fieldErrors(value, field)`. Ce formateur renvoie
 le même objet d’erreurs, avec les chemins complets. Le validateur doit définir
 un `message` non vide pour que class-validator transmette son contexte.
 La validation de la semaine l’utilise pour signaler une fin avant le début sur
-`weeklySchedule[1][0][endTime]` et les chevauchements sur le `startTime` des
+`weeklySchedule[MONDAY][0][endTime]` et les chevauchements sur le `startTime` des
 créneaux concernés. Les vérifications directes du service utilisent le même
 collecteur d’erreurs.
 

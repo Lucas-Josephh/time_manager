@@ -10,7 +10,7 @@ import {
   ApiWriteErrors,
 } from '../common/swagger/api-response.decorator';
 
-const weeklyScheduleRules = `- Les clés \`1\` à \`7\` sont toutes obligatoires : lundi à dimanche.
+const weeklyScheduleRules = `- Les clés \`MONDAY\` à \`SUNDAY\` sont toutes obligatoires : lundi à dimanche.
 - Chaque jour contient un tableau de créneaux ; un tableau vide représente un jour non travaillé.
 - Chaque créneau contient \`startTime\` et \`endTime\`, au format H:mm ou HH:mm : par exemple \`9:00\` ou \`09:00\`, entre 0:00 et 23:59.
 - Chaque créneau reste sur une seule journée : endTime doit être strictement après startTime.

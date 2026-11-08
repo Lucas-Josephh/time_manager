@@ -16,7 +16,9 @@ Une source peut avoir plusieurs descendants ; aucune propagation n’est implici
 et ses descendants (404 si absent). Les arbres ne sont pas paginés ; chaque
 feuille contient `children: []`. Les lectures utilisent un instantané cohérent.
 
-Les réponses exposent `weeklySchedule`, indexé de `1` à `7`, comme le POST. La filiation
+Les réponses exposent `weeklySchedule`, indexé par `MONDAY` à `SUNDAY`, comme le POST. Les anciennes clés numériques
+ne sont plus acceptées. Les sept jours restent obligatoires, avec `[]` pour les
+jours non travaillés. La filiation
 n’accorde aucun droit sur les utilisateurs du planning source. Les administrateurs
 et responsables d’équipe ou d’organisation peuvent créer ou dériver des plannings.
 Les lectures restent accessibles à toute session autorisée par AuthGuard.

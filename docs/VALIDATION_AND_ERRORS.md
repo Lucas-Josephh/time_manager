@@ -140,6 +140,27 @@ La validation de la semaine l’utilise pour signaler une fin avant le début su
 créneaux concernés. Les vérifications directes du service utilisent le même
 collecteur d’erreurs.
 
+`FieldErrorsBuilder` centralise la construction des chemins et la préparation
+des erreurs. Il conserve l’ordre des messages, supprime les doublons et retourne
+une copie indépendante via `toObject()` :
+
+```ts
+const errors = new FieldErrorsBuilder();
+errors.add('name', 'is_required');
+errors.at('userIds', index).add('outside_management_scope');
+errors.at('weeklySchedule', day, slotIndex, 'endTime')
+  .add('schedule_end_time_must_follow_start_time');
+
+if (errors.hasErrors()) {
+  throw new ForbiddenException(
+    fieldErrorsResponse('schedule_assignment_forbidden', errors.toObject()),
+  );
+}
+```
+
+`merge(errors)` permet d’agréger un formateur personnalisé. Le collecteur ne
+vérifie aucun droit et ne choisit ni code métier ni statut HTTP.
+
 Les services peuvent utiliser `fieldErrorsResponse(message, errors, details?)`
 avec une exception 403, 404 ou 409 : le format des champs est commun aux DTO,
 mais le statut et le code métier sont conservés. Les détails additionnels,

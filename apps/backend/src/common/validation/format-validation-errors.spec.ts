@@ -49,6 +49,17 @@ describe('Input name error format', () => {
     });
   });
 
+  it('uses detailed paths supplied by a custom validator context', () => {
+    const result = formatValidationErrors([{
+      ...error('week', { customWeek: 'invalid' }), value: {},
+      contexts: { customWeek: { fieldErrors: (_value: unknown, field: string) => ({
+        [`${field}[1][0][endTime]`]: { messages: ['invalid_duration'] },
+      }) } },
+    }]);
+    expect(result).toEqual({ 'week[1][0][endTime]': { messages: ['invalid_duration'] } });
+    expect(result).not.toHaveProperty('week');
+  });
+
   it('does not expose rejected values or alter the object prototype', () => {
     const result = formatValidationErrors([
       { ...error('__proto__', { whitelistValidation: '' }), value: 'secret' },

@@ -52,7 +52,23 @@ export function formatValidationErrors(
     for (const error of items) {
       const field = prefix ? `${prefix}[${error.property}]` : error.property;
       const code = getErrorCode(error);
-      if (code) fields.set(field, { messages: [code] });
+      if (code) {
+        const rules = Object.keys(error.constraints ?? {});
+        const rule =
+          RULE_PRIORITY.find((candidate) => rules.includes(candidate)) ??
+          rules[0];
+        const formatter = error.contexts?.[rule]?.fieldErrors as
+          ((value: unknown, field: string) => FieldErrors) | undefined;
+        if (typeof formatter === 'function') {
+          for (const [name, details] of Object.entries(
+            formatter(error.value, field),
+          )) {
+            fields.set(name, details);
+          }
+        } else {
+          fields.set(field, { messages: [code] });
+        }
+      }
       visit(error.children ?? [], field);
     }
   }

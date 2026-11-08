@@ -131,6 +131,15 @@ doivent utiliser `errors[input.name]?.messages`. Une erreur de groupe utilise
 commençant à zéro dans la requête initiale. Les valeurs reçues ne sont pas
 recopiées dans les erreurs.
 
+Un validateur qui contrôle plusieurs champs peut fournir un formateur détaillé
+via `ValidationOptions.context.fieldErrors(value, field)`. Ce formateur renvoie
+le même objet d’erreurs, avec les chemins complets. Le validateur doit définir
+un `message` non vide pour que class-validator transmette son contexte.
+La validation de la semaine l’utilise pour signaler une fin avant le début sur
+`weeklySchedule[1][0][endTime]` et les chevauchements sur le `startTime` des
+créneaux concernés. Les vérifications directes du service utilisent le même
+collecteur d’erreurs.
+
 Les services peuvent utiliser `fieldErrorsResponse(message, errors, details?)`
 avec une exception 403, 404 ou 409 : le format des champs est commun aux DTO,
 mais le statut et le code métier sont conservés. Les détails additionnels,

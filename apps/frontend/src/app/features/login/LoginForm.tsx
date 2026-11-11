@@ -16,7 +16,7 @@ export default function LoginForm() {
   const t = useTranslations('RegisterPage');
   const common = useTranslations('Common');
   const login = useTranslations('LoginPage');
-  
+
   const formRef = useRef<HTMLFormElement>(null);
   const router = useRouter();
 
@@ -136,19 +136,19 @@ export default function LoginForm() {
         type="email"
         placeholder={t('placeholders.email')}
         icon={<MailOutlined />}
-        required
         value={formData.email}
         error={errors.email}
         onChange={(event) => {
           updateField('email', event.currentTarget.value);
         }}
         aria-invalid={Boolean(errors.email)}
+        aria-required="true"
         aria-describedby={errors.email ? 'email-error' : undefined}
         autoComplete="username"
       ></Input>
       <PasswordField
         id="login-password"
-        label="Mot de passe"
+        label={common('password')}
         value={formData.password}
         error={errors.password}
         onChange={(event) => {
@@ -159,7 +159,12 @@ export default function LoginForm() {
         autoComplete="current-password"
       />
       {submitError && <MessageCard type="error" message={submitError} />}
-      <Button type="submit" className="full-width" disabled={isSubmitting}>
+      <Button
+        type="submit"
+        className="full-width"
+        disabled={isSubmitting}
+        aria-busy={isSubmitting}
+      >
         {isSubmitting ? <LoadingOutlined /> : common('signIn')}
       </Button>
     </form>

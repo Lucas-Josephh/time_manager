@@ -7,6 +7,7 @@
     "lastName": "Last name",
     "phone": "Phone",
     "email": "Email",
+    "password": "Password",
     "temporaryPassword": "Temporary password",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
@@ -80,16 +81,13 @@
       "passwordRequired": "Please enter a password."
     },
     "errors": {
-      "serverUnavailable": "Unable to reach the server. Please try again."
+      "microsoftCallbackError": "Microsoft sign-in was denied. Check that your account belongs to our organization and that your email address has been added to Time Manager.",
+      "microsoftSignInFailed": "Microsoft sign-in failed.",
+      "serverUnavailable": "Unable to reach the server. Please try again.",
+      "signInFailed": "Sign-in failed.",
+      "signOutFailed": "Sign-out failed."
     },
-    "microsoftCallbackError": "Microsoft sign-in was denied. Check that your account belongs to our organization and that your email address has been added to Time Manager.",
-    "microsoftSignInFailed": "Microsoft sign-in failed.",
-    "signInFailed": "Sign-in failed.",
-    "signOutFailed": "Sign-out failed.",
-    "signInHelp": "Sign in with your authorized account.",
     "signInWithMicrosoft": "Continue with Microsoft 365",
-    "microsoftAccountHelp": "Use the Microsoft 365 account whose email address was added by your administrator. The accounts are linked automatically on your first sign-in.",
-    "passwordLabel": "Time Manager password",
     "sessionCheckFailed": "Unable to verify the session."
   }
 }

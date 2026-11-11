@@ -7,6 +7,7 @@
     "lastName": "Nom",
     "phone": "Téléphone",
     "email": "Adresse e-mail",
+    "password": "Mot de passe",
     "temporaryPassword": "Mot de passe temporaire",
     "showPassword": "Afficher le mot de passe",
     "hidePassword": "Masquer le mot de passe",
@@ -80,15 +81,13 @@
       "passwordRequired": "Veuillez saisir un mot de passe."
     },
     "errors": {
+      "microsoftCallbackError": "Connexion Microsoft refusée. Vérifiez que votre compte appartient à notre organisation et que votre adresse e-mail a été ajoutée dans Time Manager.",
+      "microsoftSignInFailed": "La connexion Microsoft a échoué.",
       "serverUnavailable": "Impossible de joindre le serveur. Veuillez réessayer.",
       "signInFailed": "La connexion a échoué.",
       "signOutFailed": "La déconnexion a échoué."
     },
-    "microsoftCallbackError": "Connexion Microsoft refusée. Vérifiez que votre compte appartient à notre organisation et que votre adresse e-mail a été ajoutée dans Time Manager.",
-    "microsoftSignInFailed": "La connexion Microsoft a échoué.",
-    "signInHelp": "Connectez-vous avec votre compte autorisé.",
     "signInWithMicrosoft": "Continuer avec Microsoft 365",
-    "microsoftAccountHelp": "Utilisez le compte Microsoft 365 dont l'adresse e-mail a été ajoutée par votre administrateur. L'association se fait automatiquement à la première connexion.",
     "sessionCheckFailed": "Impossible de vérifier la session."
   }
 }

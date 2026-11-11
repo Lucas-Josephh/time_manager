@@ -1,5 +1,13 @@
-import LoginView from "../features/login/LoginView";
+import { Suspense } from 'react';
+import LoginView from '../features/login/LoginView';
+import { useTranslations } from 'next-intl';
 
 export default function RegisterPage() {
-  return <LoginView />;
+  const common = useTranslations('Common');
+
+  return (
+    <Suspense fallback={<p>{common('loading')}</p>}>
+      <LoginView />
+    </Suspense>
+  );
 }

@@ -8,17 +8,18 @@ import {
   UserRound,
   Users,
 } from 'lucide-react';
-import './Navbar.scss';
 import { useState } from 'react';
 import { IconType } from 'react-icons';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { tabs } from '@/config/navigation';
-import Button from '../button/Button';
 import { Avatar } from 'antd';
 import { authClient } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import useAppNotification from '@/hooks/useAppNotification';
+import Image from 'next/image';
+import Button from '../button/Button';
+import './Navbar.scss';
 
 interface NavItem {
   logo: LucideIcon | IconType;
@@ -93,9 +94,12 @@ export default function Navbar() {
     <div className="extranet-navbar">
       <div>
         <Link className="extranet-navbar-header" href={tabs.dashboard.href}>
-          <div className="extranet-navbar-header__logo">
-            <Clock size={18} color="white" />
-          </div>
+          <Image
+            src="/tempoo_icon.png"
+            alt={common('logoAlt')}
+            width={48}
+            height={48}
+          />
           <div>
             <h3>{common('appName')}</h3>
             <p className="text-uppercase">Workforce</p>

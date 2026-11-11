@@ -1,4 +1,12 @@
 export const tabs = {
+  login: {
+    labelKey: 'login',
+    href: '/login',
+  },
+  register: {
+    labelKey: 'register',
+    href: '/register',
+  },
   dashboard: {
     labelKey: 'dashboard',
     href: '/',

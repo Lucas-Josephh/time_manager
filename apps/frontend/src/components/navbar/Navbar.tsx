@@ -8,14 +8,18 @@ import {
   UserRound,
   Users,
 } from 'lucide-react';
-import './Navbar.scss';
 import { useState } from 'react';
 import { IconType } from 'react-icons';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { tabs } from '@/config/navigation';
-import Button from '../button/Button';
 import { Avatar } from 'antd';
+import { authClient } from '@/lib/auth-client';
+import { useRouter } from 'next/navigation';
+import useAppNotification from '@/hooks/useAppNotification';
+import Image from 'next/image';
+import Button from '../button/Button';
+import './Navbar.scss';
 
 interface NavItem {
   logo: LucideIcon | IconType;
@@ -25,8 +29,13 @@ interface NavItem {
 
 export default function Navbar() {
   const common = useTranslations('Common');
+  const login = useTranslations('LoginPage');
   const navigation = useTranslations('Navigation');
+  const router = useRouter();
+
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const [select, setSelect] = useState(navigation('dashboard'));
+
   const navItems: NavItem[] = [
     {
       logo: LayoutDashboard,
@@ -52,13 +61,45 @@ export default function Navbar() {
     },
   ];
 
+  const { notify } = useAppNotification();
+
+  const handleLogout = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+
+    try {
+      const { error } = await authClient.signOut();
+
+      if (error) {
+        notify('error', {
+          title: login('errors.signOutfailed'),
+          description: error.message ?? login('errors.signOutFailed'),
+        });
+        return;
+      }
+
+      router.replace('/login');
+      router.refresh();
+    } catch {
+      notify('error', {
+        title: login('errors.signOutfailed'),
+        description: login('errors.serverUnavailable'),
+      });
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
+
   return (
     <div className="extranet-navbar">
       <div>
         <Link className="extranet-navbar-header" href={tabs.dashboard.href}>
-          <div className="extranet-navbar-header__logo">
-            <Clock size={18} color="white" />
-          </div>
+          <Image
+            src="/tempoo_icon.png"
+            alt={common('logoAlt')}
+            width={48}
+            height={48}
+          />
           <div>
             <h3>{common('appName')}</h3>
             <p className="text-uppercase">Workforce</p>
@@ -139,7 +180,12 @@ export default function Navbar() {
                   Frontend Developer
                 </p>
               </div>
-              <Button variant="logout" />
+              <Button
+                variant="logout"
+                onClick={handleLogout}
+                disabled={isSigningOut}
+                aria-label={common('signOut')}
+              />
             </div>
           </div>
         </div>

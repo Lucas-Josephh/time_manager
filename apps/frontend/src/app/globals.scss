@@ -22,9 +22,11 @@
   --color-ink-faint: #93a2b7;
   --color-button-shadow: #0000000d;
   --color-accent-foreground: #1f558e;
-
+  --color-accent-background: #16324f;
+  --color-waiting: #cbd5e1;
   --border-radius: 18px;
   --border-radius-xs: 10px;
+  --color-clock-in: #6fe3bc;
 
   --button-height: 40px;
 }
@@ -192,33 +194,8 @@ form {
     margin-bottom: 10px;
   }
 
-  > .warning-card {
-    margin-bottom: 15px;
-  }
-
   > .account-created-modal__buttons {
     margin-top: 15px;
-  }
-}
-
-.warning-card {
-  display: flex;
-  align-items: baseline;
-  background-color: rgba(245, 158, 66, 0.1);
-  border: 1px solid rgba(245, 158, 66, 0.4);
-  border-radius: var(--border-radius-xs);
-  color: var(--color-warning-text);
-  padding: 15px 12px;
-  gap: 10px;
-
-  h4,
-  p {
-    margin: 0;
-  }
-
-  p {
-    color: inherit;
-    font-size: small;
   }
 }
 

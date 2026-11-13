@@ -1,0 +1,43 @@
+.message-card {
+  display: flex;
+  align-items: baseline;
+  border: 1px solid;
+  border-radius: var(--border-radius-xs);
+  padding: 15px 12px;
+  gap: 10px;
+
+  &--warning {
+    background-color: rgba(245, 158, 66, 0.1);
+    border-color: rgba(245, 158, 66, 0.4);
+    color: var(--color-warning-text);
+  }
+
+  &--error {
+    background-color: color-mix(
+      in srgb,
+      var(--color-danger) 10%,
+      transparent
+    );
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+    align-items: center;
+  }
+
+  .login-form > & {
+    margin-bottom: 20px;
+  }
+
+  .account-created-modal > & {
+    margin-bottom: 15px;
+  }
+
+  h4,
+  p {
+    margin: 0;
+  }
+
+  p {
+    color: inherit;
+    font-size: small;
+  }
+}

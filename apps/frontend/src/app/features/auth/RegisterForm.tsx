@@ -7,7 +7,6 @@ import {
   MailOutlined,
   PhoneOutlined,
   UserOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -15,6 +14,7 @@ import useAppNotification from '@/hooks/useAppNotification';
 import Button from '@/components/button/Button';
 import InputMessage from '@/components/input/InputMessage';
 import ActionModal from '@/components/modal/ActionModal';
+import MessageCard from '@/components/message-card/MessageCard';
 
 const PASSWORD_LENGTH = 12;
 
@@ -38,13 +38,7 @@ export default function RegisterForm() {
   type FormErrors = Partial<Record<keyof typeof formData | 'names', string>>;
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // const [isPasswordWarningOpen, setIsPasswordWarningOpen] = useState(false);
-  // const [hasCopiedPassword, setHasCopiedPassword] = useState(false);
-  // const [pendingAction, setPendingAction] = useState<
-  //   'close' | 'createAnother' | null
-  // >(null);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -158,7 +152,6 @@ export default function RegisterForm() {
       password: '',
     });
     setErrors({});
-    setIsPasswordVisible(false);
     setIsModalOpen(false);
   };
 
@@ -268,14 +261,11 @@ export default function RegisterForm() {
         aria-describedby={errors.email ? 'email-error' : undefined}
       ></Input>
       <TemporaryPasswordField
+        key={formData.password}
         id="register-password"
         value={formData.password}
-        isVisible={isPasswordVisible}
-        onToggleVisibility={() => setIsPasswordVisible((previous) => !previous)}
         onCopy={handleCopyPassword}
         message={formData.password ? t('temporaryPasswordHelp') : undefined}
-        aria-invalid={Boolean(errors.password)}
-        aria-describedby={errors.password ? 'password-error' : undefined}
       />
       <Button type="submit" className="full-width">
         {t('createAccount')}
@@ -307,23 +297,18 @@ export default function RegisterForm() {
         }}
       >
         <TemporaryPasswordField
+          key={formData.password}
           id="account-created-password"
           value={formData.password}
           wrapperClassName="account-created-modal__password-field"
-          isVisible={isPasswordVisible}
-          onToggleVisibility={() =>
-            setIsPasswordVisible((previous) => !previous)
-          }
           onCopy={handleCopyPassword}
         />
 
-        <div className="warning-card">
-          <WarningOutlined />
-          <div>
-            <h4>{t('success.savePasswordTitle')}</h4>
-            <p>{t('success.savePasswordDescription')}</p>
-          </div>
-        </div>
+        <MessageCard
+          type="warning"
+          title={t('success.savePasswordTitle')}
+          message={t('success.savePasswordDescription')}
+        />
 
         <InputMessage
           type="info"

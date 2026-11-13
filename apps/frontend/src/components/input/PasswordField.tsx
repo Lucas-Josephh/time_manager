@@ -7,7 +7,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslations } from 'next-intl';
 import Input from '@/components/input/Input';
-import { ComponentProps } from 'react';
+import { ComponentProps, useState } from 'react';
 
 type PasswordFieldProps = Omit<
   ComponentProps<typeof Input>,
@@ -15,21 +15,27 @@ type PasswordFieldProps = Omit<
 > & {
   id: string;
   value: string;
-  isVisible: boolean;
-  onToggleVisibility: () => void;
+  onToggleVisibility?: () => void;
 };
 
 export default function PasswordField({
   id,
   value,
   name = 'password',
-  isVisible,
   onToggleVisibility,
   actions,
   ...inputProps
 }: PasswordFieldProps) {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const t = useTranslations('Common');
-  const visibilityLabel = isVisible ? t('hidePassword') : t('showPassword');
+  const visibilityLabel = isPasswordVisible
+    ? t('hidePassword')
+    : t('showPassword');
+
+  const handleToggleVisibility = () => {
+    onToggleVisibility?.();
+    setIsPasswordVisible((previous) => !previous);
+  };
 
   return (
     <Input
@@ -37,7 +43,7 @@ export default function PasswordField({
       id={id}
       name={name}
       value={value}
-      type={isVisible ? 'text' : 'password'}
+      type={isPasswordVisible ? 'text' : 'password'}
       icon={<LockOutlined />}
       placeholder="••••••••"
       actions={
@@ -47,10 +53,10 @@ export default function PasswordField({
             aria-label={visibilityLabel}
             title={visibilityLabel}
             aria-controls={id}
-            aria-pressed={isVisible}
-            onClick={onToggleVisibility}
+            aria-pressed={isPasswordVisible}
+            onClick={handleToggleVisibility}
           >
-            {isVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+            {isPasswordVisible ? <EyeInvisibleOutlined /> : <EyeOutlined />}
           </button>
 
           {actions}

@@ -38,7 +38,6 @@ export default function RegisterForm() {
   type FormErrors = Partial<Record<keyof typeof formData | 'names', string>>;
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -153,7 +152,6 @@ export default function RegisterForm() {
       password: '',
     });
     setErrors({});
-    setIsPasswordVisible(false);
     setIsModalOpen(false);
   };
 
@@ -262,10 +260,9 @@ export default function RegisterForm() {
         aria-describedby={errors.email ? 'email-error' : undefined}
       ></Input>
       <TemporaryPasswordField
+        key={formData.password}
         id="register-password"
         value={formData.password}
-        isVisible={isPasswordVisible}
-        onToggleVisibility={() => setIsPasswordVisible((previous) => !previous)}
         onCopy={handleCopyPassword}
         message={formData.password ? t('temporaryPasswordHelp') : undefined}
       />
@@ -299,13 +296,10 @@ export default function RegisterForm() {
         }}
       >
         <TemporaryPasswordField
+          key={formData.password}
           id="account-created-password"
           value={formData.password}
           wrapperClassName="account-created-modal__password-field"
-          isVisible={isPasswordVisible}
-          onToggleVisibility={() =>
-            setIsPasswordVisible((previous) => !previous)
-          }
           onCopy={handleCopyPassword}
         />
 

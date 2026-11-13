@@ -21,7 +21,6 @@ export default function LoginForm() {
   const router = useRouter();
 
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -37,7 +36,9 @@ export default function LoginForm() {
     }));
   };
 
-  const handleTogglePasswordVisibility = () => {
+  // Copie les valeurs des champs dans l’état React avant d’afficher ou de masquer le mot de passe, 
+  // pour conserver les valeurs remplies automatiquement par le navigateur.
+  const syncFormValues = () => {
     const form = formRef.current;
 
     if (!form) return;
@@ -57,8 +58,6 @@ export default function LoginForm() {
         email,
         password,
       }));
-
-      setIsPasswordVisible((previous) => !previous);
     }
   };
 
@@ -154,8 +153,7 @@ export default function LoginForm() {
         onChange={(event) => {
           updateField('password', event.currentTarget.value);
         }}
-        isVisible={isPasswordVisible}
-        onToggleVisibility={handleTogglePasswordVisibility}
+        onToggleVisibility={syncFormValues}
         autoComplete="current-password"
       />
       {submitError && <MessageCard type="error" message={submitError} />}

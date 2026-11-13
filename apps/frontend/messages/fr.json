@@ -7,6 +7,7 @@
     "lastName": "Nom",
     "phone": "Téléphone",
     "email": "Adresse e-mail",
+    "password": "Mot de passe",
     "temporaryPassword": "Mot de passe temporaire",
     "showPassword": "Afficher le mot de passe",
     "hidePassword": "Masquer le mot de passe",
@@ -17,8 +18,7 @@
     "signIn": "Se connecter",
     "signOut": "Se déconnecter",
     "unexpectedError": "Une erreur est survenue.",
-    "or": "Ou",
-    "continueWithMicrosoft": "Continuer avec Microsoft"
+    "or": "Ou"
   },
   "Navigation": {
     "menu": "Menu",
@@ -74,16 +74,20 @@
       "passwordChangeRequired": "L'employé doit modifier ce mot de passe lors de sa première connexion."
     }
   },
-  "LoginExamplePage": {
-    "microsoftCallbackError": "Connexion Microsoft refusée. Vérifiez que votre compte appartient à notre organisation et que votre adresse e-mail a été ajoutée dans Time Manager.",
-    "microsoftSignInFailed": "La connexion Microsoft a échoué.",
-    "signInFailed": "La connexion a échoué.",
-    "signOutFailed": "La déconnexion a échoué.",
-    "greeting": "Bonjour {name}",
-    "signInHelp": "Connectez-vous avec votre compte autorisé.",
-    "signInWithMicrosoft": "Se connecter avec Microsoft 365",
-    "microsoftAccountHelp": "Utilisez le compte Microsoft 365 dont l'adresse e-mail a été ajoutée par votre administrateur. L'association se fait automatiquement à la première connexion.",
-    "passwordLabel": "Mot de passe Time Manager",
+  "LoginPage": {
+    "title": "Heureux de vous revoir",
+    "subtitle": "Connectez-vous à votre compte",
+    "validation": {
+      "passwordRequired": "Veuillez saisir un mot de passe."
+    },
+    "errors": {
+      "microsoftCallbackError": "Connexion Microsoft refusée. Vérifiez que votre compte appartient à notre organisation et que votre adresse e-mail a été ajoutée dans Time Manager.",
+      "microsoftSignInFailed": "La connexion Microsoft a échoué.",
+      "serverUnavailable": "Impossible de joindre le serveur. Veuillez réessayer.",
+      "signInFailed": "La connexion a échoué.",
+      "signOutFailed": "La déconnexion a échoué."
+    },
+    "signInWithMicrosoft": "Continuer avec Microsoft 365",
     "sessionCheckFailed": "Impossible de vérifier la session."
   }
 }

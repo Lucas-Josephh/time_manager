@@ -19,7 +19,7 @@ export default function Input({
   error,
   className,
   wrapperClassName,
-
+  
   ...props
 }: InputProps) {
   const messageId = props.id
@@ -27,19 +27,19 @@ export default function Input({
     : undefined;
 
   return (
-    <div className={["field", wrapperClassName].filter(Boolean).join(' ')}>
+    <div className={['field', wrapperClassName].filter(Boolean).join(' ')}>
       <label htmlFor={props.id}>
         {label}
         {props.required && (
-          <span className={"required"} aria-hidden="true">
+          <span className={'required'} aria-hidden="true">
             {' '}
             *
           </span>
         )}
       </label>
-      <div className={"wrapper"}>
+      <div className={'wrapper'}>
         {icon && (
-          <span className={"icon"} aria-hidden="true">
+          <span className={'icon'} aria-hidden="true">
             {icon}
           </span>
         )}
@@ -50,7 +50,7 @@ export default function Input({
             (error || message ? messageId : undefined)
           }
           className={[
-            "input",
+            'input',
             icon && ['input--with-icon'],
             actions && ['input--with-actions'],
             className,
@@ -58,7 +58,7 @@ export default function Input({
             .filter(Boolean)
             .join(' ')}
         />
-        {actions && <div className={"actions"}>{actions}</div>}
+        {actions && <div className={'actions'}>{actions}</div>}
       </div>
       <InputMessage
         type={error ? 'error' : 'info'}

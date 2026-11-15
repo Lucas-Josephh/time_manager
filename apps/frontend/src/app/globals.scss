@@ -185,33 +185,8 @@ ul {
     margin-bottom: 10px;
   }
 
-  > .warning-card {
-    margin-bottom: 15px;
-  }
-
   > .account-created-modal__buttons {
     margin-top: 15px;
-  }
-}
-
-.warning-card {
-  display: flex;
-  align-items: baseline;
-  background-color: rgba(245, 158, 66, 0.1);
-  border: 1px solid rgba(245, 158, 66, 0.4);
-  border-radius: var(--border-radius-xs);
-  color: var(--color-warning-text);
-  padding: 15px 12px;
-  gap: 10px;
-
-  h4,
-  p {
-    margin: 0;
-  }
-
-  p {
-    color: inherit;
-    font-size: small;
   }
 }
 

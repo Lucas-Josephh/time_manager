@@ -1,13 +1,13 @@
-import { FieldErrorsBuilder } from '../../common/validation/field-errors.builder';
+import { FieldErrorsBuilder } from '../../../common/validation/field-errors.builder';
 import {
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AuthService } from '../../auth/auth.service';
-import { PrismaService } from '../../prisma/prisma.service';
-import type { Prisma } from '../../generated/prisma/client';
-import { OrganizationHierarchyService } from '../../organization/services/organization-hierarchy.service';
+import { AuthService } from '../../../auth/auth.service';
+import { PrismaService } from '../../../prisma/prisma.service';
+import type { Prisma } from '../../../generated/prisma/client';
+import { OrganizationHierarchyService } from '../../../organization/services/organization-hierarchy.service';
 
 @Injectable()
 export class ScheduleAssignmentAuthorizationService {
@@ -33,6 +33,30 @@ export class ScheduleAssignmentAuthorizationService {
     tx: Prisma.TransactionClient = this.prisma,
   ) {
     await this.assertAccess([userId], actor, tx, 'read');
+  }
+
+  /** Restrict list results before pagination, using the same scope as personal reads. */
+  async readableUsersWhere(
+    actor: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<Prisma.UserWhereInput> {
+    if (await this.auth.isAdmin(actor, tx)) return {};
+    const roots = await tx.organization.findMany({
+      where: { managerId: actor },
+    });
+    const organizations = await this.hierarchy.getOrganizationsWithChildren(
+      roots,
+      tx,
+    );
+    const ids = organizations.map(({ id }) => id);
+    return {
+      OR: [
+        { id: actor },
+        { team: { managerId: actor } },
+        { organizationId: { in: ids } },
+        { team: { organizationId: { in: ids } } },
+      ],
+    };
   }
 
   private async assertAccess(

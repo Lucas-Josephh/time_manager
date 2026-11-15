@@ -42,8 +42,8 @@ describe('Schedule assignment HTTP API', () => {
   let authenticated = true;
   let admin = false;
   const prisma = {
-    user: { findUnique: jest.fn(), findMany: jest.fn() },
-    organization: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+    organization: { findUnique: jest.fn(), findMany: jest.fn() },
     workSchedule: { findUniqueOrThrow: jest.fn() },
     userWorkScheduleAssignment: {
       findMany: jest.fn(),
@@ -52,6 +52,7 @@ describe('Schedule assignment HTTP API', () => {
       createManyAndReturn: jest.fn(),
     },
     $transaction: jest.fn(),
+    $queryRaw: jest.fn(),
   };
   beforeAll(async () => {
     app = await createHttpTestApp(prisma, async () => {
@@ -87,11 +88,45 @@ describe('Schedule assignment HTTP API', () => {
     ['post', '/api/schedule/schedule/assignments'],
     ['get', '/api/schedule/users/target/assignments'],
     ['get', '/api/schedule/users/target'],
+    ['get', '/api/schedule/schedule/users'],
   ] as const)('requires authentication for %s %s', async (method, path) => {
     authenticated = false;
     await request(app.getHttpServer())[method](path).send({}).expect(401);
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
+
+  it('lists assigned users without exposing private fields', async () => {
+    admin = true;
+    prisma.$queryRaw.mockResolvedValue([{ userId: 'target' }]);
+    prisma.user.findMany.mockResolvedValue([
+      {
+        id: 'target',
+        firstname: 'Alice',
+        lastname: 'Martin',
+        email: 'private',
+      },
+    ]);
+    prisma.user.count.mockResolvedValue(1);
+    const response = await request(app.getHttpServer())
+      .get('/api/schedule/schedule/users')
+      .query({ at: future })
+      .expect(200);
+    expect(response.body.data).toEqual({
+      items: [{ id: 'target', firstname: 'Alice', lastname: 'Martin' }],
+      meta: { total: 1, page: 1, limit: 10, totalPages: 1 },
+    });
+  });
+
+  it.each([{ at: '2026-01-01' }, { page: 0 }, { limit: 101 }])(
+    'rejects invalid assigned-user query %p',
+    async (query) => {
+      await request(app.getHttpServer())
+        .get('/api/schedule/schedule/users')
+        .query(query)
+        .expect(400);
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    },
+  );
 
   it('allows a team manager to assign the exact schedule and serializes its slots', async () => {
     const response = await post({

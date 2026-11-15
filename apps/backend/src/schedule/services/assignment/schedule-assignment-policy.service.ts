@@ -1,4 +1,4 @@
-import { FieldErrorsBuilder } from '../../common/validation/field-errors.builder';
+import { FieldErrorsBuilder } from '../../../common/validation/field-errors.builder';
 import { isISO8601 } from 'class-validator';
 import {
   BadRequestException,
@@ -6,8 +6,8 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
-import { Prisma } from '../../generated/prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '../../../generated/prisma/client';
+import { PrismaService } from '../../../prisma/prisma.service';
 
 /** Date and conflict checks shared by schedule assignment operations. */
 @Injectable()

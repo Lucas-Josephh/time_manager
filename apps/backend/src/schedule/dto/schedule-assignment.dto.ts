@@ -1,3 +1,4 @@
+import { UserSummaryDto } from '../../user/dto/user.dto';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Exclude, Expose, Type } from 'class-transformer';
 import {
@@ -90,3 +91,17 @@ export class UserScheduleResponseDto {
   @ApiProperty({ type: ScheduleAssignmentResponseDto, nullable: true })
   assignment!: ScheduleAssignmentResponseDto | null;
 }
+
+export class ScheduleAssignedUsersQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({
+    format: 'date-time',
+    description: 'Instant ISO avec offset ; maintenant par défaut.',
+  })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsString()
+  at?: string;
+}
+
+export class ScheduleAssignedUsersListDto extends PaginatedDto(
+  UserSummaryDto,
+) {}

@@ -7,9 +7,9 @@ import { ScheduleAssignmentController } from './controllers/schedule-assignment.
 import { ScheduleUsersController } from './controllers/schedule-users.controller';
 import { ScheduleService } from './services/schedule.service';
 import { ScheduleAuthorizationService } from './services/schedule-authorization.service';
-import { ScheduleAssignmentService } from './services/schedule-assignment.service';
-import { ScheduleAssignmentAuthorizationService } from './services/schedule-assignment-authorization.service';
-import { ScheduleAssignmentPolicyService } from './services/schedule-assignment-policy.service';
+import { ScheduleAssignmentService } from './services/assignment/schedule-assignment.service';
+import { ScheduleAssignmentAuthorizationService } from './services/assignment/schedule-assignment-authorization.service';
+import { ScheduleAssignmentPolicyService } from './services/assignment/schedule-assignment-policy.service';
 
 @Module({
   imports: [PrismaModule, AuthModule, OrganizationModule],

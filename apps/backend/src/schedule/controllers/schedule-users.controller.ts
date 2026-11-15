@@ -21,7 +21,7 @@ import {
   ApiScheduleAssignmentHistory,
   ApiUserSchedule,
 } from '../schedule-assignment.swagger';
-import { ScheduleAssignmentService } from '../services/schedule-assignment.service';
+import { ScheduleAssignmentService } from '../services/assignment/schedule-assignment.service';
 
 @ApiScheduleAssignmentController()
 @Controller('schedule/users/:userId')

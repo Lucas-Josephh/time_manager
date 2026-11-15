@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '../../generated/prisma/client';
-import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '../../../generated/prisma/client';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { ScheduleAssignmentAuthorizationService } from './schedule-assignment-authorization.service';
 import {
   AssignScheduleDto,
+  ScheduleAssignedUsersQueryDto,
   ScheduleAssignmentQueryDto,
-} from '../dto/schedule-assignment.dto';
+} from '../../dto/schedule-assignment.dto';
 import { ScheduleAssignmentPolicyService } from './schedule-assignment-policy.service';
-import { scheduleDetails } from '../schedule.include';
-import { paginate } from '../../common/pagination/paginate';
+import { scheduleDetails } from '../../schedule.include';
+import { paginate } from '../../../common/pagination/paginate';
 
 const assignmentDetails = {
   workSchedule: { include: scheduleDetails },
@@ -55,6 +56,51 @@ export class ScheduleAssignmentService {
         });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  /** Return users whose latest effective assignment targets this exact schedule. */
+  assignedUsers(
+    scheduleId: string,
+    query: ScheduleAssignedUsersQueryDto,
+    actor: string,
+  ) {
+    const at =
+      query.at === undefined
+        ? new Date()
+        : this.policy.parseEffectiveFrom(query.at, 'at');
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.workSchedule.findUniqueOrThrow({
+          where: { id: scheduleId },
+          select: { id: true },
+        });
+        const scope = await this.authorization.readableUsersWhere(actor, tx);
+        const assigned = await tx.$queryRaw<{ userId: string }[]>(Prisma.sql`
+        SELECT a."userId" FROM "user_work_schedule_assignment" a
+        WHERE a."workScheduleId" = ${scheduleId} AND a."effectiveFrom" <= ${at}
+          AND NOT EXISTS (
+            SELECT 1 FROM "user_work_schedule_assignment" later
+            WHERE later."userId" = a."userId"
+              AND later."effectiveFrom" > a."effectiveFrom"
+              AND later."effectiveFrom" <= ${at}
+          )
+      `);
+        const where: Prisma.UserWhereInput = {
+          AND: [scope, { id: { in: assigned.map(({ userId }) => userId) } }],
+        };
+        return paginate(query, async (range) => {
+          const items = await tx.user.findMany({
+            where,
+            ...range,
+            select: { id: true, firstname: true, lastname: true },
+            orderBy: [{ lastname: 'asc' }, { firstname: 'asc' }, { id: 'asc' }],
+          });
+          const total = await tx.user.count({ where });
+          return [items, total];
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
     );
   }
 

@@ -1,6 +1,6 @@
 import { ScheduleUsersController } from '../src/schedule/controllers/schedule-users.controller';
 import { ScheduleAssignmentController } from '../src/schedule/controllers/schedule-assignment.controller';
-import { ScheduleAssignmentService } from '../src/schedule/services/schedule-assignment.service';
+import { ScheduleAssignmentService } from '../src/schedule/services/assignment/schedule-assignment.service';
 import { ScheduleController } from '../src/schedule/controllers/schedule.controller';
 import { ScheduleService } from '../src/schedule/services/schedule.service';
 import { UserController } from '../src/user/controllers/user.controller';

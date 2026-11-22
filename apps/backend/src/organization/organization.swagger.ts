@@ -1,8 +1,7 @@
-import { applyDecorators } from '@nestjs/common';
+import { applyDecorators, HttpStatus } from '@nestjs/common';
 import {
   ApiOperation,
   ApiTags,
-  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import {
   ApiConflictError,
@@ -10,15 +9,10 @@ import {
   ApiNotFoundError,
   ApiResourceId,
   ApiServerError,
-  ApiSuccessResponse,
+  ApiUnauthorizedError,
   ApiValidationError,
   ApiWriteErrors,
 } from '../common/swagger/api-response.decorator';
-import {
-  OrganizationDetailsDto,
-  OrganizationListDto,
-  OrganizationTreeDto,
-} from './dto/organization.dto';
 
 export const organizationDescriptions = {
   tree: `### Accès
@@ -48,9 +42,9 @@ export function ApiOrganizationController() {
   return applyDecorators(
     ApiTags('Organization'),
     ApiServerError(),
-    ApiUnauthorizedResponse({ description: 'Session absente ou expirée.' }),
+    ApiUnauthorizedError(),
     ApiErrorResponse(
-      403,
+      HttpStatus.FORBIDDEN,
       ['forbidden', 'password_change_required'],
       'Droits de gestion insuffisants ou mot de passe temporaire à changer.',
     ),
@@ -72,11 +66,6 @@ Session requise. Administrateur ou manager du parent choisi ou de l’un de ses 
 Sans parent, l\'organisation créée est une **racine**.`,
     }),
     ApiWriteErrors(),
-    ApiSuccessResponse({
-      type: OrganizationDetailsDto,
-      status: 201,
-      message: 'organization_created',
-    }),
   );
 }
 
@@ -99,7 +88,6 @@ Session requise. Le contrôle du périmètre de management n\'est pas encore imp
 - Les filtres se cumulent et s’appliquent aussi au total. Sans filtrage par périmètre.`,
     }),
     ApiValidationError(),
-    ApiSuccessResponse({ type: OrganizationListDto }),
   );
 }
 
@@ -109,13 +97,11 @@ export function ApiOrganizationTree() {
       summary: "Consulter l'arborescence des organisations",
       description: organizationDescriptions.tree,
     }),
-    ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
     ApiErrorResponse(
-      403,
+      HttpStatus.FORBIDDEN,
       'forbidden',
       "Utilisateur ni administrateur ni responsable d'organisation.",
     ),
-    ApiSuccessResponse({ type: OrganizationTreeDto, isArray: true }),
   );
 }
 
@@ -126,14 +112,12 @@ export function ApiOrganizationSubtree() {
       description: organizationDescriptions.subtree,
     }),
     ApiResourceId('department-it'),
-    ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
     ApiErrorResponse(
-      403,
+      HttpStatus.FORBIDDEN,
       'forbidden',
       "Utilisateur ni administrateur ni responsable d'organisation.",
     ),
     ApiNotFoundError('not_found', 'Organisation inexistante ou inaccessible.'),
-    ApiSuccessResponse({ type: OrganizationTreeDto, isArray: true }),
   );
 }
 
@@ -149,7 +133,6 @@ Retourne les champs de l\'organisation sans développer les relations.`,
     }),
     ApiResourceId('department-it'),
     ApiNotFoundError('not_found'),
-    ApiSuccessResponse({ type: OrganizationDetailsDto }),
   );
 }
 
@@ -172,16 +155,10 @@ Les appartenances aux équipes sont indépendantes de la hiérarchie : un dépla
     }),
     ApiResourceId('department-it'),
     ApiNotFoundError('not_found'),
-    ApiWriteErrors(),
-    ApiErrorResponse(
-      409,
+    ApiWriteErrors(
       ['already_exists', 'reference_conflict', 'concurrent_modification'],
       'Conflit de contrainte ou modification concurrente.',
     ),
-    ApiSuccessResponse({
-      type: OrganizationDetailsDto,
-      message: 'organization_updated',
-    }),
   );
 }
 
@@ -201,9 +178,5 @@ Les utilisateurs directement rattachés sont **détachés et conservés**.`,
     ApiResourceId('department-it'),
     ApiNotFoundError('not_found'),
     ApiConflictError(),
-    ApiSuccessResponse({
-      type: OrganizationDetailsDto,
-      message: 'organization_deleted',
-    }),
   );
 }

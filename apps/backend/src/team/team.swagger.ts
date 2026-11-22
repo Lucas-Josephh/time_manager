@@ -1,23 +1,15 @@
 import { applyDecorators, HttpStatus } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiConflictError,
   ApiErrorResponse,
   ApiResourceId,
   ApiNotFoundError,
   ApiServerError,
-  ApiSuccessResponse,
+  ApiUnauthorizedError,
   ApiWriteErrors,
   ApiValidationError,
 } from '../common/swagger/api-response.decorator';
-import { UserSummaryDto } from '../user/dto/user.dto';
-import {
-  PartialSetTeamDto,
-  SetTeamDto,
-  TeamDetailsDto,
-  TeamWithRelationsDto,
-  TeamListDto,
-} from './dto/team.dto';
 
 const memberRules = `- Un utilisateur appartient à une seule équipe au maximum et ne peut pas être membre de l’équipe qu’il manage.
 - Les ajouts concernent les utilisateurs sans équipe dans les organisations gérées ou celles des équipes managées, descendants inclus. L’admin n’a pas cette restriction.
@@ -29,9 +21,9 @@ export function ApiTeamController() {
   return applyDecorators(
     ApiTags('Team'),
     ApiServerError(),
-    ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
+    ApiUnauthorizedError(),
     ApiErrorResponse(
-      403,
+      HttpStatus.FORBIDDEN,
       ['forbidden', 'password_change_required'],
       'Droits de gestion requis pour les écritures ; mot de passe temporaire à changer si nécessaire.',
     ),
@@ -57,20 +49,13 @@ ${memberRules}
 Les utilisateurs de \`memberIds\` déjà affectés à une équipe sont transférés automatiquement après vérification des droits sur leur équipe source.
 La création et les affectations sont **atomiques**.`,
     }),
-    ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
     ApiErrorResponse(
-      403,
+      HttpStatus.FORBIDDEN,
       'forbidden',
       'Administrateur ou manager de cette organisation ou d’une organisation parente requis.',
     ),
-    ApiBody({ type: SetTeamDto }),
-    ApiSuccessResponse({
-      type: TeamWithRelationsDto,
-      status: 201,
-      message: 'team_created',
-    }),
+
     ApiWriteErrors(),
-    ApiConflictError(),
   );
 }
 
@@ -86,15 +71,8 @@ Seuls name et organizationId sont acceptés. Un déplacement exige les droits de
 Utiliser PATCH /team/:id/manager pour le responsable, POST /team/:id/members pour les ajouts, DELETE /team/:id/members/:userId pour les retraits, POST /team/:id/transfers pour les transferts.`,
     }),
     ApiResourceId('team-administration'),
-    ApiBody({ type: PartialSetTeamDto }),
-    ApiSuccessResponse({
-      type: TeamWithRelationsDto,
-      status: 200,
-      message: 'team_partially_updated',
-    }),
     ApiWriteErrors(),
     ApiNotFoundError('not_found'),
-    ApiConflictError(),
   );
 }
 
@@ -112,11 +90,6 @@ Réaffecter les membres avant la suppression.
 La suppression est exécutée **avant** l\'envoi de la réponse **200**.`,
     }),
     ApiResourceId('team-administration'),
-    ApiSuccessResponse({
-      type: TeamDetailsDto,
-      status: 200,
-      message: 'team_deleted',
-    }),
     ApiNotFoundError('not_found'),
     ApiConflictError(),
   );
@@ -136,11 +109,6 @@ Session requise. Admin : toutes les équipes. Manager d’organisation : ses org
 - Les filtres se cumulent et s’appliquent aussi au total.
 - Organisation, responsable et membres inclus.`,
     }),
-    ApiSuccessResponse({
-      type: TeamListDto,
-      status: HttpStatus.OK,
-      message: 'team_listed',
-    }),
     ApiValidationError(),
   );
 }
@@ -151,13 +119,7 @@ export function ApiTeamFindAvailableUsers() {
       summary: 'Lister les utilisateurs accessibles pour constituer une équipe',
       description: `usage=member|transfer|manager et teamId sont obligatoires. member : utilisateurs sans équipe dans le périmètre autorisé. transfer : membres des autres équipes accessibles. manager : tout utilisateur existant sauf les membres de la cible. Les droits sur la cible sont vérifiés.`,
     }),
-    ApiSuccessResponse({
-      type: UserSummaryDto,
-      isArray: true,
-      message: 'team_available_users_listed',
-    }),
-    ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
-    ApiErrorResponse(403, 'forbidden', 'Aucun droit de gestion d’organisation ou d’équipe.'),
+    ApiErrorResponse(HttpStatus.FORBIDDEN, 'forbidden', 'Aucun droit de gestion d’organisation ou d’équipe.'),
   );
 }
 
@@ -173,7 +135,41 @@ Session requise. Admin : toutes les équipes. Manager d’organisation : ses org
 - Une équipe inexistante renvoie **404**.`,
     }),
     ApiResourceId('team-administration'),
-    ApiSuccessResponse({ type: TeamWithRelationsDto, status: HttpStatus.OK }),
+    ApiNotFoundError('not_found'),
+  );
+}
+
+export function ApiTeamSetManager() {
+  return applyDecorators(
+    ApiOperation({
+      summary: 'Nommer ou retirer le manager',
+      description: 'Admin ou manager d’organisation requis. Un membre de cette équipe doit être retiré explicitement avant sa nomination.',
+    }),
+    ApiWriteErrors(),
+    ApiNotFoundError('not_found'),
+  );
+}
+
+export function ApiTeamAddMembers() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Ajouter des utilisateurs sans équipe' }),
+    ApiWriteErrors(),
+    ApiNotFoundError('not_found'),
+  );
+}
+
+export function ApiTeamRemoveMember() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Retirer un membre' }),
+    ApiWriteErrors(),
+    ApiNotFoundError('not_found'),
+  );
+}
+
+export function ApiTeamTransferMember() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Transférer un membre depuis une équipe explicite' }),
+    ApiWriteErrors(),
     ApiNotFoundError('not_found'),
   );
 }

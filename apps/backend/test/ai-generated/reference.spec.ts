@@ -1,5 +1,5 @@
 import { ValidationArguments } from 'class-validator';
-import { ReferenceExistsConstraint } from '../../src/common/decorator/reference.decorator';
+import { ReferenceExistsConstraint } from '../../src/common/validation/reference-exists.constraint';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
 describe('Reference decorator constraint', () => {

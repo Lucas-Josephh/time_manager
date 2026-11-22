@@ -1,5 +1,6 @@
 import { validate, useContainer } from 'class-validator';
-import { Unique, UniqueConstraint } from '../src/common/decorator/unique.decorator';
+import { Unique } from '../src/common/validation/unique.decorator';
+import { UniqueConstraint } from '../src/common/validation/unique.constraint';
 import { PrismaService } from '../src/prisma/prisma.service';
 
 class ScopedTeamDto {

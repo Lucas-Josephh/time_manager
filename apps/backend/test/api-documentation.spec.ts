@@ -1,8 +1,15 @@
+import { ScheduleUsersController } from '../src/schedule/controllers/schedule-users.controller';
+import { ScheduleAssignmentController } from '../src/schedule/controllers/schedule-assignment.controller';
+import { ScheduleAssignmentService } from '../src/schedule/services/assignment/schedule-assignment.service';
+import { ScheduleController } from '../src/schedule/controllers/schedule.controller';
+import { ScheduleService } from '../src/schedule/services/schedule.service';
 import { UserController } from '../src/user/controllers/user.controller';
 import { UserService } from '../src/user/services/user.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/auth/auth.service';
 import { AppController } from '../src/app.controller';
+import { ClockController } from '../src/clock/controllers/clock.controller';
+import { ClockService } from '../src/clock/services/clock.service';
 import { Test } from '@nestjs/testing';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { TeamController } from '../src/team/controllers/team.controller';
@@ -13,8 +20,11 @@ import { OrganizationService } from '../src/organization/services/organization.s
 describe('Shared API documentation', () => {
   it('documents real envelopes, relations, filters and reusable errors', async () => {
     const module = await Test.createTestingModule({
-      controllers: [TeamController, OrganizationController, UserController, AppController],
+      controllers: [TeamController, OrganizationController, UserController, AppController, ScheduleController, ScheduleAssignmentController, ScheduleUsersController, ClockController],
       providers: [
+        { provide: ClockService, useValue: {} },
+        { provide: ScheduleAssignmentService, useValue: {} },
+        { provide: ScheduleService, useValue: {} },
         { provide: PrismaService, useValue: {} },
         { provide: AuthService, useValue: {} },
         { provide: TeamService, useValue: {} },
@@ -30,9 +40,121 @@ describe('Shared API documentation', () => {
         app,
         new DocumentBuilder().build(),
       );
+      const schedules = document.paths['/api/schedule'];
+      expect(document.paths['/api/clock'].get?.responses).toHaveProperty('200');
+      const clockIn = document.paths['/api/clock/sessions'].post;
+      expect(clockIn?.responses).toHaveProperty('201');
+      expect(clockIn?.responses).toHaveProperty('409');
+      const clockOut = document.paths['/api/clock/sessions/{id}/end'].put;
+      expect(clockOut?.responses).toHaveProperty('200');
+      expect(clockOut?.responses).toHaveProperty('404');
+      expect(document.components?.schemas?.ClockSessionDto).toMatchObject({
+        required: ['id', 'startedAt', 'endedAt'],
+      });
+      const schedule = document.paths['/api/schedule/{id}'];
+      for (const operation of [schedules.get, schedules.post, schedule.get, schedule.patch]) {
+        expect(operation?.tags).toContain('Schedule');
+        expect(operation?.summary).toBeTruthy();
+        expect(operation?.description).toBeTruthy();
+        for (const status of ['401', '403', '500']) {
+          expect(operation?.responses).toHaveProperty(status);
+        }
+      }
+      expect(schedules.post?.requestBody).toMatchObject({
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateScheduleDto' } } },
+      });
+      expect(schedules.get?.parameters).toEqual(expect.arrayContaining(
+        ['page', 'limit', 'name', 'createdBy'].map(name =>
+          expect.objectContaining({ name, in: 'query', required: false }),
+        ),
+      ));
+      expect(schedules.get?.responses['200']).toMatchObject({
+        content: { 'application/json': { schema: { properties: {
+          data: { $ref: '#/components/schemas/ScheduleListDto' },
+        } } } },
+      });
+      expect(schedule.get?.responses).not.toHaveProperty('404');
+      expect(schedule.get?.responses['200']).toMatchObject({
+        content: { 'application/json': { schema: { properties: {
+          data: { oneOf: [
+            { $ref: '#/components/schemas/ScheduleResponseDto' },
+            { type: 'object', additionalProperties: false },
+          ] },
+        } } } },
+      });
+      expect(schedule.patch?.responses).toHaveProperty('404');
+      expect(schedule.patch?.responses['409']).toMatchObject({
+        content: { 'application/json': { schema: { properties: {
+          message: { enum: expect.arrayContaining(['concurrent_modification']) },
+        } } } },
+      });
+      const assign = document.paths['/api/schedule/{id}/assignments'].post;
+      expect(assign?.requestBody).toMatchObject({
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/AssignScheduleDto' } } },
+      });
+      for (const status of ['201', '400', '401', '403', '404', '409']) {
+        expect(assign?.responses).toHaveProperty(status);
+      }
+      expect(document.components?.schemas?.AssignScheduleDto).toMatchObject({
+        required: ['userIds'],
+        properties: { userIds: { minItems: 1, maxItems: 500 }, effectiveFrom: { format: 'date-time' } },
+      });
+      expect(document.paths['/api/schedule/users/{userId}/assignments'].get?.parameters).toEqual(expect.arrayContaining(
+        ['page', 'limit'].map(name => expect.objectContaining({ name, in: 'query', required: false })),
+      ));
+      expect(document.paths['/api/schedule/users/{userId}'].get?.parameters).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: 'at', in: 'query', required: false }),
+      ]));
+      for (const path of ['/api/schedule/users/{userId}', '/api/schedule/users/{userId}/assignments']) {
+        expect(document.paths[path].get?.parameters).toEqual(expect.arrayContaining([
+          expect.objectContaining({ name: 'userId', in: 'path', required: true }),
+        ]));
+      }
+      expect(document.paths).not.toHaveProperty('/api/users/{id}/schedule');
+      expect(document.paths).not.toHaveProperty('/api/users/{id}/schedule-assignments');
+      expect(document.components?.schemas?.UserScheduleResponseDto).toMatchObject({
+        properties: { assignment: { nullable: true } },
+      });
+      expect(assign?.responses['403']).toMatchObject({ content: { 'application/json': { schema: { properties: {
+        data: { properties: { errors: { type: 'object', additionalProperties: { properties: { messages: { type: 'array' } } } } } },
+      } } } } });
+      expect(document.paths['/api/team'].post?.responses['400']).toMatchObject({ content: { 'application/json': { schema: { properties: {
+        data: { properties: { errors: { type: 'object' } } },
+      } } } } });
+      const weeklySchema = document.components?.schemas?.WeeklyScheduleDto;
+      expect(weeklySchema).toMatchObject({ required: expect.arrayContaining([
+        'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY',
+      ]) });
+      expect(weeklySchema).not.toHaveProperty('properties.1');
       const users = document.paths['/api/users'];
       expect(users.post?.requestBody).toMatchObject({
         content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateUserDto' } } },
+      });
+      for (const operation of [
+        users.post,
+        document.paths['/api/users/{id}'].patch,
+        document.paths['/api/organizations/{id}'].patch,
+      ]) {
+        expect(operation?.responses['409']).toMatchObject({
+          content: {
+            'application/json': {
+              schema: {
+                properties: {
+                  message: {
+                    enum: ['already_exists', 'reference_conflict', 'concurrent_modification'],
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+      expect(document.paths['/api/organizations'].get?.responses['401']).toMatchObject({
+        content: {
+          'application/json': {
+            schema: { properties: { message: { enum: ['unauthorized'] } } },
+          },
+        },
       });
       expect(users.get?.parameters).toEqual(expect.arrayContaining(
         ['page', 'limit', 'email', 'firstname', 'lastname'].map(name =>

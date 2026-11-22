@@ -29,7 +29,7 @@ describe('Unique field validation', () => {
     await expect(assertUniqueField(model, options)).rejects.toMatchObject({
       response: {
         message: 'validation_failed',
-        data: { errors: [{ field: 'slug', messages: ['already_exists'] }] },
+        data: { errors: { 'slug': { messages: ['already_exists'] } } },
       },
     });
   });

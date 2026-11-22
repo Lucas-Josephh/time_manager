@@ -2,10 +2,85 @@ generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
   moduleFormat = "cjs"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model WorkSchedule {
+  timezone  String   @default("Europe/Paris")
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdByUserId String
+  createdBy       User   @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  usersAssignments     UserWorkScheduleAssignment[]
+  sourceWorkScheduleId String?
+  sourceWorkSchedule   WorkSchedule?                @relation("ScheduleOrigin", fields: [sourceWorkScheduleId], references: [id], onDelete: Restrict)
+  derivedSchedules     WorkSchedule[]               @relation("ScheduleOrigin")
+  days                 ScheduleDay[]
+  workSessions         WorkSession[]
+
+  @@index([sourceWorkScheduleId])
+  @@map("work_schedule")
+}
+
+model ScheduleDay {
+  id             String    @id @default(uuid())
+  workScheduleId String
+  dayOfWeek      DayOfWeek
+
+  workSchedule WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
+
+  timeSlots TimeSlot[]
+
+  @@unique([workScheduleId, dayOfWeek])
+  @@map("schedule_day")
+}
+
+/**
+ * Represents the assignment of a work schedule to a user.
+ * - One user can be associate with same multiple work schedule
+ * - One user can be associate to any work schedule
+ */
+model UserWorkScheduleAssignment {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  workScheduleId String
+  workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
+  effectiveFrom  DateTime     @default(now()) @db.Timestamptz(3)
+
+  @@unique([userId, effectiveFrom])
+  @@index([workScheduleId])
+  @@map("user_work_schedule_assignment")
+}
+
+model TimeSlot {
+  id            String @id @default(uuid())
+  scheduleDayId String
+  startTime     String
+  endTime       String
+
+  scheduleDay ScheduleDay @relation(fields: [scheduleDayId], references: [id], onDelete: Restrict)
+
+  @@index([scheduleDayId])
+  @@map("time_slot")
 }
 
 model Organization {
@@ -67,20 +142,51 @@ model User {
   sessions Session[]
   accounts Account[]
 
+  // A user can be associated to a single organization
   organizationId String?
   organization   Organization? @relation("OrganizationMembers", fields: [organizationId], references: [id], onDelete: SetNull)
 
+  // A user can manage multiple organizations
   managedOrganizations Organization[] @relation("OrganizationManager")
 
+  // A user can be a member of a single team
   teamId String?
   team   Team?   @relation("TeamMembers", fields: [teamId], references: [id], onDelete: Restrict)
 
+  // A user can manager multiple teams (disclaimer: manager != member)
   managedTeams Team[] @relation("TeamManager")
+
+  // A user can make multiple work session to store their work timee
+  workSessions WorkSession[]
+
+  // A user can create multiple work schedule
+  workSchedules WorkSchedule[]
+
+  // A user can be assigned to a multiple work schedules
+  workScheduleAssignments UserWorkScheduleAssignment[]
 
   @@unique([email])
   @@index([organizationId])
   @@index([teamId])
   @@map("user")
+}
+
+model WorkSession {
+  id        String    @id @default(uuid())
+  userId    String
+  startedAt DateTime
+  endedAt   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  workScheduleId String
+  workSchedule   WorkSchedule @relation(fields: [workScheduleId], references: [id], onDelete: Restrict)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, startedAt])
+  @@unique([userId], map: "work_session_one_open_per_user_idx", where: { endedAt: null })
+  @@map("work_session")
 }
 
 model Session {

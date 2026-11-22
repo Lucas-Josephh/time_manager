@@ -1,15 +1,12 @@
+import { ApiResult } from '../../common/decorator/api-result.decorator';
 import {
-  ApiOperation,
-  ApiCreatedResponse,
-  ApiOkResponse,
-} from '@nestjs/swagger';
-import { ApiTeamController } from '../team.swagger';
+  ApiTeamController,
+  ApiTeamAddMembers,
+  ApiTeamRemoveMember,
+  ApiTeamTransferMember,
+} from '../team.swagger';
 import {
-  ApiWriteErrors,
-  ApiNotFoundError,
-  ApiConflictError,
-} from '../../common/swagger/api-response.decorator';
-import {
+  HttpStatus,
   Body,
   Controller,
   Delete,
@@ -23,16 +20,15 @@ import type { AuthRequest } from '../../auth/auth.types';
 import { TeamMembersService } from '../services/team-members.service';
 import { AddMembersDto, TransferMemberDto } from '../dto/team-actions.dto';
 @ApiTeamController()
-@ApiWriteErrors()
-@ApiNotFoundError('not_found')
-@ApiConflictError()
 @Controller('team/:id')
 @UseGuards(AuthGuard)
 export class TeamMembersController {
   constructor(private readonly members: TeamMembersService) {}
-  @ApiOperation({ summary: 'Ajouter des utilisateurs sans équipe' })
-  @ApiCreatedResponse()
+  @ApiTeamAddMembers()
   @Post('members')
+  @ApiResult({
+    status: HttpStatus.CREATED,
+  })
   add(
     @Param('id') id: string,
     @Body() dto: AddMembersDto,
@@ -41,9 +37,11 @@ export class TeamMembersController {
     return this.members.add(id, dto.memberIds, req.session!.user.id);
   }
 
-  @ApiOperation({ summary: 'Retirer un membre' })
-  @ApiOkResponse()
+  @ApiTeamRemoveMember()
   @Delete('members/:userId')
+  @ApiResult({
+    status: HttpStatus.OK,
+  })
   remove(
     @Param('id') id: string,
     @Param('userId') userId: string,
@@ -52,9 +50,11 @@ export class TeamMembersController {
     return this.members.remove(id, userId, req.session!.user.id);
   }
 
-  @ApiOperation({ summary: 'Transférer un membre depuis une équipe explicite' })
-  @ApiCreatedResponse()
+  @ApiTeamTransferMember()
   @Post('transfers')
+  @ApiResult({
+    status: HttpStatus.CREATED,
+  })
   transfer(
     @Param('id') id: string,
     @Body() dto: TransferMemberDto,

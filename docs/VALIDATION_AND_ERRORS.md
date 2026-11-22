@@ -90,33 +90,16 @@ contre les modifications concurrentes.
 ### Ordre des contrôles
 
 Les guards d’authentification s’exécutent d’abord sur les routes protégées.
-Pour Team et Organization, les DTO sont ensuite validés, puis les services
+Pour User, Team et Organization, les DTO sont ensuite validés, puis les services
 chargent les cibles et vérifient les droits. Pour les écritures, ces lectures,
 les contrôles d’autorisation et les mutations utilisent la même transaction
 Serializable. Un body invalide renvoie 400 avant toute recherche de cible ;
 une cible absente avec un body valide renvoie 404.
 
-Le décorateur générique `@ResourceExists` reste disponible pour les autres
-routes qui souhaitent vérifier la cible avant les pipes.
-
-Le guard est générique : le modèle vient du décorateur et les modèles acceptés
-sont dérivés de Prisma. Aucun `if/else` par modèle n’est nécessaire.
-Le paramètre est configurable :
-
-```ts
-@ResourceExists('user', { param: 'userId', trimId: true })
-```
-
-Ce décorateur se place sur les méthodes ciblant une ressource, pas sur les
-routes de collection. S’il y a un `@UseGuards(AuthGuard)` sur la méthode,
-placer `@ResourceExists` au-dessus : Nest enregistrera l’authentification avant
-la vérification d’existence. Un guard d’authentification de contrôleur passe
-toujours avant les guards de méthode.
-
 Les identifiants de la query des utilisateurs disponibles sont nettoyés par leur DTO
 de paramètres. Les identifiants vides sont laissés à la validation de format.
 Les services et les contraintes SQL continuent à protéger les opérations si
-une ressource disparaît entre la vérification et l’écriture.
+une ressource disparaît entre la validation et l’écriture.
 
 ### Construction des erreurs
 
@@ -125,7 +108,79 @@ Le pipe construit une `ValidationException`, dérivée de `BadRequestException`,
 puis le filtre global formate la réponse.
 Le formatage conserve une erreur par champ : `isNotEmpty`, `isDefined`, puis
 `isString` sont prioritaires ; sinon, la première règle remontée est retenue.
-Les erreurs imbriquées utilisent un chemin avec des points.
+`data.errors` est un objet indexé par nom d’input. Les champs imbriqués
+utilisent des crochets à chaque niveau, par exemple
+`weeklySchedule[MONDAY][0][startTime]` (heure de début du premier créneau du lundi).
+
+```json
+{
+  "success": false,
+  "message": "validation_failed",
+  "data": {
+    "errors": {
+      "name": { "messages": ["is_required"] },
+      "userIds[2]": { "messages": ["outside_management_scope"] }
+    }
+  }
+}
+```
+
+Ce format remplace l’ancien tableau `{ field, messages }` : les consommateurs
+doivent utiliser `errors[input.name]?.messages`. Une erreur de groupe utilise
+`userIds` ; une erreur sur une case utilise `userIds[index]`, avec un index
+commençant à zéro dans la requête initiale. Les valeurs reçues ne sont pas
+recopiées dans les erreurs.
+
+Un validateur qui contrôle plusieurs champs peut fournir un formateur détaillé
+via `ValidationOptions.context.fieldErrors(value, field)`. Ce formateur renvoie
+le même objet d’erreurs, avec les chemins complets. Le validateur doit définir
+un `message` non vide pour que class-validator transmette son contexte.
+La validation de la semaine l’utilise pour signaler une fin avant le début sur
+`weeklySchedule[MONDAY][0][endTime]` et les chevauchements sur le `startTime` des
+créneaux concernés. Les vérifications directes du service utilisent le même
+collecteur d’erreurs.
+
+`FieldErrorsBuilder` centralise la construction des chemins et la préparation
+des erreurs. Il conserve l’ordre des messages, supprime les doublons et retourne
+une copie indépendante via `toObject()` :
+
+```ts
+const errors = new FieldErrorsBuilder();
+errors.add('name', 'is_required');
+errors.at('userIds', index).add('outside_management_scope');
+errors.at('weeklySchedule', day, slotIndex, 'endTime')
+  .add('schedule_end_time_must_follow_start_time');
+
+if (errors.hasErrors()) {
+  throw errors.exception(ForbiddenException, 'schedule_assignment_forbidden');
+}
+```
+
+`errors.exception(NotFoundException)` construit une véritable exception Nest
+contenant `data.errors`, sans code générique redondant : le filtre déduit
+`not_found` du statut 404. Un second argument facultatif permet un code métier
+plus précis, et un troisième conserve les détails additionnels :
+
+```ts
+throw missing.exception(NotFoundException);
+throw errors.exception(ConflictException, 'later_schedule_assignment_exists', {
+  conflictingAssignments,
+});
+```
+
+`fieldErrorsResponse` et `ValidationException` acceptent directement le collecteur
+ou un objet d’erreurs. La conversion du collecteur est faite au moment de
+construire la réponse ; aucun état interne n’est exposé.
+
+`merge(errors)` permet d’agréger un formateur personnalisé. Le collecteur ne
+vérifie aucun droit : le service choisit la classe d’exception et, si nécessaire,
+un code métier.
+
+Les services peuvent utiliser `fieldErrorsResponse(message, errors, details?)`
+avec une exception 403, 404 ou 409 : le format des champs est commun aux DTO,
+mais le statut et le code métier sont conservés. Les détails additionnels,
+comme `conflictingAssignments`, restent dans `data`. Les permissions et les
+contrôles dépendant de la base restent dans la transaction du service.
 
 Le registre des correspondances est `VALIDATION_CODES` dans
 `common/validation/format-validation-errors.ts`. Le maintenir dans le code

@@ -1,3 +1,4 @@
+import { FieldErrorsBuilder } from './field-errors.builder';
 import type { ValidationError } from 'class-validator';
 
 const VALIDATION_CODES: Readonly<Record<string, string>> = {
@@ -15,6 +16,8 @@ const VALIDATION_CODES: Readonly<Record<string, string>> = {
   isBoolean: 'invalid_boolean',
   isDateString: 'invalid_date_string',
   isEnum: 'invalid_enum_value',
+  isScheduleTimezone: 'invalid_schedule_timezone',
+  isValidScheduleWeek: 'invalid_schedule_slots',
   referenceExists: 'reference_not_found',
   whitelistValidation: 'validation_unknown_field',
   arrayUnique: 'validation_duplicate_array_value',
@@ -37,30 +40,36 @@ function getErrorCode(error: ValidationError): string | undefined {
   return VALIDATION_CODES[rule] ?? 'validation_invalid';
 }
 
-export type FieldError = { field: string; messages: string[] };
+export type FieldErrors = Record<string, { messages: string[] }>;
 
-/**
- * Recursively formats validation errors into a flat array of field errors.
- *
- * @param errors
- * @param parent
- */
+/** Format nested validation errors using the corresponding HTML input names. */
 export function formatValidationErrors(
   errors: ValidationError[],
   parent = '',
-): FieldError[] {
-  const result: FieldError[] = [];
+): FieldErrors {
+  const fields = new FieldErrorsBuilder();
 
-  for (const error of errors) {
-    const field = parent ? `${parent}.${error.property}` : error.property;
-    const code = getErrorCode(error);
-    if (code) {
-      result.push({ field, messages: [code] });
+  function visit(items: ValidationError[], prefix: string) {
+    for (const error of items) {
+      const field = FieldErrorsBuilder.path(prefix, error.property);
+      const code = getErrorCode(error);
+      if (code) {
+        const rules = Object.keys(error.constraints ?? {});
+        const rule =
+          RULE_PRIORITY.find((candidate) => rules.includes(candidate)) ??
+          rules[0];
+        const formatter = error.contexts?.[rule]?.fieldErrors as
+          ((value: unknown, field: string) => FieldErrors) | undefined;
+        if (typeof formatter === 'function') {
+          fields.merge(formatter(error.value, field));
+        } else {
+          fields.add(field, code);
+        }
+      }
+      visit(error.children ?? [], field);
     }
-
-    const childErrors = formatValidationErrors(error.children ?? [], field);
-    result.push(...childErrors);
   }
 
-  return result;
+  visit(errors, parent);
+  return fields.toObject();
 }

@@ -79,9 +79,7 @@ describe('Organization CRUD contracts', () => {
     prisma.user.findUnique.mockImplementation(async ({ where }) => where.id === 'missing' ? null : { id: where.id, isAdmin: true });
     const response = await request(app.getHttpServer()).post('/api/organizations')
       .send({ name: 'Engineering', [field]: 'missing' }).expect(400);
-    expect(response.body.data.errors).toEqual(expect.arrayContaining([
-      expect.objectContaining({ field, messages: expect.arrayContaining(['reference_not_found']) }),
-    ]));
+    expect(response.body.data.errors).toEqual(expect.objectContaining({ [field]: { messages: expect.arrayContaining(['reference_not_found']) } }));
     expect(delegate.create).not.toHaveBeenCalled();
   });
 
@@ -104,9 +102,7 @@ describe('Organization CRUD contracts', () => {
   it('rejects the removed description field on updates', async () => {
     const response = await request(app.getHttpServer()).patch(`/api/organizations/${organization.id}`)
       .send({ description: null }).expect(400);
-    expect(response.body.data.errors).toEqual(expect.arrayContaining([
-      expect.objectContaining({ field: 'description', messages: ['validation_unknown_field'] }),
-    ]));
+    expect(response.body.data.errors).toEqual(expect.objectContaining({ description: { messages: ['validation_unknown_field'] } }));
     expect(delegate.update).not.toHaveBeenCalled();
   });
 
@@ -128,7 +124,7 @@ describe('Organization CRUD contracts', () => {
   it('rejects a self parent through the HTTP API', async () => {
     await request(app.getHttpServer()).patch(`/api/organizations/${organization.id}`)
       .send({ parentId: organization.id }).expect(400)
-      .expect({ success: false, message: 'validation_failed', data: { errors: [{ field: 'parentId', messages: ['organization_cycle'] }] } });
+      .expect({ success: false, message: 'validation_failed', data: { errors: { 'parentId': { messages: ['organization_cycle'] } } } });
     expect(delegate.update).not.toHaveBeenCalled();
   });
 

@@ -1,5 +1,5 @@
-import { UniqueConstraint } from './common/decorator/unique.decorator';
-import { ReferenceExistsConstraint } from './common/decorator/reference.decorator';
+import { UniqueConstraint } from './common/validation/unique.constraint';
+import { ReferenceExistsConstraint } from './common/validation/reference-exists.constraint';
 import { validationOptions } from './common/validation/validation.config';
 import { AuthModule } from './auth/auth.module';
 import { Module, ValidationPipe } from '@nestjs/common';
@@ -13,6 +13,8 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { OrganizationModule } from './organization/organization.module';
 import { TeamModule } from './team/team.module';
 import { UserModule } from './user/user.module';
+import { ScheduleModule } from './schedule/schedule.module';
+import { ClockModule } from './clock/clock.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { UserModule } from './user/user.module';
     OrganizationModule,
     TeamModule,
     UserModule,
+    ScheduleModule,
+    ClockModule,
   ],
   controllers: [AppController],
   providers: [

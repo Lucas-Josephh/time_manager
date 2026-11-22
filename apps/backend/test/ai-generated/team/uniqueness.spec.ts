@@ -35,7 +35,7 @@ describe('Team HTTP API: uniqueness', () => {
         .expect(
           envelope(
             'validation_failed',
-            { errors: [{ field: 'name', messages: ['already_exists'] }] },
+            { errors: { 'name': { messages: ['already_exists'] } } },
             false,
           ),
         );
@@ -50,10 +50,7 @@ describe('Team HTTP API: uniqueness', () => {
       .patch(`/api/team/${team.id}`)
       .send({ name: dto.name, id: 'other-team' })
       .expect(400);
-    expect(response.body.data.errors).toEqual(expect.arrayContaining([
-      { field: 'id', messages: ['validation_unknown_field'] },
-      { field: 'name', messages: ['already_exists'] },
-    ]));
+    expect(response.body.data.errors).toEqual({ id: { messages: ['validation_unknown_field'] }, name: { messages: ['already_exists'] } });
     expect(prisma.team.findFirst).toHaveBeenCalledWith({
       where: { AND: [{ name: dto.name }, { id: { not: team.id } }] },
       select: { id: true },

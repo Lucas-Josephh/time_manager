@@ -20,6 +20,7 @@ overrides:
   deepmerge-ts: 8.0.2
   mysql2: 3.23.4
   multer: 2.5.0
+  '@prisma/config>effect': '3.22.1'
 allowBuilds:
   '@nestjs/core': true
   '@parcel/watcher': true

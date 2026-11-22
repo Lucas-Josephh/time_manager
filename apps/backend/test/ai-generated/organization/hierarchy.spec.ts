@@ -29,7 +29,7 @@ describe('Organization hierarchy updates', () => {
 
   it('rejects moving an organization below its descendant', async () => {
     delegate.findUnique.mockResolvedValueOnce({ id: 'a' }).mockResolvedValueOnce({ parentId: 'a' });
-    await expect(service.update('a', { parentId: 'child' }, 'admin')).rejects.toMatchObject({ response: { data: { errors: [{ field: 'parentId', messages: ['organization_cycle'] }] } } });
+    await expect(service.update('a', { parentId: 'child' }, 'admin')).rejects.toMatchObject({ response: { data: { errors: { 'parentId': { messages: ['organization_cycle'] } } } } });
     expect(delegate.update).not.toHaveBeenCalled();
   });
 

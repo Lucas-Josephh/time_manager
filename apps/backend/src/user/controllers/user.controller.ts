@@ -1,5 +1,7 @@
+import { ApiResult } from '../../common/decorator/api-result.decorator';
 import type { AuthRequest } from '../../auth/auth.types';
 import {
+  HttpStatus,
   Body,
   Controller,
   Delete,
@@ -19,9 +21,6 @@ import {
   UserDetailsDto,
   UserListDto,
 } from '../dto/user.dto';
-import { ResponseMessage } from '../../common/decorator/response-message.decorator';
-import { SerializeResponse } from '../../common/serialization/serialize-response.decorator';
-import { ResourceExists } from '../../common/guards/resource-exists.guard';
 import { AuthGuard } from '../../auth/guards/auth.guard';
 import { AdminGuard } from '../../auth/guards/admin.guard';
 import {
@@ -36,7 +35,6 @@ import {
 @ApiUserController()
 @Controller('users')
 @UseGuards(AuthGuard, AdminGuard)
-@SerializeResponse(UserDetailsDto)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
@@ -48,7 +46,11 @@ export class UserController {
    */
   @Post()
   @ApiUserCreate()
-  @ResponseMessage('user_created')
+  @ApiResult({
+    type: UserDetailsDto,
+    status: HttpStatus.CREATED,
+    message: 'user_created',
+  })
   create(@Body() dto: CreateUserDto, @Req() request: AuthRequest) {
     return this.userService.create(dto, request.session!.user.id);
   }
@@ -61,8 +63,11 @@ export class UserController {
    */
   @Get()
   @ApiUserList()
-  @ResponseMessage('users_listed')
-  @SerializeResponse(UserListDto)
+  @ApiResult({
+    type: UserListDto,
+    status: HttpStatus.OK,
+    message: 'users_listed',
+  })
   findAll(@Query() query: QueryUserDto, @Req() request: AuthRequest) {
     return this.userService.findAll(query, request.session!.user.id);
   }
@@ -75,6 +80,10 @@ export class UserController {
    */
   @Get(':id')
   @ApiUserDetail()
+  @ApiResult({
+    type: UserDetailsDto,
+    status: HttpStatus.OK,
+  })
   findOne(@Param('id') id: string, @Req() request: AuthRequest) {
     return this.userService.findOne(id, request.session!.user.id);
   }
@@ -87,9 +96,12 @@ export class UserController {
    * @param request - Authenticated request containing the administrator’s session.
    */
   @Patch(':id')
-  @ResourceExists('user')
   @ApiUserUpdate()
-  @ResponseMessage('user_updated')
+  @ApiResult({
+    type: UserDetailsDto,
+    status: HttpStatus.OK,
+    message: 'user_updated',
+  })
   update(@Param('id') id: string, @Body() dto: UpdateUserDto, @Req() request: AuthRequest) {
     return this.userService.update(id, dto, request.session!.user.id);
   }
@@ -102,7 +114,11 @@ export class UserController {
    */
   @Delete(':id')
   @ApiUserDelete()
-  @ResponseMessage('user_deleted')
+  @ApiResult({
+    type: UserDetailsDto,
+    status: HttpStatus.OK,
+    message: 'user_deleted',
+  })
   delete(@Param('id') id: string, @Req() request: AuthRequest) {
     return this.userService.delete(id, request.session!.user.id);
   }

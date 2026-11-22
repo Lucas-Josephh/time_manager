@@ -11,9 +11,7 @@ describe('Team API: organization migration', () => {
         [method](method === 'post' ? '/api/team' : `/api/team/${context.team.id}`)
         .send({ ...context.dto, departmentId: 'old-department' })
         .expect(400);
-      expect(response.body.data.errors).toContainEqual({
-        field: 'departmentId', messages: ['validation_unknown_field'],
-      });
+      expect(response.body.data.errors).toMatchObject({ departmentId: { messages: ['validation_unknown_field'] } });
       expect(context.prisma.team.create).not.toHaveBeenCalled();
       expect(context.prisma.team.update).not.toHaveBeenCalled();
     },

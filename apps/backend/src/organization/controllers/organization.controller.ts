@@ -1,3 +1,4 @@
+import { ApiResult } from '../../common/decorator/api-result.decorator';
 import {
   ApiOrganizationController,
   ApiOrganizationCreate,
@@ -9,6 +10,7 @@ import {
   ApiOrganizationDelete,
 } from '../organization.swagger';
 import {
+  HttpStatus,
   Body,
   Controller,
   Delete,
@@ -29,44 +31,56 @@ import {
   PartialOrganizationDto,
   QueryOrganizationListDto,
 } from '../dto/organization.dto';
-import { SerializeResponse } from '../../common/serialization/serialize-response.decorator';
-import { ResponseMessage } from '../../common/decorator/response-message.decorator';
 import { AuthGuard } from '../../auth/guards/auth.guard';
 import { AuthRequest } from '../../auth/auth.types';
 
 @ApiOrganizationController()
 @Controller('organizations')
 @UseGuards(AuthGuard)
-@SerializeResponse(OrganizationDetailsDto)
 export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
 
   @Post()
   @ApiOrganizationCreate()
-  @ResponseMessage('organization_created')
+  @ApiResult({
+    type: OrganizationDetailsDto,
+    status: HttpStatus.CREATED,
+    message: 'organization_created',
+  })
   create(@Body() dto: OrganizationDto, @Req() request: AuthRequest) {
     return this.organizationService.create(dto, request.session!.user.id);
   }
 
   @Get()
   @ApiOrganizationFindAll()
-  @SerializeResponse(OrganizationListDto)
+  @ApiResult({
+    type: OrganizationListDto,
+    status: HttpStatus.OK,
+  })
   findAll(@Query() query: QueryOrganizationListDto) {
     return this.organizationService.findAll(query);
   }
 
   @Get('tree')
-  @ResponseMessage('organization_tree_retrieved')
-  @SerializeResponse(OrganizationTreeDto)
   @ApiOrganizationTree()
+  @ApiResult({
+    type: OrganizationTreeDto,
+    status: HttpStatus.OK,
+    message: 'organization_tree_retrieved',
+    isArray: true,
+  })
   tree(@Req() request: AuthRequest) {
     return this.organizationService.tree(request.session!.user.id);
   }
 
   @Get(':id/tree')
-  @ResponseMessage('specific_organization_tree_retrieved')
-  @SerializeResponse(OrganizationTreeDto)
   @ApiOrganizationSubtree()
+  @ApiResult({
+    type: OrganizationTreeDto,
+    status: HttpStatus.OK,
+    message: 'specific_organization_tree_retrieved',
+    isArray: true,
+  })
   subtree(
     @Param('id') id: string,
     @Req() request: AuthRequest,
@@ -76,20 +90,32 @@ export class OrganizationController {
 
   @Get(':id')
   @ApiOrganizationFindOne()
+  @ApiResult({
+    type: OrganizationDetailsDto,
+    status: HttpStatus.OK,
+  })
   findOne(@Param('id') id: string) {
     return this.organizationService.findOne(id);
   }
 
   @Patch(':id')
   @ApiOrganizationUpdate()
-  @ResponseMessage('organization_updated')
+  @ApiResult({
+    type: OrganizationDetailsDto,
+    status: HttpStatus.OK,
+    message: 'organization_updated',
+  })
   update(@Param('id') id: string, @Body() dto: PartialOrganizationDto, @Req() request: AuthRequest) {
     return this.organizationService.update(id, dto, request.session!.user.id);
   }
 
   @Delete(':id')
   @ApiOrganizationDelete()
-  @ResponseMessage('organization_deleted')
+  @ApiResult({
+    type: OrganizationDetailsDto,
+    status: HttpStatus.OK,
+    message: 'organization_deleted',
+  })
   delete(@Param('id') id: string, @Req() request: AuthRequest) {
     return this.organizationService.delete(id, request.session!.user.id);
   }

@@ -1,29 +1,23 @@
-import { applyDecorators } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { applyDecorators, HttpStatus } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   ApiConflictError,
   ApiErrorResponse,
   ApiNotFoundError,
   ApiResourceId,
   ApiServerError,
-  ApiSuccessResponse,
+  ApiUnauthorizedError,
   ApiValidationError,
   ApiWriteErrors,
 } from '../common/swagger/api-response.decorator';
-import {
-  CreateUserDto,
-  UpdateUserDto,
-  UserDetailsDto,
-  UserListDto,
-} from './dto/user.dto';
 
 export function ApiUserController() {
   return applyDecorators(
     ApiTags('Users'),
     ApiServerError(),
-    ApiErrorResponse(401, 'unauthorized', 'Session absente ou expirée.'),
+    ApiUnauthorizedError(),
     ApiErrorResponse(
-      403,
+      HttpStatus.FORBIDDEN,
       ['forbidden', 'password_change_required'],
       'Administrateur requis. Le mot de passe temporaire doit avoir été changé.',
     ),
@@ -60,15 +54,7 @@ Le champ \`mustChangePassword\` est fixé à \`true\` : l’utilisateur doit cha
 - Les champs non prévus par le DTO sont refusés avec \`validation_unknown_field\`.
 - **409** : conflit de contrainte ou modification concurrente ; aucune création partielle.`,
     }),
-    ApiBody({ type: CreateUserDto }),
-    ApiSuccessResponse({
-      type: UserDetailsDto,
-      status: 201,
-      message: 'user_created',
-    }),
-    ApiWriteErrors(),
-    ApiErrorResponse(
-      409,
+    ApiWriteErrors(
       ['already_exists', 'reference_conflict', 'concurrent_modification'],
       'Conflit de contrainte ou modification concurrente ; réessayer après vérification des données.',
     ),
@@ -95,7 +81,6 @@ Session requise. Réservé aux **administrateurs** ayant changé leur mot de pas
 Retourne \`users_listed\`, avec les profils dans \`data.items\` et la pagination dans \`data.meta\` (\`total\`, \`page\`, \`limit\`, \`totalPages\`).
 \`total\` compte les utilisateurs correspondant aux filtres, avant pagination. Sans résultat, \`items\` est vide et \`totalPages\` vaut 0. Une page dépassant la dernière page retourne une liste vide.`,
     }),
-    ApiSuccessResponse({ type: UserListDto, message: 'users_listed' }),
     ApiValidationError(),
   );
 }
@@ -112,7 +97,6 @@ Les relations équipe et organisation ne sont pas développées. Aucun mot de pa
 Un identifiant inexistant renvoie **404** \`not_found\`.`,
     }),
     ApiResourceId('user-id'),
-    ApiSuccessResponse({ type: UserDetailsDto }),
     ApiNotFoundError('not_found'),
   );
 }
@@ -142,12 +126,8 @@ Retourne \`user_updated\` et le profil après modification dans \`data\`.
 - **409** : conflit de contrainte ou modification concurrente.`,
     }),
     ApiResourceId('user-id'),
-    ApiBody({ type: UpdateUserDto }),
-    ApiSuccessResponse({ type: UserDetailsDto, message: 'user_updated' }),
     ApiNotFoundError('not_found'),
-    ApiWriteErrors(),
-    ApiErrorResponse(
-      409,
+    ApiWriteErrors(
       ['already_exists', 'reference_conflict', 'concurrent_modification'],
       'Conflit de contrainte ou modification concurrente ; réessayer après vérification des données.',
     ),
@@ -170,7 +150,6 @@ La suppression est effectuée avant la réponse **200**. Retourne \`user_deleted
 Un identifiant inexistant renvoie **404** \`not_found\`.`,
     }),
     ApiResourceId('user-id'),
-    ApiSuccessResponse({ type: UserDetailsDto, message: 'user_deleted' }),
     ApiNotFoundError('not_found'),
     ApiConflictError(),
   );

@@ -211,7 +211,7 @@ describe('User administration HTTP contract', () => {
     expect(response.body).toEqual({
       success: false,
       message: 'validation_failed',
-      data: { errors: [{ field: 'email', messages: ['already_exists'] }] },
+      data: { errors: { 'email': { messages: ['already_exists'] } } },
     });
     expect(prisma.user.findFirst).toHaveBeenCalledWith({
       where: { email: 'alice@example.com' },
@@ -240,9 +240,7 @@ describe('User administration HTTP contract', () => {
         password: 'Temporary123!',
       })
       .expect(400);
-    expect(response.body.data.errors).toEqual([
-      { field: 'email', messages: ['already_exists'] },
-    ]);
+    expect(response.body.data.errors).toEqual({ email: { messages: ['already_exists'] } });
   });
 
   it('maps a concurrent email conflict after the provisioning transaction has rolled back', async () => {
@@ -261,9 +259,7 @@ describe('User administration HTTP contract', () => {
         password: 'Temporary123!',
       })
       .expect(400);
-    expect(response.body.data.errors).toEqual([
-      { field: 'email', messages: ['already_exists'] },
-    ]);
+    expect(response.body.data.errors).toEqual({ email: { messages: ['already_exists'] } });
     expect(prisma.user.findUnique).toHaveBeenLastCalledWith({
       where: { email: 'alice@example.com' },
     });

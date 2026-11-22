@@ -14,6 +14,7 @@ import { OrganizationModule } from './organization/organization.module';
 import { TeamModule } from './team/team.module';
 import { UserModule } from './user/user.module';
 import { ScheduleModule } from './schedule/schedule.module';
+import { ClockModule } from './clock/clock.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { ScheduleModule } from './schedule/schedule.module';
     TeamModule,
     UserModule,
     ScheduleModule,
+    ClockModule,
   ],
   controllers: [AppController],
   providers: [

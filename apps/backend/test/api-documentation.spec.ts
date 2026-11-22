@@ -8,6 +8,8 @@ import { UserService } from '../src/user/services/user.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { AuthService } from '../src/auth/auth.service';
 import { AppController } from '../src/app.controller';
+import { ClockController } from '../src/clock/controllers/clock.controller';
+import { ClockService } from '../src/clock/services/clock.service';
 import { Test } from '@nestjs/testing';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { TeamController } from '../src/team/controllers/team.controller';
@@ -18,8 +20,9 @@ import { OrganizationService } from '../src/organization/services/organization.s
 describe('Shared API documentation', () => {
   it('documents real envelopes, relations, filters and reusable errors', async () => {
     const module = await Test.createTestingModule({
-      controllers: [TeamController, OrganizationController, UserController, AppController, ScheduleController, ScheduleAssignmentController, ScheduleUsersController],
+      controllers: [TeamController, OrganizationController, UserController, AppController, ScheduleController, ScheduleAssignmentController, ScheduleUsersController, ClockController],
       providers: [
+        { provide: ClockService, useValue: {} },
         { provide: ScheduleAssignmentService, useValue: {} },
         { provide: ScheduleService, useValue: {} },
         { provide: PrismaService, useValue: {} },
@@ -38,6 +41,16 @@ describe('Shared API documentation', () => {
         new DocumentBuilder().build(),
       );
       const schedules = document.paths['/api/schedule'];
+      expect(document.paths['/api/clock'].get?.responses).toHaveProperty('200');
+      const clockIn = document.paths['/api/clock/sessions'].post;
+      expect(clockIn?.responses).toHaveProperty('201');
+      expect(clockIn?.responses).toHaveProperty('409');
+      const clockOut = document.paths['/api/clock/sessions/{id}/end'].put;
+      expect(clockOut?.responses).toHaveProperty('200');
+      expect(clockOut?.responses).toHaveProperty('404');
+      expect(document.components?.schemas?.ClockSessionDto).toMatchObject({
+        required: ['id', 'startedAt', 'endedAt'],
+      });
       const schedule = document.paths['/api/schedule/{id}'];
       for (const operation of [schedules.get, schedules.post, schedule.get, schedule.patch]) {
         expect(operation?.tags).toContain('Schedule');

@@ -25,6 +25,6 @@ import { ScheduleAssignmentPolicyService } from './services/assignment/schedule-
     ScheduleAssignmentController,
     ScheduleUsersController,
   ],
-  exports: [ScheduleAssignmentPolicyService],
+  exports: [ScheduleAssignmentPolicyService, ScheduleAssignmentService],
 })
 export class ScheduleModule {}

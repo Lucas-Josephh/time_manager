@@ -94,6 +94,12 @@
       "value": "2098-12-31T23:00:00Z",
       "type": "string",
       "description": "Instant de consultation ISO avec fuseau ; Z évite un signe + dans la query string."
+    },
+    {
+      "key": "clockSessionId",
+      "value": "",
+      "type": "string",
+      "description": "UUID de la session de pointage du compte connecté, mémorisé à l’arrivée ou à la consultation d’une session ouverte."
     }
   ],
   "item": [
@@ -2963,7 +2969,443 @@
       "description": "Utiliser scheduleId pour le planning exact à attribuer et userId pour l’utilisateur cible. Les requêtes d’écriture sont des scénarios alternatifs à exécuter individuellement : une affectation programmée peut bloquer ensuite une affectation immédiate ou rétroactive. Pour plusieurs utilisateurs, ajouter leurs identifiants au tableau userIds. Les lectures sont accessibles à l’utilisateur concerné et aux responsables autorisés, sans exiger un rôle administrateur."
     },
     {
-      "name": "08 — Suppressions (exécution manuelle)",
+      "name": "08 — Pointage",
+      "item": [
+        {
+          "name": "Consulter son pointage",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const session = pm.response.json().data?.session;",
+                  "  if (session?.id && session.endedAt === null) {",
+                  "    pm.collectionVariables.set('clockSessionId', session.id);",
+                  "  } else {",
+                  "    pm.collectionVariables.set('clockSessionId', '');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clock",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clock"
+              ]
+            },
+            "description": "Renvoie la session ouverte, la dernière session terminée ou data.session à null. Si une session est ouverte, son identifiant est mémorisé dans clockSessionId."
+          },
+          "response": [
+            {
+              "name": "Session ouverte",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clock",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clock"
+                  ]
+                },
+                "description": "Renvoie la session ouverte, la dernière session terminée ou data.session à null. Si une session est ouverte, son identifiant est mémorisé dans clockSessionId."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": {\n    \"session\": {\n      \"id\": \"db1d8593-07ad-4bea-b755-4775e176128e\",\n      \"startedAt\": \"2026-11-22T08:00:00.000Z\",\n      \"endedAt\": null\n    }\n  }\n}"
+            },
+            {
+              "name": "Aucune session enregistrée",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clock",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clock"
+                  ]
+                },
+                "description": "Renvoie la session ouverte, la dernière session terminée ou data.session à null. Si une session est ouverte, son identifiant est mémorisé dans clockSessionId."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": {\n    \"session\": null\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Pointer son arrivée",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const session = pm.response.json().data?.session;",
+                  "  if (session?.id) {",
+                  "    pm.collectionVariables.set('clockSessionId', session.id);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clock/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clock",
+                "sessions"
+              ]
+            },
+            "description": "Ouvre une session à l’heure du serveur. Le compte connecté doit avoir un planning en vigueur. La réponse 201 mémorise l’identifiant dans clockSessionId."
+          },
+          "response": [
+            {
+              "name": "Arrivée enregistrée",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clock/sessions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clock",
+                    "sessions"
+                  ]
+                },
+                "description": "Ouvre une session à l’heure du serveur. Le compte connecté doit avoir un planning en vigueur. La réponse 201 mémorise l’identifiant dans clockSessionId."
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": {\n    \"session\": {\n      \"id\": \"db1d8593-07ad-4bea-b755-4775e176128e\",\n      \"startedAt\": \"2026-11-22T08:00:00.000Z\",\n      \"endedAt\": null\n    }\n  }\n}"
+            },
+            {
+              "name": "Planning en vigueur requis",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clock/sessions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clock",
+                    "sessions"
+                  ]
+                },
+                "description": "Ouvre une session à l’heure du serveur. Le compte connecté doit avoir un planning en vigueur. La réponse 201 mémorise l’identifiant dans clockSessionId."
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"work_schedule_required\",\n  \"data\": {}\n}"
+            },
+            {
+              "name": "Une session est déjà ouverte",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clock/sessions",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clock",
+                    "sessions"
+                  ]
+                },
+                "description": "Ouvre une session à l’heure du serveur. Le compte connecté doit avoir un planning en vigueur. La réponse 201 mémorise l’identifiant dans clockSessionId."
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"work_session_already_open\",\n  \"data\": {}\n}"
+            }
+          ]
+        },
+        {
+          "name": "Pointer son départ",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{frontendOrigin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clock/sessions/{{clockSessionId}}/end",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clock",
+                "sessions",
+                "{{clockSessionId}}",
+                "end"
+              ]
+            },
+            "description": "Clôture la session du compte connecté identifiée par clockSessionId. Relancer la même requête conserve l’heure de départ initiale."
+          },
+          "response": [
+            {
+              "name": "Départ enregistré",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clock/sessions/{{clockSessionId}}/end",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clock",
+                    "sessions",
+                    "{{clockSessionId}}",
+                    "end"
+                  ]
+                },
+                "description": "Clôture la session du compte connecté identifiée par clockSessionId. Relancer la même requête conserve l’heure de départ initiale."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"message\": \"request_successful\",\n  \"data\": {\n    \"session\": {\n      \"id\": \"db1d8593-07ad-4bea-b755-4775e176128e\",\n      \"startedAt\": \"2026-11-22T08:00:00.000Z\",\n      \"endedAt\": \"2026-11-22T16:00:00.000Z\"\n    }\n  }\n}"
+            },
+            {
+              "name": "Identifiant invalide",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clock/sessions/{{clockSessionId}}/end",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clock",
+                    "sessions",
+                    "{{clockSessionId}}",
+                    "end"
+                  ]
+                },
+                "description": "Clôture la session du compte connecté identifiée par clockSessionId. Relancer la même requête conserve l’heure de départ initiale."
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"bad_request\",\n  \"data\": {}\n}"
+            },
+            {
+              "name": "Session introuvable pour le compte connecté",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Origin",
+                    "value": "{{frontendOrigin}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/clock/sessions/{{clockSessionId}}/end",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "clock",
+                    "sessions",
+                    "{{clockSessionId}}",
+                    "end"
+                  ]
+                },
+                "description": "Clôture la session du compte connecté identifiée par clockSessionId. Relancer la même requête conserve l’heure de départ initiale."
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": false,\n  \"message\": \"work_session_not_found\",\n  \"data\": {}\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Se connecter avec le compte employé qui pointe. Pour un parcours complet, pointer son arrivée, consulter son pointage, puis pointer son départ. Si une session est déjà ouverte, la consulter pour récupérer son identifiant avant de pointer son départ."
+    },
+    {
+      "name": "09 — Suppressions (exécution manuelle)",
       "item": [
         {
           "name": "Supprimer une équipe",

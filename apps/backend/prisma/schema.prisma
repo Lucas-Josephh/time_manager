@@ -2,6 +2,7 @@ generator client {
   provider     = "prisma-client"
   output       = "../src/generated/prisma"
   moduleFormat = "cjs"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -184,6 +185,7 @@ model WorkSession {
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId, startedAt])
+  @@unique([userId], map: "work_session_one_open_per_user_idx", where: { endedAt: null })
   @@map("work_session")
 }
 
